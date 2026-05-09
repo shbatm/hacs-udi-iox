@@ -260,7 +260,7 @@ class ISYVariableNumberEntity(NumberEntity):
 class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
     """Representation of a ISY/IoX Backlight Number entity."""
 
-    _assumed_state = True  # Backlight values aren't read from device
+    _attr_assumed_state = True  # Backlight values aren't read from device
 
     def __init__(
         self,

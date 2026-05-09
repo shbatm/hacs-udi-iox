@@ -9,7 +9,7 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from pyisyox import Controller
 
-from .const import DOMAIN, ISY_URL_POSTFIX
+from .const import DOMAIN
 from .models import IsyConfigEntry
 
 
@@ -22,23 +22,26 @@ def async_register(
 
 
 async def system_health_info(hass: HomeAssistant) -> dict[str, Any]:
-    """Get info for the info page."""
-    health_info = {}
+    """Get info for the system health page.
 
-    # Get first config entry (only first ISY is supported for now)
+    pyisyox 6's ``Controller`` doesn't surface a public WebSocket
+    handle, so the v3-era ``last_heartbeat`` / ``status`` rows are
+    deferred until pyisyox exposes them. The two rows below are the
+    ones we can produce reliably from the current public surface.
+    """
+    health_info: dict[str, Any] = {}
+
     entries = hass.config_entries.async_entries(DOMAIN)
     if not entries:
         return health_info
 
     entry: IsyConfigEntry = entries[0]  # type: ignore[assignment]
     isy_data = entry.runtime_data
-    isy: Controller = isy_data.root
+    controller: Controller = isy_data.root
 
     health_info["host_reachable"] = await system_health.async_check_can_reach_url(
-        hass, f"{entry.data[CONF_HOST]}{ISY_URL_POSTFIX}"
+        hass, entry.data[CONF_HOST]
     )
-    health_info["device_connected"] = str(isy.connected)
-    health_info["last_heartbeat"] = str(isy.websocket.last_heartbeat)
-    health_info["websocket_status"] = isy.websocket.status
+    health_info["device_connected"] = controller.connected
 
     return health_info

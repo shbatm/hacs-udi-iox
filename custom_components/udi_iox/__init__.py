@@ -143,6 +143,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
 
     _async_get_or_create_isy_device_in_registry(hass, entry, controller, host)
 
+    # Build the controller-event registry *before* forwarding to platforms.
+    # Platform setup runs each entity's async_added_to_hass synchronously,
+    # which calls isy_data.controller_events.subscribe_node(...) — so the
+    # registry has to exist before that happens.
+    isy_data.controller_events = IsyControllerEvents(hass, isy_data)
+    entry.async_on_unload(isy_data.controller_events.stop)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _async_cleanup_registry_entries(hass, entry)
@@ -152,8 +159,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
         """Tear down the controller on HA shutdown."""
         _LOGGER.debug("IoX stopping event stream")
         hass.async_create_task(controller.stop())
-
-    isy_data.controller_events = IsyControllerEvents(hass, isy_data)
 
     entry.async_on_unload(
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop)
