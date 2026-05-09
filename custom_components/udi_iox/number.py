@@ -183,8 +183,14 @@ class ISYVariableNumberEntity(NumberEntity):
 
     Variables are exposed as raw dicts in pyisyox 6.0.0a1 — read via
     ``controller.variables[type][index]``, written via
-    ``controller.set_variable_value(type, id, value)``. Phase 6 wires
-    state updates from the controller's event stream.
+    ``controller.set_variable_value(type, id, value)``. Variable change
+    frames flow on the unified event stream (control ``_1``, action
+    ``"6"``/``"7"``); :class:`IsyControllerEvents` extracts the payload
+    from ``Event.event_info`` (added in pyisyox#58) and dispatches to
+    per-(type, id) listeners, which is what this entity subscribes to.
+    Pre-pyisyox#58 builds dispatch nothing for variables, so the entity
+    falls back to the optimistic local update from
+    :meth:`async_set_native_value`.
     """
 
     _attr_has_entity_name = False
@@ -215,15 +221,36 @@ class ISYVariableNumberEntity(NumberEntity):
         self._attr_device_info = device_info
 
     async def async_added_to_hass(self) -> None:
-        """Variables are dict-shaped in pyisyox 6.0.0a1 — no per-entity
-        subscription wiring yet. Phase 6 will route variable change
-        frames into a dedicated dispatcher."""
+        """Subscribe to this variable's change frames."""
+        var_type = self._node.get("type")
+        var_id = self._node.get("id")
+        if not var_type or not var_id:
+            return
+        self._unsubscribers.append(
+            self._isy_data.controller_events.subscribe_variable(
+                var_type, var_id, self._on_variable_change
+            )
+        )
 
     async def async_will_remove_from_hass(self) -> None:
         """Drop subscriptions, if any."""
         for unsub in self._unsubscribers:
             unsub()
         self._unsubscribers.clear()
+
+    @callback
+    def _on_variable_change(self, value: int | None, init: int | None) -> None:
+        """Mirror a variable-change frame into local state."""
+        if self._init_entity:
+            if init is None:
+                # Frame was a current-value change; not for this entity.
+                return
+            self._node["init"] = init
+        else:
+            if value is None:
+                return
+            self._node["value"] = value
+        self.async_write_ha_state()
 
     @property
     def native_value(self) -> float | int | None:
