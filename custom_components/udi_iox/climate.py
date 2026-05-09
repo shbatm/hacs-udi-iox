@@ -50,7 +50,7 @@ from .const import (
     UOM_ISYV4_NONE,
     UOM_TO_STATES,
 )
-from .entity import ISYNodeEntity
+from .entity import ISYNodeEntity, node_status_int
 from .helpers import convert_isy_value_to_hass
 from .models import IsyConfigEntry
 
@@ -105,7 +105,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement."""
-        if not (uom := self._node.aux_properties.get(PROP_UOM)):
+        if not (uom := self._node.properties.get(PROP_UOM)):
             return self.hass.config.units.temperature_unit
         if uom.value == UOM_ISY_CELSIUS:
             return UnitOfTemperature.CELSIUS
@@ -116,7 +116,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     @property
     def current_humidity(self) -> int | None:
         """Return the current humidity."""
-        if not (humidity := self._node.aux_properties.get(PROP_HUMIDITY)):
+        if not (humidity := self._node.properties.get(PROP_HUMIDITY)):
             return None
         if humidity.value is None:
             return None
@@ -125,7 +125,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     @property
     def hvac_mode(self) -> HVACMode:
         """Return hvac operation ie. heat, cool mode."""
-        if not (hvac_mode := self._node.aux_properties.get(CMD_CLIMATE_MODE)):
+        if not (hvac_mode := self._node.properties.get(CMD_CLIMATE_MODE)):
             return HVACMode.OFF
         if hvac_mode.value is None:
             return HVACMode.OFF
@@ -146,7 +146,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current running hvac operation if supported."""
-        hvac_action = self._node.aux_properties.get(PROP_HEAT_COOL_STATE)
+        hvac_action = self._node.properties.get(PROP_HEAT_COOL_STATE)
         if not hvac_action or hvac_action.value is None:
             return None
         return cast(
@@ -157,7 +157,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
         return convert_isy_value_to_hass(
-            self._node.status, self._uom, self._node.precision, 1
+            node_status_int(self._node), self._uom, self._node.precision, 1
         )
 
     @property
@@ -172,7 +172,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     @property
     def target_temperature_high(self) -> float | None:
         """Return the highbound target temperature we try to reach."""
-        target = self._node.aux_properties.get(PROP_SETPOINT_COOL)
+        target = self._node.properties.get(PROP_SETPOINT_COOL)
         if not target:
             return None
         return convert_isy_value_to_hass(target.value, target.uom, target.precision, 1)
@@ -180,7 +180,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     @property
     def target_temperature_low(self) -> float | None:
         """Return the lowbound target temperature we try to reach."""
-        target = self._node.aux_properties.get(PROP_SETPOINT_HEAT)
+        target = self._node.properties.get(PROP_SETPOINT_HEAT)
         if not target:
             return None
         return convert_isy_value_to_hass(target.value, target.uom, target.precision, 1)
@@ -188,7 +188,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     @property
     def fan_mode(self) -> str:
         """Return the current fan mode ie. auto, on."""
-        fan_mode = self._node.aux_properties.get(CMD_CLIMATE_FAN_SETTING)
+        fan_mode = self._node.properties.get(CMD_CLIMATE_FAN_SETTING)
         if not fan_mode or fan_mode.value is None:
             return FAN_OFF
         return UOM_TO_STATES[UOM_FAN_MODES].get(int(fan_mode.value), FAN_OFF)
@@ -204,11 +204,15 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
             if self.hvac_mode == HVACMode.HEAT:
                 target_temp_low = target_temp
         if target_temp_low is not None:
-            await self._node.set_climate_setpoint_heat(int(target_temp_low))
+            # The set_climate_setpoint_* wrappers handle precision via the
+            # editor codec — pass the float directly so half-degree
+            # setpoints round-trip correctly (was a v3 bug where casting
+            # to int dropped the fractional component).
+            await self._node.set_climate_setpoint_heat(target_temp_low)
             # Presumptive setting--event stream will correct if cmd fails:
             self._target_temp_low = target_temp_low
         if target_temp_high is not None:
-            await self._node.set_climate_setpoint_cool(int(target_temp_high))
+            await self._node.set_climate_setpoint_cool(target_temp_high)
             # Presumptive setting--event stream will correct if cmd fails:
             self._target_temp_high = target_temp_high
         self.async_write_ha_state()

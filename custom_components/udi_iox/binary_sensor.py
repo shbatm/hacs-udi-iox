@@ -41,7 +41,7 @@ from .const import (
     TYPE_CATEGORY_CLIMATE,
     TYPE_INSTEON_MOTION,
 )
-from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType
+from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
 from .models import IsyConfigEntry
 
 DEVICE_PARENT_REQUIRED = [
@@ -263,7 +263,7 @@ class ISYBinarySensorEntity(ISYNodeEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """Get whether the ISY binary sensor device is on."""
-        value = self._node.aux_properties[self._control].value
+        value = self._node.properties[self._control].value
         if value is None:
             return None
         return bool(value)
@@ -291,11 +291,11 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
         super().__init__(node=node, device_class=device_class, device_info=device_info)
         self._negative_node: Node | None = None
         self._heartbeat_device: ISYBinarySensorHeartbeat | None = None
-        if self._node.status is None:
+        if node_status_int(self._node) is None:
             self._computed_state = unknown_state
             self._status_was_unknown = True
         else:
-            self._computed_state = bool(self._node.status)
+            self._computed_state = bool(node_status_int(self._node))
             self._status_was_unknown = False
 
     async def async_added_to_hass(self) -> None:
@@ -338,8 +338,8 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
         # negative and positive nodes disagree on the state (both ON or
         # both OFF).
         if (
-            self._negative_node.status != ISY_VALUE_UNKNOWN
-            and self._negative_node.status == self._node.status
+            node_status_int(self._negative_node) != ISY_VALUE_UNKNOWN
+            and node_status_int(self._negative_node) == node_status_int(self._node)
         ):
             # The states disagree, therefore we cannot determine the state
             # of the sensor until we receive our first ON event.
@@ -398,7 +398,7 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
         an accompanying Control event, so we need to watch for it.
         """
         if self._status_was_unknown and self._computed_state is None:
-            self._computed_state = bool(self._node.status)
+            self._computed_state = bool(node_status_int(self._node))
             self._status_was_unknown = False
             self.async_write_ha_state()
             self._async_heartbeat()
@@ -553,4 +553,4 @@ class ISYBinarySensorProgramEntity(ISYProgramEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         """Get whether the ISY binary sensor device is on."""
-        return bool(self._node.status)
+        return bool(node_status_int(self._node))

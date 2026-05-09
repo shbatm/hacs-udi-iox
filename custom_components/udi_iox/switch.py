@@ -15,9 +15,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Group, Node
+from pyisyox import Group, Node, NodeCommandError
+from pyisyox.constants import CMD_OFF, CMD_ON
 
-from .entity import ISYGroupEntity, ISYNodeEntity, ISYProgramEntity, NodeEventType
+from .entity import ISYGroupEntity, ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
 from .models import IsyConfigEntry, ProgramRecord
 
 
@@ -89,19 +90,27 @@ class ISYSwitchEntityMixin(SwitchEntity):
     @property
     def is_on(self) -> bool | None:
         """Get whether the ISY device is in the on state."""
-        if self._node.status is None:
+        if node_status_int(self._node) is None:
             return None
-        return bool(self._node.status)
+        return bool(node_status_int(self._node))
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Send the turn off command to the ISY switch."""
-        if not await self._node.turn_off():
-            raise HomeAssistantError(f"Unable to turn off switch {self._node.address}")
+        """Send the turn off command to the switch."""
+        try:
+            await self._node.send_command(CMD_OFF)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to turn off switch {self._node.address}: {err}"
+            ) from err
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Send the turn on command to the ISY switch."""
-        if not await self._node.turn_on():
-            raise HomeAssistantError(f"Unable to turn on switch {self._node.address}")
+        """Send the turn on command to the switch."""
+        try:
+            await self._node.send_command(CMD_ON)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to turn on switch {self._node.address}: {err}"
+            ) from err
 
 
 class ISYGroupSwitchEntity(ISYGroupEntity, ISYSwitchEntityMixin):
@@ -126,7 +135,7 @@ class ISYSwitchProgramEntity(ISYProgramEntity, SwitchEntity):
     @property
     def is_on(self) -> bool:
         """Get whether the ISY switch program is on."""
-        return bool(self._node.status)
+        return bool(node_status_int(self._node))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Send the turn on command to the ISY switch program."""

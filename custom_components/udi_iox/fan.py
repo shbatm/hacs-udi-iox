@@ -16,10 +16,10 @@ from homeassistant.util.percentage import (
     ranged_value_to_percentage,
 )
 from pyisyox import Node
-from pyisyox.constants import Protocol
+from pyisyox.constants import CMD_OFF, Protocol
 
 from .const import _LOGGER
-from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType
+from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
 from .models import IsyConfigEntry, ProgramRecord
 
 SPEED_RANGE = (1, 255)  # off is not included
@@ -69,13 +69,13 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
         self._update_fan_attrs()
 
     def _update_fan_attrs(self) -> None:
-        if self._node.status is None:
+        if node_status_int(self._node) is None:
             self._attr_is_on = None
             self._attr_percentage = None
         else:
-            self._attr_is_on = bool(self._node.status != 0)
+            self._attr_is_on = bool(node_status_int(self._node) != 0)
             self._attr_percentage = ranged_value_to_percentage(
-                SPEED_RANGE, self._node.status
+                SPEED_RANGE, node_status_int(self._node)
             )
 
     @callback
@@ -85,14 +85,13 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
         super().async_on_update(event, key)
 
     async def async_set_percentage(self, percentage: int) -> None:
-        """Set node to speed percentage for the ISY fan device."""
+        """Set the fan to a speed percentage."""
         if percentage == 0:
-            await self._node.turn_off()
+            await self._node.send_command(CMD_OFF)
             return
 
         isy_speed = math.ceil(percentage_to_ranged_value(SPEED_RANGE, percentage))
-
-        await self._node.turn_on(val=isy_speed)
+        await self._node.set_on_level(isy_speed)
 
     async def async_turn_on(
         self,
@@ -100,12 +99,12 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
         preset_mode: str | None = None,
         **kwargs: Any,
     ) -> None:
-        """Send the turn on command to the ISY fan device."""
+        """Send the turn on command."""
         await self.async_set_percentage(percentage or 67)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Send the turn off command to the ISY fan device."""
-        await self._node.turn_off()
+        """Send the turn off command."""
+        await self._node.send_command(CMD_OFF)
 
 
 class ISYFanProgramEntity(ISYProgramEntity, FanEntity):
@@ -121,13 +120,13 @@ class ISYFanProgramEntity(ISYProgramEntity, FanEntity):
         self._update_fan_attrs()
 
     def _update_fan_attrs(self) -> None:
-        if self._node.status is None:
+        if node_status_int(self._node) is None:
             self._attr_is_on = None
             self._attr_percentage = None
         else:
-            self._attr_is_on = bool(self._node.status != 0)
+            self._attr_is_on = bool(node_status_int(self._node) != 0)
             self._attr_percentage = ranged_value_to_percentage(
-                SPEED_RANGE, float(self._node.status)
+                SPEED_RANGE, float(node_status_int(self._node))
             )
 
     @callback

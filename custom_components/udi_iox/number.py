@@ -30,6 +30,7 @@ from homeassistant.util.percentage import (
 from pyisyox import (
     EventListener,
     Node,
+    NodeCommandError,
     NodeLifecycleEvent,
     NodePropertyValue,
 )
@@ -42,11 +43,9 @@ from pyisyox.constants import (
     NodeChangeAction,
 )
 
-from .models import VariableRecord
-
 from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
-from .entity import ISYNodeEntity
-from .models import IsyConfigEntry
+from .entity import ISYNodeEntity, node_status_int
+from .models import IsyConfigEntry, VariableRecord
 
 ISY_MAX_SIZE = (2**32) / 2
 ON_RANGE = (1, 255)  # Off is not included
@@ -167,10 +166,12 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
             await self._node.set_on_level(int(value))
             return
 
-        if not await self._node.send_cmd(self._control, val=value, uom=node_prop.uom):
+        try:
+            await self._node.send_command(self._control, value)
+        except NodeCommandError as err:
             raise HomeAssistantError(
-                f"Could not set {self.name} to {value} for {self._node.address}"
-            )
+                f"Could not set {self.name} to {value} for {self._node.address}: {err}"
+            ) from err
 
 
 class ISYVariableNumberEntity(NumberEntity):
@@ -213,7 +214,7 @@ class ISYVariableNumberEntity(NumberEntity):
     @property
     def native_value(self) -> float | int | None:
         """Return the state of the variable."""
-        return self._node.initial if self._init_entity else self._node.status
+        return self._node.initial if self._init_entity else node_status_int(self._node)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -286,12 +287,13 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-
-        if not await self._node.send_cmd(
-            CMD_BACKLIGHT, val=int(value), uom=UOM_PERCENTAGE
-        ):
+        # set_backlight resolves the editor (percentage or index style)
+        # internally — caller passes a single value.
+        try:
+            await self._node.set_backlight(int(value))
+        except NodeCommandError as err:
             raise HomeAssistantError(
-                f"Could not set backlight to {value}% for {self._node.address}"
-            )
+                f"Could not set backlight to {value}% for {self._node.address}: {err}"
+            ) from err
         self._attr_native_value = value
         self.async_write_ha_state()

@@ -32,6 +32,7 @@ from pyisyox.constants import (
 from pyisyox import (
     EventListener,
     Node,
+    NodeCommandError,
     NodeLifecycleEvent,
     NodePropertyValue,
 )
@@ -75,7 +76,7 @@ async def async_setup_entry(
             options = RAMP_RATE_OPTIONS
         elif control == CMD_BACKLIGHT:
             options = BACKLIGHT_INDEX
-        elif (uom := node.aux_properties[control].uom) == UOM_INDEX and (
+        elif (uom := node.properties[control].uom) == UOM_INDEX and (
             options_dict := UOM_TO_STATES.get(uom)
         ):
             options = list(options_dict.values())
@@ -146,9 +147,9 @@ class ISYAuxControlIndexSelectEntity(ISYNodeEntity, SelectEntity):
         """Change the selected option."""
         node_prop: NodePropertyValue = self._node.properties[self._control]
 
-        await self._node.send_cmd(
-            self._control, val=self.options.index(option), uom=node_prop.uom
-        )
+        # send_command resolves the editor codec from the node's profile —
+        # the v3 explicit uom kwarg is gone.
+        await self._node.send_command(self._control, self.options.index(option))
 
 
 class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
@@ -204,13 +205,14 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
         self.async_write_ha_state()
 
     async def async_select_option(self, option: str) -> None:
-        """Change the selected option."""
-
-        if not await self._node.send_cmd(
-            CMD_BACKLIGHT, val=BACKLIGHT_INDEX.index(option), uom=ISY_UOM_INDEX
-        ):
+        """Change the selected backlight option."""
+        # set_backlight handles index-style editors directly — accepts
+        # the friendly option name when the editor's enum table has it.
+        try:
+            await self._node.set_backlight(option)
+        except NodeCommandError as err:
             raise HomeAssistantError(
-                f"Could not set backlight to {option} for {self._node.address}"
-            )
+                f"Could not set backlight to {option} for {self._node.address}: {err}"
+            ) from err
         self._attr_current_option = option
         self.async_write_ha_state()

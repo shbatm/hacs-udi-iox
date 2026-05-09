@@ -14,10 +14,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Node
+from pyisyox import Node, NodeCommandError
+from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import UOM_8_BIT_RANGE
-from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType
+from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
 from .models import IsyConfigEntry, ProgramRecord
 
 
@@ -52,19 +53,19 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
     _node: Node
 
     def _update_cover_attrs(self) -> None:
-        if self._node.status is None:
+        if node_status_int(self._node) is None:
             self._attr_current_cover_position = None
             self._attr_is_closed = None
             return
         if self._node.uom == UOM_8_BIT_RANGE:
             self._attr_current_cover_position = round(
-                cast(float, self._node.status) * 100.0 / 255.0
+                cast(float, node_status_int(self._node)) * 100.0 / 255.0
             )
         else:
             self._attr_current_cover_position = int(
-                sorted((0, self._node.status, 100))[1]
+                sorted((0, node_status_int(self._node), 100))[1]
             )
-        self._attr_is_closed = bool(self._node.status == 0)
+        self._attr_is_closed = bool(node_status_int(self._node) == 0)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to events and set initial state."""
@@ -78,24 +79,34 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
         super().async_on_update(event, key)
 
     async def async_open_cover(self, **kwargs: Any) -> None:
-        """Send the open cover command to the ISY cover device."""
-        if not await self._node.turn_on():
-            raise HomeAssistantError(f"Unable to open the cover {self._node.address}")
+        """Send the open cover command."""
+        try:
+            await self._node.send_command(CMD_ON)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to open the cover {self._node.address}: {err}"
+            ) from err
 
     async def async_close_cover(self, **kwargs: Any) -> None:
-        """Send the close cover command to the ISY cover device."""
-        if not await self._node.turn_off():
-            raise HomeAssistantError(f"Unable to close the cover {self._node.address}")
+        """Send the close cover command."""
+        try:
+            await self._node.send_command(CMD_OFF)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to close the cover {self._node.address}: {err}"
+            ) from err
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Move the cover to a specific position."""
         position = kwargs[ATTR_POSITION]
         if self._node.uom == UOM_8_BIT_RANGE:
             position = round(position * 255.0 / 100.0)
-        if not await self._node.turn_on(val=position):
+        try:
+            await self._node.set_on_level(position)
+        except NodeCommandError as err:
             raise HomeAssistantError(
-                f"Unable to set cover {self._node.address} position"
-            )
+                f"Unable to set cover {self._node.address} position: {err}"
+            ) from err
 
 
 class ISYCoverProgramEntity(ISYProgramEntity, CoverEntity):
@@ -106,12 +117,12 @@ class ISYCoverProgramEntity(ISYProgramEntity, CoverEntity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to events and set initial state."""
         await super().async_added_to_hass()
-        self._attr_is_closed = bool(self._node.status)
+        self._attr_is_closed = bool(node_status_int(self._node))
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:
         """Handle the update event from the ISY Node."""
-        self._attr_is_closed = bool(self._node.status)
+        self._attr_is_closed = bool(node_status_int(self._node))
         super().async_on_update(event, key)
 
     async def async_open_cover(self, **kwargs: Any) -> None:

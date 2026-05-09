@@ -187,8 +187,9 @@ async def async_setup_entry(
     entry: IsyConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the ISY sensor platform."""
+    """Set up the IoX sensor platform."""
     isy_data = entry.runtime_data
+    controller = isy_data.root
     entities: list[ISYSensorEntity] = []
     devices: dict[str, DeviceInfo] = isy_data.devices
 
@@ -213,10 +214,17 @@ async def async_setup_entry(
             return (None, isy_states, True)
         if (
             uom == UOM_INDEX
-            and (node_def := node.get_node_def()) is not None
-            and (editor := node_def.status_editors.get(control))
+            and (node_def := node.nodedef) is not None
+            and (prop := node_def.properties.get(control)) is not None
+            and (
+                editor := controller.profile.find_editor(
+                    prop.editor_id, node.family_id, node.instance_id
+                )
+            )
+            is not None
+            and (names := getattr(editor, "names", None)) is not None
         ):
-            return (None, editor.values, True)
+            return (None, names, True)
         # Handle on/off or unlisted index types
         if uom in (UOM_ON_OFF, UOM_INDEX):
             return (None, None, True)
@@ -235,7 +243,7 @@ async def async_setup_entry(
         native_uom = None
         options_dict = None
 
-        if (prop := node.aux_properties.get(control)) is not None:
+        if (prop := node.properties.get(control)) is not None:
             # Lookup native units and options list if it has one
             native_uom, options_dict, is_enum = get_native_uom(prop.uom, node, control)
 
@@ -323,10 +331,10 @@ class ISYSensorEntity(ISYNodeEntity, SensorEntity):
     @property
     def target(self) -> NodePropertyValue | None:
         """Return target for the sensor."""
-        if self._control not in self._node.aux_properties:
+        if self._control not in self._node.properties:
             # Property not yet set (i.e. no errors)
             return None
-        return self._node.aux_properties[self._control]
+        return self._node.properties[self._control]
 
     @property
     def target_value(self) -> Any:

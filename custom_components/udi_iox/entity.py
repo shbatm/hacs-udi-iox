@@ -16,7 +16,12 @@ from pyisyox import (
     NodeLifecycleEvent,
     NodePropertyValue,
 )
-from pyisyox.constants import COMMAND_FRIENDLY_NAME, PROP_STATUS, Protocol
+from pyisyox.constants import (
+    COMMAND_FRIENDLY_NAME,
+    ISY_VALUE_UNKNOWN,
+    PROP_STATUS,
+    Protocol,
+)
 from pyisyox.schema.nodedef import NodeDef
 
 from .const import DOMAIN
@@ -24,6 +29,25 @@ from .models import ProgramRecord, VariableRecord
 
 NodeType: TypeAlias = Node | Group | Folder | ProgramRecord | VariableRecord
 NodeEventType: TypeAlias = NodePropertyValue | NodeLifecycleEvent
+
+
+def node_status_int(node: Node) -> int | None:
+    """Read ``node.status`` as a scalar int (or ``None`` when unknown).
+
+    pyisyox 6 exposes ``Node.status`` as a structured
+    :class:`NodePropertyValue` so callers can also reach uom/formatted.
+    HA platforms only ever want the numeric value — this helper does
+    the unwrap and coerces the string-encoded value to int. Callers
+    that want a float, the formatted string, or the uom should still
+    reach for ``node.status.value`` / ``.formatted`` / ``.uom`` directly.
+    """
+    prop = node.status
+    if prop is None or not prop.value or prop.value == ISY_VALUE_UNKNOWN:
+        return None
+    try:
+        return int(float(prop.value))
+    except (ValueError, TypeError):
+        return None
 
 
 class ISYEntity(Entity):
@@ -101,15 +125,19 @@ class ISYNodeEntity(ISYEntity):
         if description is not None:
             self.entity_description = description
 
-        # Determine the entity or device name to use
+        # Determine the entity or device name to use. v6 NodeDef stores
+        # property labels per-property at nodedef.properties[id].name;
+        # the legacy status_names dict is gone.
         name: str | None = None
-        self._node_def = node.get_node_def()
-        if self._node_def is not None:
-            name = self._node_def.status_names.get(control)
-        elif control != PROP_STATUS:
+        self._node_def = node.nodedef
+        if self._node_def is not None and (
+            prop := self._node_def.properties.get(control)
+        ):
+            name = prop.name or None
+        if name is None and control != PROP_STATUS:
             name = COMMAND_FRIENDLY_NAME.get(control, control).replace("_", " ").title()
 
-        if not node.is_device_root:
+        if node.parent_address is not None:
             name = f"{node.name} {name}" if name else node.name
             self._attr_has_entity_name = False
         else:
@@ -146,12 +174,19 @@ class ISYNodeEntity(ISYEntity):
         self.async_write_ha_state()
 
     async def async_send_node_command(self, command: str) -> None:
-        """Respond to an entity service command call."""
-        if not hasattr(self._node, command):
-            raise HomeAssistantError(
-                f"Invalid service call: {command} for device {self.entity_id}"
-            )
-        await getattr(self._node, command)()
+        """Respond to an entity service command call.
+
+        The legacy v3 ``send_node_command`` service mapped friendly
+        names ("brighten", "fast_off") onto Node helper methods. v6
+        unifies on Node.send_command — translate friendly names to the
+        canonical IoX command id and let the editor codec validate.
+        """
+        from pyisyox.constants import COMMAND_FRIENDLY_NAME
+
+        # Reverse the friendly-name → IoX-id map.
+        friendly_to_id = {v: k for k, v in COMMAND_FRIENDLY_NAME.items()}
+        cmd_id = friendly_to_id.get(command, command)
+        await self._node.send_command(cmd_id)
 
     async def async_send_raw_node_command(
         self,
@@ -160,37 +195,42 @@ class ISYNodeEntity(ISYEntity):
         unit_of_measurement: str | None = None,
         parameters: Any | None = None,
     ) -> None:
-        """Respond to an entity service raw command call."""
-        if not hasattr(self._node, "send_cmd"):
-            raise HomeAssistantError(
-                f"Invalid service call: {command} for device {self.entity_id}"
-            )
-        await self._node.send_cmd(command, value, unit_of_measurement, parameters)
+        """Respond to an entity service raw command call.
+
+        pyisyox 6 routes all commands through Node.send_command, which is
+        editor-validated. ``unit_of_measurement`` and ``parameters`` from
+        the legacy v3 surface no longer apply — the codec resolves them
+        from the node's profile. The service is kept for backwards
+        compatibility but only the (command, value) pair is honored.
+        """
+        params = (value,) if value is not None else ()
+        await self._node.send_command(command, *params)
 
     async def async_get_zwave_parameter(self, parameter: int) -> None:
-        """Respond to service: request a Z-Wave device parameter from ISY."""
-        if self._node.protocol != Protocol.ZWAVE:
-            raise HomeAssistantError(
-                "Invalid service call: cannot request Z-Wave Parameter for non-Z-Wave"
-                f" device {self.entity_id}"
-            )
-        await self._node.get_zwave_parameter(parameter)
+        """Respond to service: request a Z-Wave device parameter."""
+        # Z-Wave parameter REST surface is deferred in pyisyox 6.0.0a1;
+        # /rest/zwave/* hasn't been verified against a live capture yet.
+        raise HomeAssistantError(
+            "Z-Wave parameter services are not supported in this release"
+        )
 
     async def async_set_zwave_parameter(
         self, parameter: int, value: int, size: int
     ) -> None:
-        """Respond to service: set a Z-Wave device parameter via ISY."""
-        if self._node.protocol != Protocol.ZWAVE:
-            raise HomeAssistantError(
-                "Invalid service call: cannot set Z-Wave Parameter for non-Z-Wave"
-                f" device {self.entity_id}"
-            )
-        await self._node.set_zwave_parameter(parameter, value, size)
-        await self._node.get_zwave_parameter(parameter)
+        """Respond to service: set a Z-Wave device parameter."""
+        raise HomeAssistantError(
+            "Z-Wave parameter services are not supported in this release"
+        )
 
     async def async_rename_node(self, name: str) -> None:
-        """Respond to an entity service command to rename a node on the ISY."""
-        await self._node.rename(name)
+        """Rename the underlying IoX node.
+
+        pyisyox 6 doesn't expose a per-Node rename helper yet; the
+        controller-level wrapper is the path forward.
+        """
+        raise HomeAssistantError(
+            "Renaming nodes from HA is not yet supported in this release"
+        )
 
 
 class ISYProgramEntity(ISYEntity):
