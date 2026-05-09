@@ -204,10 +204,6 @@ UOM_INDEX = "25"
 UOM_ON_OFF = "2"
 UOM_PERCENTAGE = "51"
 
-# Phase 3 deletes the legacy NODE_FILTERS table; node-to-platform
-# classification is now driven by pyisyox's type-based introspection
-# (Node.is_thermostat / is_lock / is_dimmable / is_battery_node) plus
-# pyisyox.classify(nodedef) for plugin nodedefs. See helpers.py.
 NODE_AUX_FILTERS: dict[str, Platform] = {
     PROP_ON_LEVEL: Platform.NUMBER,
     PROP_RAMP_RATE: Platform.SELECT,

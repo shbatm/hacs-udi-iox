@@ -1,28 +1,18 @@
 """IoX controller event handlers + per-entity dispatch registry.
 
-Single source of subscriptions to the pyisyox 6 controller event /
-lifecycle streams. Entities don't touch the controller directly:
-they call :meth:`IsyControllerEvents.subscribe_node` /
-:meth:`subscribe_lifecycle`, which add their callback to a registry
-keyed by ``(node_address, control_id_or_None)``.
+Single source of subscriptions to the controller event / lifecycle
+streams. Entities don't touch the controller directly: they call
+:meth:`IsyControllerEvents.subscribe_node` /
+:meth:`subscribe_lifecycle` / :meth:`subscribe_variable`, which add
+their callback to a registry keyed by ``(node_address, control_id)``,
+all-lifecycle, or ``(var_type, var_id)``.
 
-The two top-level listeners we register on the controller fan out
-to those registries — O(1) per event regardless of how many
-entities share the same address. (Naïvely, every entity calling
+The two top-level listeners we register on the controller fan out to
+those registries — O(1) per event regardless of how many entities
+share the same address. (Naïvely, every entity calling
 ``controller.add_event_listener`` directly would force the controller
 to call N listeners per event, which on a real eisy with 200+ entities
 is enough to matter.)
-
-Lifecycle handling currently logs each verb. Per fork plan §Phase 5
-the next step is to wire HA Repair cards keyed off
-:class:`NodeLifecycleAction`:
-
-* ``ND`` (added)            → "New IoX device detected — reload?"
-* ``NN`` (renamed)          → entity-registry name update, no reload
-* ``NR`` (removed)          → entity unavailable + Repair "delete?"
-* ``MV`` / ``RG`` / ``PC``  → re-evaluate device area / parent
-
-That dispatch is the next follow-up after entity subscriptions stabilize.
 """
 
 from __future__ import annotations
@@ -81,9 +71,10 @@ class IsyControllerEvents:
         # the callback (cheap — lifecycle events are rare).
         self._lifecycle_listeners: list[LifecycleCallback] = []
         # Per-(var_type, var_id) registry. Variable change frames carry
-        # the new value in the eventInfo payload, which pyisyox 6
-        # preserves on Event.event_info (see pyisyox#58). Pre-#58
-        # consumers see no var dispatches because the field is empty.
+        # the new value in <eventInfo>, which the dispatcher reads off
+        # Event.event_info. When event_info isn't populated (older
+        # pyisyox builds) variable dispatch silently no-ops and entities
+        # fall back to the optimistic local update from their writes.
         self._variable_listeners: dict[
             tuple[str, str], list[VariableEventCallback]
         ] = {}
@@ -250,13 +241,7 @@ class IsyControllerEvents:
 
     @callback
     def _dispatch_variable_event(self, event: Event) -> None:
-        """Parse the ``<var type id><val>/<init>`` payload and fan out.
-
-        Reads :attr:`Event.event_info` (added in pyisyox#58). On
-        pyisyox 6.0.0a1 builds before that lands the field is absent or
-        empty and dispatch silently no-ops — entities fall back to
-        optimistic local updates from their write paths.
-        """
+        """Parse the ``<var type id><val>/<init>`` payload and fan out."""
         event_info = getattr(event, "event_info", "") or ""
         if not event_info:
             return

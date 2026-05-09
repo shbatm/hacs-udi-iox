@@ -133,7 +133,7 @@
     },
     "send_program_command": {
       "name": "Send program command",
-      "description": "Not supported in this release — typed program wrappers are deferred in pyisyox 6.0.0a1. The schema is kept so existing automations parse, but the call will raise.",
+      "description": "Not currently supported. The schema is kept so existing automations parse, but the call will raise.",
       "fields": {
         "address": {
           "name": "Address",
@@ -155,7 +155,7 @@
     },
     "run_network_resource": {
       "name": "Run network resource",
-      "description": "Not supported in this release — /rest/networking has no typed wrapper in pyisyox 6.0.0a1.",
+      "description": "Not currently supported.",
       "fields": {
         "address": {
           "name": "Address",

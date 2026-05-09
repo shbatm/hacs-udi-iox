@@ -179,18 +179,14 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
 
 
 class ISYVariableNumberEntity(NumberEntity):
-    """Representation of an IoX variable as a number entity.
+    """IoX variable as a number entity.
 
-    Variables are exposed as raw dicts in pyisyox 6.0.0a1 — read via
-    ``controller.variables[type][index]``, written via
-    ``controller.set_variable_value(type, id, value)``. Variable change
-    frames flow on the unified event stream (control ``_1``, action
-    ``"6"``/``"7"``); :class:`IsyControllerEvents` extracts the payload
-    from ``Event.event_info`` (added in pyisyox#58) and dispatches to
-    per-(type, id) listeners, which is what this entity subscribes to.
-    Pre-pyisyox#58 builds dispatch nothing for variables, so the entity
-    falls back to the optimistic local update from
-    :meth:`async_set_native_value`.
+    Variables are raw dicts — read via ``controller.variables``,
+    written via ``controller.set_variable_value`` /
+    ``set_variable_init``. Variable change frames ride on the unified
+    event stream (control ``_1``, action ``"6"`` value / ``"7"`` init);
+    :class:`IsyControllerEvents` parses the ``<var>`` payload off
+    ``Event.event_info`` and fans out to per-(type, id) listeners.
     """
 
     _attr_has_entity_name = False
@@ -267,10 +263,8 @@ class ISYVariableNumberEntity(NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Write the variable value via the controller.
 
-        pyisyox 6.0.0a1 doesn't yet dispatch variable-change events on
-        the WS, so the entity optimistically mirrors the write into
-        its local record + HA state. When pyisyox grows variable
-        event routing, this falls through to a real subscription.
+        Updates local state optimistically before the WS echo arrives —
+        if the write fails the next event re-syncs.
         """
         controller = self._isy_data.root
         var_type = self._node.get("type")

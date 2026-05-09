@@ -148,7 +148,7 @@ class ISYNodeButtonEntity(ButtonEntity):
 
 
 class ISYNodeQueryButtonEntity(ISYNodeButtonEntity):
-    """Press → :meth:`Node.query` (or :meth:`Controller.refresh`)."""
+    """Press → :meth:`Node.send_command` ``QUERY`` (or ``Controller.refresh``)."""
 
     _node: Node | Controller
 
@@ -157,8 +157,6 @@ class ISYNodeQueryButtonEntity(ISYNodeButtonEntity):
         if isinstance(self._node, Controller):
             await self._node.refresh()
         else:
-            # Node.query is the v3 helper; pyisyox 6 routes it through
-            # send_command(\"QUERY\") — same wire effect.
             await self._node.send_command("QUERY")
 
 
@@ -173,12 +171,7 @@ class ISYNodeBeepButtonEntity(ISYNodeButtonEntity):
 
 
 class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
-    """Press → run an IoX network resource.
-
-    Network resources aren't yet typed in pyisyox 6.0.0a1; the run
-    surface is deferred to a later release. Pressing the button
-    raises until that wrapper lands.
-    """
+    """Press → run an IoX network resource (currently unsupported)."""
 
     _attr_has_entity_name = False
     _node: NetworkResourceRecord
@@ -188,5 +181,5 @@ class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
         from homeassistant.exceptions import HomeAssistantError
 
         raise HomeAssistantError(
-            "Network resource execution is not supported in this release"
+            "Network resource execution is not supported"
         )

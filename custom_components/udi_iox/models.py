@@ -26,9 +26,8 @@ if TYPE_CHECKING:
     from .controller_events import IsyControllerEvents
 
 
-# Variables, programs and network resources are exposed as raw dicts in pyisyox
-# 6.0.0a1 — typed wrappers are deferred to a later library release. The dict
-# entries always carry an "address" key for unique-id derivation.
+# Variables, programs and network resources are exposed as raw dicts.
+# Each carries an "address" key for unique-id derivation.
 VariableRecord = dict[str, Any]
 ProgramRecord = dict[str, Any]
 NetworkResourceRecord = dict[str, Any]

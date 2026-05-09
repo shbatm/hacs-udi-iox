@@ -133,20 +133,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
         )
 
     if enable_networking:
-        # /rest/networking is exposed as raw data on the controller in
-        # pyisyox 6.0.0a1; typed wrappers are deferred. Phase 6 will wire
-        # the button platform once the wrapper lands.
         _LOGGER.debug(
-            "Network resources requested but pyisyox 6.0.0a1 does not yet"
-            " expose typed network commands; skipping"
+            "Network resources requested but no typed wrapper is available;"
+            " skipping"
         )
 
     _async_get_or_create_isy_device_in_registry(hass, entry, controller, host)
 
-    # Build the controller-event registry *before* forwarding to platforms.
-    # Platform setup runs each entity's async_added_to_hass synchronously,
-    # which calls isy_data.controller_events.subscribe_node(...) — so the
-    # registry has to exist before that happens.
+    # Platform setup runs each entity's async_added_to_hass synchronously
+    # via async_forward_entry_setups, and entities subscribe through
+    # isy_data.controller_events — so the registry must exist first.
     isy_data.controller_events = IsyControllerEvents(hass, isy_data)
     entry.async_on_unload(isy_data.controller_events.stop)
 

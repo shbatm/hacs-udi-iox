@@ -249,41 +249,33 @@ class ISYNodeEntity(ISYEntity):
         unit_of_measurement: str | None = None,
         parameters: Any | None = None,
     ) -> None:
-        """Respond to an entity service raw command call.
+        """Respond to an entity-service raw command call.
 
-        pyisyox 6 routes all commands through Node.send_command, which is
-        editor-validated. ``unit_of_measurement`` and ``parameters`` from
-        the legacy v3 surface no longer apply — the codec resolves them
-        from the node's profile. The service is kept for backwards
-        compatibility but only the (command, value) pair is honored.
+        ``unit_of_measurement`` and ``parameters`` are ignored — the
+        editor codec on :meth:`Node.send_command` resolves them from
+        the node's profile. Only ``(command, value)`` is honored.
         """
         params = (value,) if value is not None else ()
         await self._node.send_command(command, *params)
 
     async def async_get_zwave_parameter(self, parameter: int) -> None:
-        """Respond to service: request a Z-Wave device parameter."""
-        # Z-Wave parameter REST surface is deferred in pyisyox 6.0.0a1;
-        # /rest/zwave/* hasn't been verified against a live capture yet.
+        """Z-Wave parameter read — not supported."""
         raise HomeAssistantError(
-            "Z-Wave parameter services are not supported in this release"
+            "Z-Wave parameter services are not supported"
         )
 
     async def async_set_zwave_parameter(
         self, parameter: int, value: int, size: int
     ) -> None:
-        """Respond to service: set a Z-Wave device parameter."""
+        """Z-Wave parameter write — not supported."""
         raise HomeAssistantError(
-            "Z-Wave parameter services are not supported in this release"
+            "Z-Wave parameter services are not supported"
         )
 
     async def async_rename_node(self, name: str) -> None:
-        """Rename the underlying IoX node.
-
-        pyisyox 6 doesn't expose a per-Node rename helper yet; the
-        controller-level wrapper is the path forward.
-        """
+        """Rename the underlying node — not supported."""
         raise HomeAssistantError(
-            "Renaming nodes from HA is not yet supported in this release"
+            "Renaming nodes from HA is not supported"
         )
 
 
@@ -308,8 +300,8 @@ class ISYProgramEntity(ISYEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Get the state attributes for the device."""
-        # Programs are exposed as raw dicts in pyisyox 6.0.0a1; extract
-        # known fields with .get() so missing keys don't blow up.
+        # Programs are raw dicts; extract known fields with .get() so
+        # missing keys don't blow up.
         attr: dict[str, Any] = {}
         if self._actions:
             attr["actions_enabled"] = self._actions.get("enabled")

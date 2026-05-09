@@ -189,14 +189,11 @@ def _categorize_nodes(
 ) -> None:
     """Sort nodes onto HA platforms.
 
-    The ``controller`` and ``host`` arguments default for backward
-    compatibility with call sites that don't yet pass them; without
-    them the function still classifies nodes but skips DeviceInfo and
-    plugin-nodedef classification.
+    ``controller`` and ``host`` are required to resolve nodedefs from
+    the live profile and stamp DeviceInfo; the defaults exist only so
+    older test fixtures that don't pass them no-op cleanly.
     """
     if controller is None:
-        # __init__.py always supplies controller — this branch only
-        # fires from older test fixtures while phase 7 is in progress.
         return
 
     ignore_identifier = isy_options.get(CONF_IGNORE_STRING, DEFAULT_IGNORE_STRING)
@@ -257,13 +254,26 @@ def _categorize_nodes(
 
         # Native nodes: type-based introspection.
         primary = _primary_platform_for_native(node)
+
+        # KeypadLinc-style sub-buttons (LED-only sub-nodes that fall
+        # through ``_primary_platform_for_native`` to SWITCH) don't
+        # control a load — only their own LED. Surface them as EVENT
+        # only, drop the would-be switch entity entirely.
+        is_subnode_button = (
+            node.parent_address is not None
+            and primary == Platform.SWITCH
+            and node.protocol == Protocol.INSTEON
+        )
+        if is_subnode_button:
+            if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
+                isy_data.nodes[Platform.EVENT].append(node)
+            continue
+
         isy_data.nodes[primary].append(node)
         _fan_out_native_aux(isy_data, node)
 
-        # Parallel: native nodes that emit press/fast/fade events also
-        # surface as Platform.EVENT. Heuristic: dimmable / switched
-        # native nodes with a parent (i.e. controller buttons of a
-        # KeypadLinc, etc.).
+        # Parallel: native Insteon LIGHT/SWITCH nodes also emit
+        # press/fast/fade events that the EVENT platform surfaces.
         if (
             Platform.EVENT in NODE_PARALLEL_PLATFORMS
             and primary in (Platform.LIGHT, Platform.SWITCH)
@@ -275,10 +285,10 @@ def _categorize_nodes(
 def _categorize_programs(isy_data: IsyData, programs: list[dict]) -> None:
     """Categorize the controller's programs onto HA platforms.
 
-    Programs are exposed as raw dicts in pyisyox 6.0.0a1; the classification
-    walks the ``HA.<platform>/`` folder convention the legacy ISY-994
-    integration established. The dict shape is whatever ``/api/programs``
-    returns — at minimum ``id``, ``name``, ``enabled``, and ``path``.
+    Programs are exposed as raw dicts (whatever ``/api/programs``
+    returns — at minimum ``id``, ``name``, ``enabled``, ``path``).
+    Classification walks the ``HA.<platform>/`` folder convention the
+    legacy integration established.
     """
     by_path: dict[str, dict] = {p.get("path", ""): p for p in programs if "path" in p}
 

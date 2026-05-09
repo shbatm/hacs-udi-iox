@@ -1,36 +1,14 @@
-"""IoX services and commands.
+"""IoX services.
 
-What's wired up vs. what isn't, and why:
-
-* ``send_node_command`` — alive. Routes friendly names ("brighten",
-  "fast_off", ...) into ``Node.send_command(cmd_id)`` via the
-  ``ISYNodeEntity.async_send_node_command`` method. Editor-codec
-  validated by pyisyox.
-* ``set_variable`` — alive. Writes through
+* ``send_node_command`` — friendly-named entity command, dispatched
+  through :meth:`ISYNodeEntity.async_send_node_command`.
+* ``set_variable`` — writes through
   :meth:`pyisyox.Controller.set_variable_value` /
   :meth:`set_variable_init`.
-* ``system_query`` — alive. Calls
-  :meth:`pyisyox.Controller.refresh` to re-pull the node table and
-  reset cached state.
-* ``send_program_command`` — stub. Programs are exposed as raw
-  dicts in pyisyox 6.0.0a1 and the controller has no
-  ``send_program_command`` method yet. Service raises
-  HomeAssistantError so service-call traces stay obvious.
-* ``run_network_resource`` — stub. /rest/networking has no typed
-  pyisyox wrapper yet (see fork plan §Deferred).
-
-Removed since the v3 surface is gone:
-* ``send_raw_node_command`` — superseded by ``send_node_command``
-  (every command on Node.send_command is editor-codec validated).
-* ``rename_node`` — pyisyox doesn't expose a rename helper.
-* ``get_zwave_parameter`` / ``set_zwave_parameter`` — Z-Wave wire
-  surface deferred until a live capture lands.
-* ``set_zwave_lock_user_code`` / ``delete_zwave_lock_user_code`` —
-  same Z-Wave deferral; the lock platform's
-  ``async_register_entity_service`` registration is also dropped
-  in lock.py.
-* ``cleanup_entities`` — never had a handler; HA's entity registry
-  cleanup now runs automatically in ``util._async_cleanup_registry_entries``.
+* ``system_query`` — calls :meth:`pyisyox.Controller.refresh`.
+* ``send_program_command`` / ``run_network_resource`` — registered for
+  schema continuity but raise on call: pyisyox doesn't expose
+  controller-level program commands or typed network resources yet.
 """
 
 from __future__ import annotations
@@ -222,10 +200,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
 
     async def async_send_program_command(call: ServiceCall) -> None:
-        """Stub: programs are deferred in pyisyox 6.0.0a1."""
+        """Programs aren't yet wrapped on the controller — schema-only."""
         raise HomeAssistantError(
-            "Program command service is not supported in this release;"
-            " typed program wrappers are deferred in pyisyox 6.0.0a1"
+            "Program command service is not supported"
         )
 
     hass.services.async_register(
@@ -236,9 +213,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
 
     async def async_run_network_resource(call: ServiceCall) -> None:
-        """Stub: /rest/networking has no typed wrapper yet."""
+        """Network resources aren't yet wrapped — schema-only."""
         raise HomeAssistantError(
-            "Network resource service is not supported in this release"
+            "Network resource service is not supported"
         )
 
     hass.services.async_register(
@@ -261,13 +238,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
 
 
-# Compat shim: lock.py still imports this. Z-Wave lock services are
-# deferred — the function is intentionally a no-op so the lock platform
-# can keep its setup_entry call site unchanged until Z-Wave lands.
+# Compat shim — lock.py still imports this. The function is a no-op
+# while Z-Wave user-code services are unsupported; lock.py keeps the
+# call so the platform's setup_entry doesn't change shape later.
 @callback
 def async_setup_lock_services(hass: HomeAssistant) -> None:
-    """No-op while Z-Wave lock services are deferred."""
-    _LOGGER.debug(
-        "Z-Wave lock services (set_zwave_lock_user_code, delete_zwave_lock_user_code)"
-        " are not registered in this release"
-    )
+    """No-op placeholder for Z-Wave lock services."""

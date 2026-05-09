@@ -83,17 +83,15 @@ class ISYLockEntity(ISYNodeEntity, LockEntity):
             ) from err
 
     async def async_set_zwave_lock_user_code(self, user_num: int, code: int) -> None:
-        """Set a user lock code for a Z-Wave Lock."""
-        # Z-Wave user-code surface is deferred in pyisyox 6.0.0a1 —
-        # the wire endpoint hasn't been verified against a live capture.
+        """Set a user lock code for a Z-Wave Lock — not supported."""
         raise HomeAssistantError(
-            "Z-Wave lock user-code services are not supported in this release"
+            "Z-Wave lock user-code services are not supported"
         )
 
     async def async_delete_zwave_lock_user_code(self, user_num: int) -> None:
-        """Delete a user lock code for a Z-Wave Lock."""
+        """Delete a user lock code for a Z-Wave Lock — not supported."""
         raise HomeAssistantError(
-            "Z-Wave lock user-code services are not supported in this release"
+            "Z-Wave lock user-code services are not supported"
         )
 
 

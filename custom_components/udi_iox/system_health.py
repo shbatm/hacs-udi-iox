@@ -22,13 +22,7 @@ def async_register(
 
 
 async def system_health_info(hass: HomeAssistant) -> dict[str, Any]:
-    """Get info for the system health page.
-
-    pyisyox 6's ``Controller`` doesn't surface a public WebSocket
-    handle, so the v3-era ``last_heartbeat`` / ``status`` rows are
-    deferred until pyisyox exposes them. The two rows below are the
-    ones we can produce reliably from the current public surface.
-    """
+    """Get info for the system health page."""
     health_info: dict[str, Any] = {}
 
     entries = hass.config_entries.async_entries(DOMAIN)
