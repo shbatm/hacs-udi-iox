@@ -1,4 +1,4 @@
-"""Config flow for Universal Devices ISY/IoX integration."""
+"""Config flow for Universal Devices IoX integration."""
 
 from __future__ import annotations
 
@@ -9,22 +9,32 @@ from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 import voluptuous as vol
-from aiohttp import CookieJar
 from homeassistant import config_entries, core, exceptions
 from homeassistant.components import ssdp
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_NAME,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    CONF_VERIFY_SSL,
+)
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
-from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 from pyisyox import (
+    Controller,
     ISYConnectionError,
     ISYInvalidAuthError,
     ISYResponseParseError,
+    LocalAuth,
+    PortalAuth,
 )
 
 from .const import (
+    AUTH_MODE_LOCAL,
+    AUTH_MODE_PORTAL,
+    CONF_AUTH_MODE,
     CONF_ENABLE_NETWORKING,
     CONF_ENABLE_NODESERVERS,
     CONF_ENABLE_PROGRAMS,
@@ -33,6 +43,7 @@ from .const import (
     CONF_RESTORE_LIGHT_STATE,
     CONF_SENSOR_STRING,
     CONF_TLS_VER,
+    DEFAULT_AUTH_MODE,
     DEFAULT_IGNORE_STRING,
     DEFAULT_RESTORE_LIGHT_STATE,
     DEFAULT_SENSOR_STRING,
@@ -49,60 +60,74 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+AUTH_MODE_OPTIONS = [AUTH_MODE_PORTAL, AUTH_MODE_LOCAL]
+TLS_VERSION_OPTIONS = [DEFAULT_TLS_VERSION, 1.2, 1.3]
 
-def _data_schema(schema_input: dict[str, str]) -> vol.Schema:
-    """Generate schema with defaults."""
+
+def _data_schema(schema_input: dict[str, Any]) -> vol.Schema:
+    """Generate user-step schema with defaults preserved across attempts."""
     return vol.Schema(
         {
             vol.Required(CONF_HOST, default=schema_input.get(CONF_HOST, "")): str,
+            vol.Required(
+                CONF_AUTH_MODE,
+                default=schema_input.get(CONF_AUTH_MODE, DEFAULT_AUTH_MODE),
+            ): vol.In(AUTH_MODE_OPTIONS),
             vol.Required(CONF_USERNAME): str,
             vol.Required(CONF_PASSWORD): str,
-            vol.Optional(CONF_TLS_VER, default=DEFAULT_TLS_VERSION): vol.In(
-                [DEFAULT_TLS_VERSION, 1.1, 1.2]
-            ),
+            vol.Optional(
+                CONF_TLS_VER,
+                default=schema_input.get(CONF_TLS_VER, DEFAULT_TLS_VERSION),
+            ): vol.In(TLS_VERSION_OPTIONS),
+            vol.Optional(
+                CONF_VERIFY_SSL,
+                default=schema_input.get(CONF_VERIFY_SSL, False),
+            ): bool,
         },
         extra=vol.ALLOW_EXTRA,
     )
 
 
+def _build_auth(mode: str, username: str, password: str) -> PortalAuth | LocalAuth:
+    """Construct the auth strategy for the requested mode."""
+    if mode == AUTH_MODE_LOCAL:
+        return LocalAuth(username, password)
+    return PortalAuth(username, password)
+
+
 async def validate_input(
     hass: core.HomeAssistant, data: dict[str, Any]
 ) -> dict[str, str]:
-    """Validate the user input allows us to connect.
-
-    Data has the keys from DATA_SCHEMA with values provided by the user.
-    """
+    """Open a short-lived connection to confirm credentials and return entry metadata."""
     user = data[CONF_USERNAME]
     password = data[CONF_PASSWORD]
     host = data[CONF_HOST]
     parsed_host = urlparse(host)
-    tls_version = data.get(CONF_TLS_VER)
+    tls_version = data.get(CONF_TLS_VER, DEFAULT_TLS_VERSION)
+    verify_ssl = data.get(CONF_VERIFY_SSL, False)
+    auth_mode = data.get(CONF_AUTH_MODE, DEFAULT_AUTH_MODE)
 
-    if parsed_host.scheme == SCHEME_HTTP:
-        session = aiohttp_client.async_create_clientsession(
-            hass, verify_ssl=False, cookie_jar=CookieJar(unsafe=True)
-        )
-    elif parsed_host.scheme == SCHEME_HTTPS:
-        session = aiohttp_client.async_get_clientsession(hass)
-    else:
-        _LOGGER.error("The ISY/IoX host value in configuration is invalid")
+    if parsed_host.scheme not in (SCHEME_HTTP, SCHEME_HTTPS):
+        _LOGGER.error("Host value must include http:// or https://")
         raise InvalidHost
 
-    # Generate configuration info
-    connection_info = ISYConnectionInfo(
+    auth = _build_auth(auth_mode, user, password)
+    controller = Controller(
         host,
-        user,
-        password,
+        auth=auth,
         tls_version=tls_version if tls_version != DEFAULT_TLS_VERSION else None,
-        websession=session,
+        verify_ssl=verify_ssl,
     )
-
-    # Connect to ISY controller.
-    isy_conn = Connection(connection_info)
 
     try:
         async with asyncio.timeout(30):
-            isy_config = await isy_conn.test_connection()
+            # start_websocket=False keeps the validation light — we just
+            # want to confirm auth + load the config payload.
+            await controller.connect(start_websocket=False)
+        try:
+            uuid = controller.config.uuid
+        finally:
+            await controller.stop()
     except ISYInvalidAuthError as error:
         raise InvalidAuth from error
     except ISYConnectionError as error:
@@ -110,21 +135,21 @@ async def validate_input(
     except ISYResponseParseError as error:
         raise CannotConnect from error
 
-    # Return info that you want to store in the config entry.
+    title_host = parsed_host.hostname or host
     return {
-        "title": f"{isy_config.name} ({parsed_host.hostname})",
-        ISY_CONF_UUID: isy_config.uuid,
+        "title": f"{title_host} ({auth_mode})",
+        ISY_CONF_UUID: uuid,
     }
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Universal Devices ISY/IoX."""
+    """Handle a config flow for Universal Devices IoX."""
 
     VERSION = 1
 
     def __init__(self) -> None:
-        """Initialize the ISY/IoX config flow."""
-        self.discovered_conf: dict[str, str] = {}
+        """Initialize the IoX config flow."""
+        self.discovered_conf: dict[str, Any] = {}
 
     @staticmethod
     @callback
@@ -165,14 +190,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=_data_schema(self.discovered_conf),
             errors=errors,
             description_placeholders={
-                "sample_ip": "http://192.168.10.100:80",
+                "sample_ip": "https://eisy.local:443",
             },
         )
 
     async def _async_set_unique_id_or_update(
         self, isy_mac: str, ip_address: str, port: int | None
     ) -> None:
-        """Abort and update the ip address on change."""
+        """Abort and update the host on change."""
         existing_entry = await self.async_set_unique_id(isy_mac)
         if not existing_entry:
             return
@@ -206,12 +231,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_dhcp(
         self, discovery_info: DhcpServiceInfo
     ) -> config_entries.ConfigFlowResult:
-        """Handle a discovered ISY/IoX device via dhcp."""
+        """Handle a discovered IoX device via DHCP."""
         friendly_name = discovery_info.hostname
-        if friendly_name.startswith(("polisy", "eisy")):
-            url = f"http://{discovery_info.ip}:8080"
-        else:
-            url = f"http://{discovery_info.ip}"
+        # eisy / Polisy default to https on :443 (portal) — the user
+        # can change to :8443 if they want LocalAuth.
+        url = f"https://{discovery_info.ip}:{HTTPS_PORT}"
         mac = discovery_info.macaddress
         isy_mac = (
             f"{mac[0:2]}:{mac[2:4]}:{mac[4:6]}:{mac[6:8]}:{mac[8:10]}:{mac[10:12]}"
@@ -229,7 +253,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_ssdp(
         self, discovery_info: SsdpServiceInfo
     ) -> config_entries.ConfigFlowResult:
-        """Handle a discovered ISY/IoX Device."""
+        """Handle a discovered IoX device via SSDP."""
         friendly_name = discovery_info.upnp[ssdp.ATTR_UPNP_FRIENDLY_NAME]
         url = discovery_info.ssdp_location
         assert isinstance(url, str)
@@ -293,7 +317,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             description_placeholders={
                 CONF_HOST: existing_data[CONF_HOST],
-                "sample_ip": "http://192.168.10.100:80",
+                "sample_ip": "https://eisy.local:443",
             },
             step_id="reauth_confirm",
             data_schema=vol.Schema(
@@ -309,7 +333,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
-    """Handle a option flow for ISY/IoX."""
+    """Handle an option flow for IoX."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

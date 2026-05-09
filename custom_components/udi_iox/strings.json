@@ -4,17 +4,22 @@
     "step": {
       "user": {
         "data": {
+          "auth_mode": "Authentication mode",
           "username": "[%key:common::config_flow::data::username%]",
           "host": "[%key:common::config_flow::data::url%]",
           "password": "[%key:common::config_flow::data::password%]",
-          "tls": "The TLS version of the ISY controller."
+          "tls": "TLS version (Default = auto-negotiate 1.2/1.3).",
+          "verify_ssl": "Verify SSL certificate (leave off for the default self-signed certificate)."
         },
-        "description": "The host entry must be in full URL format, e.g., {sample_ip}",
-        "title": "Connect to your ISY"
+        "data_description": {
+          "auth_mode": "Portal uses the my.isy.io account (JWT, recommended). Local uses the controller's local admin account (HTTP basic, feature-degraded — no triggers AST or variable names)."
+        },
+        "description": "The host entry must be the full URL, e.g., {sample_ip}",
+        "title": "Connect to your eisy / Polisy"
       },
       "reauth_confirm": {
         "description": "The credentials for {host} are no longer valid.",
-        "title": "Reauthenticate your ISY",
+        "title": "Reauthenticate your eisy / Polisy",
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]"
@@ -54,8 +59,8 @@
   "options": {
     "step": {
       "init": {
-        "title": "ISY Options",
-        "description": "Set the options for the ISY integration: \n \u2022 Node Sensor String: Any device or folder that contains 'Node Sensor String' in the name will be treated as a sensor or binary sensor. \n \u2022 Ignore String: Any device with 'Ignore String' in the name will be ignored. \n \u2022 Variable Sensor String: Any variable that contains 'Variable Sensor String' will be added as a sensor. \n \u2022 Restore Light Brightness: If enabled, the previous brightness will be restored when turning on a light instead of the device's built-in On-Level. \n \u2022 Enable Adding Variable, Node Server, Network Resource, or Program Entities: If you don't use any of these features you can disable them to speed up loading times.",
+        "title": "IoX Options",
+        "description": "Set the options for the IoX integration: \n \u2022 Node Sensor String: Any device or folder that contains 'Node Sensor String' in the name will be treated as a sensor or binary sensor. \n \u2022 Ignore String: Any device with 'Ignore String' in the name will be ignored. \n \u2022 Variable Sensor String: Any variable that contains 'Variable Sensor String' will be added as a sensor. \n \u2022 Restore Light Brightness: If enabled, the previous brightness will be restored when turning on a light instead of the device's built-in On-Level. \n \u2022 Enable Adding Variable, Node Server, Network Resource, or Program Entities: If you don't use any of these features you can disable them to speed up loading times.",
         "data": {
           "sensor_string": "Node Sensor String",
           "ignore_string": "Ignore String",
