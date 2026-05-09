@@ -1,0 +1,26 @@
+{
+  "domain": "udi_iox",
+  "name": "Universal Devices IoX (eisy / Polisy)",
+  "codeowners": ["@shbatm"],
+  "config_flow": true,
+  "dhcp": [
+    {
+      "registered_devices": true
+    },
+    {
+      "hostname": "eisy*",
+      "macaddress": "0021B9*"
+    },
+    {
+      "hostname": "polisy*",
+      "macaddress": "000DB9*"
+    }
+  ],
+  "documentation": "https://github.com/shbatm/hacs-udi-iox",
+  "integration_type": "hub",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/shbatm/hacs-udi-iox/issues",
+  "loggers": ["pyisyox"],
+  "requirements": ["pyisyox==6.0.0a1"],
+  "version": "0.1.0"
+}
