@@ -7,18 +7,10 @@ from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import ISY
-from pyisyox.constants import (
-    ATTR_ACTION,
-    TAG_ADDRESS,
-    TAG_ENABLED,
-    NodeChangeAction,
-    Protocol,
-)
-from pyisyox.helpers.events import EventListener
-from pyisyox.helpers.models import NodeProperty
-from pyisyox.networking import NetworkCommand
-from pyisyox.nodes import Node
+from pyisyox import Controller, EventListener, Node, NodePropertyValue
+from pyisyox.constants import TAG_ADDRESS, TAG_ENABLED, Protocol
+
+from .models import NetworkResourceRecord
 
 from .const import CONF_NETWORK, DOMAIN
 from .models import IsyConfigEntry
@@ -31,7 +23,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up ISY/IoX button from config entry."""
     isy_data = config_entry.runtime_data
-    isy: ISY = isy_data.root
+    isy: Controller = isy_data.root
     device_info = isy_data.devices
     entities: list[
         ISYNodeQueryButtonEntity
@@ -89,11 +81,11 @@ class ISYNodeButtonEntity(ButtonEntity):
 
     _attr_should_poll = False
     _attr_has_entity_name = True
-    _node: Node | ISY | NetworkCommand
+    _node: Node | Controller | NetworkResourceRecord
 
     def __init__(
         self,
-        node: Node | ISY | NetworkCommand,
+        node: Node | Controller | NetworkResourceRecord,
         name: str,
         unique_id: str,
         device_info: DeviceInfo,
@@ -130,7 +122,7 @@ class ISYNodeButtonEntity(ButtonEntity):
         )
 
     @callback
-    def async_on_update(self, event: NodeProperty, key: str) -> None:
+    def async_on_update(self, event: NodePropertyValue, key: str) -> None:
         """Handle the update event from the ISY Node."""
         # Watch for node availability/enabled changes only
         self._node_enabled = getattr(self._node, TAG_ENABLED, True)
@@ -140,7 +132,7 @@ class ISYNodeButtonEntity(ButtonEntity):
 class ISYNodeQueryButtonEntity(ISYNodeButtonEntity):
     """Representation of a device query button entity."""
 
-    _node: Node | ISY
+    _node: Node | Controller
 
     async def async_press(self) -> None:
         """Press the button."""
@@ -161,7 +153,7 @@ class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
     """Representation of an ISY/IoX Network Resource button entity."""
 
     _attr_has_entity_name = False
-    _node: NetworkCommand
+    _node: NetworkResourceRecord
 
     async def async_press(self) -> None:
         """Press the button."""

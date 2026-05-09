@@ -15,13 +15,12 @@ from homeassistant.util.percentage import (
     percentage_to_ranged_value,
     ranged_value_to_percentage,
 )
+from pyisyox import Node
 from pyisyox.constants import Protocol
-from pyisyox.nodes import Node
-from pyisyox.programs import Program
 
 from .const import _LOGGER
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, ProgramRecord
 
 SPEED_RANGE = (1, 255)  # off is not included
 
@@ -114,7 +113,7 @@ class ISYFanProgramEntity(ISYProgramEntity, FanEntity):
 
     _attr_supported_features = FanEntityFeature.TURN_OFF | FanEntityFeature.TURN_ON
     _attr_speed_count = int_states_in_range(SPEED_RANGE)
-    _actions: Program
+    _actions: ProgramRecord
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to events and set initial state."""

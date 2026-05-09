@@ -19,9 +19,7 @@ from pyisyox.constants import (
     UOM_INDEX,
     Protocol,
 )
-from pyisyox.nodes import Group, Node, Nodes
-from pyisyox.programs import Programs
-from pyisyox.variables import Variables
+from pyisyox import Group, Node
 
 from .const import (
     _LOGGER,
@@ -338,7 +336,7 @@ def _generate_device_info(node: Node) -> DeviceInfo:
 
 
 def _categorize_nodes(
-    isy_data: IsyData, nodes: Nodes, isy_options: MappingProxyType[str, Any]
+    isy_data: IsyData, nodes: dict[str, Node], isy_options: MappingProxyType[str, Any]
 ) -> None:
     """Sort the nodes to their proper platforms."""
     ignore_identifier = isy_options.get(CONF_IGNORE_STRING, DEFAULT_IGNORE_STRING)
@@ -419,7 +417,7 @@ def _categorize_nodes(
         isy_data.nodes[Platform.SENSOR].append(node)
 
 
-def _categorize_programs(isy_data: IsyData, programs: Programs) -> None:
+def _categorize_programs(isy_data: IsyData, programs: list[dict]) -> None:
     """Categorize the ISY programs."""
     directory = programs.get_directory()
     for platform in PROGRAM_PLATFORMS:
@@ -461,7 +459,7 @@ def _categorize_programs(isy_data: IsyData, programs: Programs) -> None:
             isy_data.programs[platform].append(entity)
 
 
-def _categorize_variables(isy_data: IsyData, variables: Variables) -> None:
+def _categorize_variables(isy_data: IsyData, variables: dict[str, list[dict]]) -> None:
     """Gather the ISY Variables to be added as sensors."""
     try:
         if not (variables.loaded and variables.entities):

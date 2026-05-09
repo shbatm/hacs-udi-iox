@@ -14,12 +14,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox.nodes import Node
-from pyisyox.programs import Program
+from pyisyox import Node
 
 from .const import UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, ProgramRecord
 
 
 async def async_setup_entry(
@@ -102,7 +101,7 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
 class ISYCoverProgramEntity(ISYProgramEntity, CoverEntity):
     """Representation of an ISY cover program."""
 
-    _actions: Program
+    _actions: ProgramRecord
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to events and set initial state."""

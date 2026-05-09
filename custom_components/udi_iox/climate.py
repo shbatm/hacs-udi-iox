@@ -24,6 +24,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from pyisyox import Node
 from pyisyox.constants import (
     CMD_CLIMATE_FAN_SETTING,
     CMD_CLIMATE_MODE,
@@ -34,7 +35,6 @@ from pyisyox.constants import (
     PROP_UOM,
     Protocol,
 )
-from pyisyox.nodes import Node
 
 from .const import (
     _LOGGER,

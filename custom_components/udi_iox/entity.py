@@ -2,33 +2,28 @@
 
 from __future__ import annotations
 
-from typing import Any, TypeAlias, cast
+from typing import Any, TypeAlias
 
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo, Entity, EntityDescription
 from homeassistant.util.dt import as_local
-from pyisyox.constants import (
-    ATTR_ACTION,
-    ATTR_CONTROL,
-    COMMAND_FRIENDLY_NAME,
-    PROP_STATUS,
-    TAG_ADDRESS,
-    NodeChangeAction,
-    Protocol,
+from pyisyox import (
+    EventListener,
+    Folder,
+    Group,
+    Node,
+    NodeLifecycleEvent,
+    NodePropertyValue,
 )
-from pyisyox.helpers.events import EventListener, NodeChangedEvent
-from pyisyox.helpers.models import NodeProperty
-from pyisyox.node_servers import NodeDef
-from pyisyox.nodes import Group, Node
-from pyisyox.nodes.nodebase import NodeBase
-from pyisyox.programs import Program, ProgramDetail
-from pyisyox.variables import Variable
+from pyisyox.constants import COMMAND_FRIENDLY_NAME, PROP_STATUS, Protocol
+from pyisyox.schema.nodedef import NodeDef
 
 from .const import DOMAIN
+from .models import ProgramRecord, VariableRecord
 
-NodeType: TypeAlias = Node | Group | NodeBase | Program | Variable
-NodeEventType: TypeAlias = NodeProperty | NodeChangedEvent
+NodeType: TypeAlias = Node | Group | Folder | ProgramRecord | VariableRecord
+NodeEventType: TypeAlias = NodePropertyValue | NodeLifecycleEvent
 
 
 class ISYEntity(Entity):
@@ -201,13 +196,16 @@ class ISYNodeEntity(ISYEntity):
 class ISYProgramEntity(ISYEntity):
     """Representation of an ISY program base."""
 
-    _actions: Program | None
-    _status: Program
+    _actions: ProgramRecord | None
+    _status: ProgramRecord
 
     def __init__(
-        self, name: str, status: Program, actions: Program | None = None
+        self,
+        name: str,
+        status: ProgramRecord,
+        actions: ProgramRecord | None = None,
     ) -> None:
-        """Initialize the ISY program-based entity."""
+        """Initialize the program-based entity."""
         super().__init__(status)
         self._attr_name = name
         self._actions = actions
@@ -215,27 +213,22 @@ class ISYProgramEntity(ISYEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Get the state attributes for the device."""
-        attr = {}
+        # Programs are exposed as raw dicts in pyisyox 6.0.0a1; extract
+        # known fields with .get() so missing keys don't blow up.
+        attr: dict[str, Any] = {}
         if self._actions:
-            actions_detail = cast(ProgramDetail, self._actions.detail)
-            attr["actions_enabled"] = self._actions.enabled
-            if actions_detail.last_finish_time is not None:
-                attr["actions_last_finished"] = str(
-                    as_local(actions_detail.last_finish_time)
-                )
-            if actions_detail.last_run_time is not None:
-                attr["actions_last_run"] = str(as_local(actions_detail.last_run_time))
-            if self._actions.last_update is not None:
-                attr["actions_last_update"] = str(as_local(self._actions.last_update))
-            attr["run_at_startup"] = actions_detail.run_at_startup
-            attr["running"] = actions_detail.running
+            attr["actions_enabled"] = self._actions.get("enabled")
+            for key in ("last_finish_time", "last_run_time", "last_update"):
+                value = self._actions.get(key)
+                if value is not None:
+                    attr[f"actions_{key.replace('_time', '')}"] = str(as_local(value))
+            attr["run_at_startup"] = self._actions.get("run_at_startup")
+            attr["running"] = self._actions.get("running")
 
-        attr["status_enabled"] = self._node.enabled
-        detail = cast(ProgramDetail, self._node.detail)
-        if detail.last_finish_time is not None:
-            attr["status_last_finished"] = str(as_local(detail.last_finish_time))
-        if detail.last_run_time is not None:
-            attr["status_last_run"] = str(as_local(detail.last_run_time))
-        if self._node.last_update is not None:
-            attr["status_last_update"] = str(as_local(self._node.last_update))
+        status = self._node if isinstance(self._node, dict) else {}
+        attr["status_enabled"] = status.get("enabled")
+        for key in ("last_finish_time", "last_run_time", "last_update"):
+            value = status.get(key)
+            if value is not None:
+                attr[f"status_{key.replace('_time', '')}"] = str(as_local(value))
         return attr

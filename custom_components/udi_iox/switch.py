@@ -15,12 +15,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox.nodes import Group, Node
-from pyisyox.nodes.nodebase import NodeBase
-from pyisyox.programs import Program
+from pyisyox import Group, Node
 
 from .entity import ISYGroupEntity, ISYNodeEntity, ISYProgramEntity, NodeEventType
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, ProgramRecord
 
 
 @dataclass
@@ -86,7 +84,7 @@ async def async_setup_entry(
 class ISYSwitchEntityMixin(SwitchEntity):
     """Representation of an ISY switch device."""
 
-    _node: NodeBase
+    _node: Node | Group
 
     @property
     def is_on(self) -> bool | None:
@@ -122,7 +120,7 @@ class ISYSwitchEntity(ISYNodeEntity, ISYSwitchEntityMixin):
 class ISYSwitchProgramEntity(ISYProgramEntity, SwitchEntity):
     """A representation of an ISY program switch."""
 
-    _actions: Program
+    _actions: ProgramRecord
     _attr_icon: str = "mdi:script-text-outline"  # Matches isy program icon
 
     @property

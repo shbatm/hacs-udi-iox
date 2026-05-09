@@ -18,12 +18,10 @@ from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
-from pyisyox import ISYResponseParseError
-from pyisyox.connection import (
-    Connection,
+from pyisyox import (
     ISYConnectionError,
-    ISYConnectionInfo,
     ISYInvalidAuthError,
+    ISYResponseParseError,
 )
 
 from .const import (

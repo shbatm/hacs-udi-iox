@@ -16,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
+from pyisyox import Node, NodePropertyValue
 from pyisyox.constants import (
     CMD_OFF,
     CMD_ON,
@@ -24,8 +25,6 @@ from pyisyox.constants import (
     PROP_STATUS,
     Protocol,
 )
-from pyisyox.helpers.models import NodeProperty
-from pyisyox.nodes import Node
 
 from .const import (
     _LOGGER,
@@ -348,7 +347,7 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
 
     @callback
     def _async_negative_node_control_handler(
-        self, event: NodeProperty, key: str
+        self, event: NodePropertyValue, key: str
     ) -> None:
         """Handle an "On" control event from the "negative" node."""
         if event.control == CMD_ON:
@@ -362,7 +361,7 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
 
     @callback
     def _async_positive_node_control_handler(
-        self, event: NodeProperty, key: str
+        self, event: NodePropertyValue, key: str
     ) -> None:
         """Handle On and Off control event coming from the primary node.
 
@@ -476,7 +475,7 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
         ) is not None and last_state.state == STATE_ON:
             self._computed_state = True
 
-    def _heartbeat_node_control_handler(self, event: NodeProperty, key: str) -> None:
+    def _heartbeat_node_control_handler(self, event: NodePropertyValue, key: str) -> None:
         """Update the heartbeat timestamp when any ON/OFF event is sent.
 
         The ISY uses both DON and DOF commands (alternating) for a heartbeat.

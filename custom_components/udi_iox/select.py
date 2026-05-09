@@ -29,9 +29,12 @@ from pyisyox.constants import (
 from pyisyox.constants import (
     UOM_INDEX as ISY_UOM_INDEX,
 )
-from pyisyox.helpers.events import ATTR_EVENT_INFO, EventListener, NodeChangedEvent
-from pyisyox.helpers.models import NodeProperty
-from pyisyox.nodes import Node
+from pyisyox import (
+    EventListener,
+    Node,
+    NodeLifecycleEvent,
+    NodePropertyValue,
+)
 
 from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, UOM_INDEX
 from .entity import ISYNodeEntity
@@ -113,7 +116,7 @@ class ISYRampRateSelectEntity(ISYNodeEntity, SelectEntity):
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
-        node_prop: NodeProperty = self._node.aux_properties[self._control]
+        node_prop: NodePropertyValue = self._node.properties[self._control]
         if node_prop.value is None:
             return None
 
@@ -131,7 +134,7 @@ class ISYAuxControlIndexSelectEntity(ISYNodeEntity, SelectEntity):
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
-        node_prop: NodeProperty = self._node.aux_properties[self._control]
+        node_prop: NodePropertyValue = self._node.properties[self._control]
         if node_prop.value is None:
             return None
 
@@ -141,7 +144,7 @@ class ISYAuxControlIndexSelectEntity(ISYNodeEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
-        node_prop: NodeProperty = self._node.aux_properties[self._control]
+        node_prop: NodePropertyValue = self._node.properties[self._control]
 
         await self._node.send_cmd(
             self._control, val=self.options.index(option), uom=node_prop.uom
@@ -192,7 +195,7 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
         )
 
     @callback
-    def async_on_memory_write(self, event: NodeChangedEvent, key: str) -> None:
+    def async_on_memory_write(self, event: NodeLifecycleEvent, key: str) -> None:
         """Handle a memory write event from the ISY Node."""
         option = BACKLIGHT_INDEX[event.event_info["value"]]
         if option == self._attr_current_option:

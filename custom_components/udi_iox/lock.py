@@ -10,11 +10,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox.nodes import Node
-from pyisyox.programs import Program
+from pyisyox import Node
 
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, ProgramRecord
 from .services import async_setup_lock_services
 
 VALUE_TO_STATE = {0: False, 100: True}
@@ -91,7 +90,7 @@ class ISYLockEntity(ISYNodeEntity, LockEntity):
 class ISYLockProgramEntity(ISYProgramEntity, LockEntity):
     """Representation of a ISY lock program."""
 
-    _actions: Program
+    _actions: ProgramRecord
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to events and set initial state."""

@@ -19,6 +19,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from pyisyox import Node, NodeLifecycleAction, NodeLifecycleEvent, NodePropertyValue
 from pyisyox.constants import (
     ATTR_ACTION,
     CMD_FADE_DOWN,
@@ -29,10 +30,7 @@ from pyisyox.constants import (
     CMD_ON,
     CMD_ON_FAST,
     TAG_ADDRESS,
-    NodeChangeAction,
 )
-from pyisyox.helpers.models import NodeChangedEvent, NodeProperty
-from pyisyox.nodes import Node
 
 from .entity import ISYNodeEntity
 
@@ -136,19 +134,19 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
             self._async_on_availability_change,
             event_filter={
                 TAG_ADDRESS: self._node.address,
-                ATTR_ACTION: NodeChangeAction.NODE_ENABLED,
+                ATTR_ACTION: NodeLifecycleAction.NODE_ENABLED,
             },
             key=self.unique_id,
         )
 
     @callback
-    def _async_on_availability_change(self, event: NodeChangedEvent, key: str) -> None:
+    def _async_on_availability_change(self, event: NodeLifecycleEvent, key: str) -> None:
         """Refresh state when the node is enabled or disabled."""
         self._attr_available = self._node.enabled
         self.async_write_ha_state()
 
     @callback
-    def async_on_control(self, event: NodeProperty, key: str) -> None:
+    def async_on_control(self, event: NodePropertyValue, key: str) -> None:
         """Trigger the entity when a known control event arrives."""
         event_type = CONTROL_TO_EVENT_TYPE.get(event.control)
         if event_type is None:

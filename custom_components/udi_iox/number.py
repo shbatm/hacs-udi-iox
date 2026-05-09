@@ -27,6 +27,12 @@ from homeassistant.util.percentage import (
     percentage_to_ranged_value,
     ranged_value_to_percentage,
 )
+from pyisyox import (
+    EventListener,
+    Node,
+    NodeLifecycleEvent,
+    NodePropertyValue,
+)
 from pyisyox.constants import (
     ATTR_ACTION,
     CMD_BACKLIGHT,
@@ -35,10 +41,8 @@ from pyisyox.constants import (
     UOM_PERCENTAGE,
     NodeChangeAction,
 )
-from pyisyox.helpers.events import ATTR_EVENT_INFO, EventListener, NodeChangedEvent
-from pyisyox.helpers.models import NodeProperty
-from pyisyox.nodes import Node
-from pyisyox.variables import Variable
+
+from .models import VariableRecord
 
 from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity
@@ -138,7 +142,7 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
     @property
     def native_value(self) -> float | int | None:
         """Return the state of the variable."""
-        node_prop: NodeProperty = self._node.aux_properties[self._control]
+        node_prop: NodePropertyValue = self._node.properties[self._control]
         if node_prop.value is None:
             return None
 
@@ -151,7 +155,7 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        node_prop: NodeProperty = self._node.aux_properties[self._control]
+        node_prop: NodePropertyValue = self._node.properties[self._control]
 
         if self.entity_description.native_unit_of_measurement == PERCENTAGE:
             value = (
@@ -175,12 +179,12 @@ class ISYVariableNumberEntity(NumberEntity):
     _attr_has_entity_name = False
     _attr_should_poll = False
     _init_entity: bool
-    _node: Variable
+    _node: VariableRecord
     entity_description: NumberEntityDescription
 
     def __init__(
         self,
-        node: Variable,
+        node: VariableRecord,
         unique_id: str,
         description: NumberEntityDescription,
         device_info: DeviceInfo,
@@ -202,7 +206,7 @@ class ISYVariableNumberEntity(NumberEntity):
         self._change_handler = self._node.status_events.subscribe(self.async_on_update)
 
     @callback
-    def async_on_update(self, event: NodeProperty) -> None:
+    def async_on_update(self, event: NodePropertyValue) -> None:
         """Handle the update event from the ISY Node."""
         self.async_write_ha_state()
 
@@ -272,7 +276,7 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
         )
 
     @callback
-    def async_on_memory_write(self, event: NodeChangedEvent, key: str) -> None:
+    def async_on_memory_write(self, event: NodeLifecycleEvent, key: str) -> None:
         """Handle a memory write event from the ISY Node."""
         value = ranged_value_to_percentage((0, 127), event.event_info["value"])
         if value == self._attr_native_value:

@@ -21,14 +21,12 @@ from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo
-from pyisyox import ISY, ISYResponseParseError
-from pyisyox.connection import (
+from pyisyox import (
+    Controller,
     ISYConnectionError,
-    ISYConnectionInfo,
     ISYInvalidAuthError,
+    ISYResponseParseError,
 )
-from pyisyox.constants import CONFIG_NETWORKING
-from pyisyox.networking import NetworkCommand
 
 from .const import (
     _LOGGER,
@@ -103,7 +101,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     )
 
     # Connect to ISY controller.
-    isy = ISY(connection_info)
+    isy = Controller(connection_info)
 
     try:
         async with asyncio.timeout(60):
@@ -184,7 +182,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
 
 @callback
 def _async_get_or_create_isy_device_in_registry(
-    hass: HomeAssistant, entry: IsyConfigEntry, isy: ISY
+    hass: HomeAssistant, entry: IsyConfigEntry, isy: Controller
 ) -> None:
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
@@ -199,7 +197,7 @@ def _async_get_or_create_isy_device_in_registry(
     )
 
 
-def _create_service_device_info(isy: ISY, name: str, unique_id: str) -> DeviceInfo:
+def _create_service_device_info(isy: Controller, name: str, unique_id: str) -> DeviceInfo:
     """Create device info for ISY service devices."""
     return DeviceInfo(
         identifiers={
@@ -222,7 +220,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-    isy: ISY = entry.runtime_data.root
+    isy: Controller = entry.runtime_data.root
 
     _LOGGER.debug("ISY Stopping Event Stream and automatic updates")
     isy.websocket.stop()

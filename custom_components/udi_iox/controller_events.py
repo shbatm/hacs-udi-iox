@@ -7,9 +7,13 @@ from dataclasses import asdict
 import homeassistant.helpers.device_registry as dr
 import homeassistant.helpers.entity_registry as er
 from homeassistant.core import HomeAssistant, callback
-from pyisyox import ISY
-from pyisyox.constants import NodeChangeAction, SystemStatus
-from pyisyox.helpers.models import EntityStatus, NodeChangedEvent, NodeProperty
+from pyisyox import (
+    Controller,
+    NodeLifecycleAction,
+    NodeLifecycleEvent,
+    NodePropertyValue,
+)
+from pyisyox.constants import SystemStatus
 
 from .const import _LOGGER, DOMAIN, EVENT_UDI_IOX_CONTROL
 from .models import IsyData
@@ -24,7 +28,7 @@ class IsyControllerEvents:
         self.hass = hass
         self.dev_reg = dr.async_get(hass)
         self.entity_reg = er.async_get(hass)
-        isy: ISY = self.isy_data.root
+        isy: Controller = self.isy_data.root
         self.listeners = [
             isy.nodes.status_events.subscribe(self.node_event_handler),
             isy.nodes.platform_events.subscribe(self.node_change_handler),
@@ -33,7 +37,7 @@ class IsyControllerEvents:
         ]
 
     @callback
-    def node_event_handler(self, event: NodeProperty | EntityStatus) -> None:
+    def node_event_handler(self, event: NodePropertyValue) -> None:
         """Handle node control event sent from ISY."""
         unique_id = self.isy_data.uid_base(event)
         entity_id = None
@@ -49,22 +53,21 @@ class IsyControllerEvents:
         self.hass.bus.async_fire(EVENT_UDI_IOX_CONTROL, control_event)
 
     @callback
-    def node_change_handler(self, event: NodeChangedEvent) -> None:
-        """Handle a node changed event sent from Nodes class."""
+    def node_change_handler(self, event: NodeLifecycleEvent) -> None:
+        """Handle a node lifecycle event from the controller."""
         _LOGGER.debug(
-            "ISY updated configuration: Address %s Changed: %s %s."
+            "IoX updated configuration: Address %s Changed: %s."
             " Integration should be reloaded to pick up new changes",
             event.address,
-            NodeChangeAction(event.action).name.replace("_", " ").title(),
-            event.event_info if event.event_info else "",
+            NodeLifecycleAction(event.action).name.replace("_", " ").title(),
         )
         # Future: this is a logging call for now. Future PR to add support for
         # adding and removing nodes on the fly.
 
     @callback
-    def program_event_handler(self, event: EntityStatus) -> None:
-        """Handle program control event sent from ISY."""
-        self.hass.bus.async_fire("udi_iox_program_event", asdict(event))
+    def program_event_handler(self, event: dict) -> None:
+        """Handle program control event sent from the controller."""
+        self.hass.bus.async_fire("udi_iox_program_event", event)
 
     @callback
     def system_status_handler(self, event: SystemStatus) -> None:

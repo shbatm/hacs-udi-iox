@@ -31,8 +31,7 @@ from pyisyox.constants import (
     PROP_STATUS,
     PROP_TEMPERATURE,
 )
-from pyisyox.helpers.models import NodeProperty
-from pyisyox.nodes import Node
+from pyisyox import Node, NodePropertyValue
 
 from .const import (
     _LOGGER,
@@ -322,7 +321,7 @@ class ISYSensorEntity(ISYNodeEntity, SensorEntity):
         self._options_dict = options_dict
 
     @property
-    def target(self) -> NodeProperty | None:
+    def target(self) -> NodePropertyValue | None:
         """Return target for the sensor."""
         if self._control not in self._node.aux_properties:
             # Property not yet set (i.e. no errors)
