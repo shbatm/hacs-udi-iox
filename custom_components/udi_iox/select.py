@@ -30,16 +30,15 @@ from pyisyox.constants import (
     UOM_INDEX as ISY_UOM_INDEX,
 )
 from pyisyox import (
-    EventListener,
+    Event,
     Node,
     NodeCommandError,
-    NodeLifecycleEvent,
     NodePropertyValue,
 )
 
 from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, UOM_INDEX
 from .entity import ISYNodeEntity
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, IsyData
 
 
 def time_string(i: float) -> str:
@@ -88,6 +87,7 @@ async def async_setup_entry(
             options=options,
         )
         entity_detail: dict = {
+            "isy_data": isy_data,
             "node": node,
             "control": control,
             "unique_id": f"{isy_data.uid_base(node)}_{control}",
@@ -101,7 +101,11 @@ async def async_setup_entry(
         if control == CMD_BACKLIGHT:
             entities.append(ISYBacklightSelectEntity(**entity_detail))
             continue
-        if node.uom == UOM_INDEX and options:
+        # The select platform only handles native UOM_INDEX nodes for
+        # plain index-style enums; check the property's UOM, not the
+        # gone-in-v6 node.uom shortcut.
+        prop = node.properties.get(control)
+        if prop is not None and prop.uom == UOM_INDEX and options:
             entities.append(ISYAuxControlIndexSelectEntity(**entity_detail))
             continue
         # Future: support Node Server custom index UOMs
@@ -159,48 +163,60 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
 
     def __init__(
         self,
+        isy_data: IsyData,
         node: Node,
         control: str,
         unique_id: str,
         description: SelectEntityDescription,
         device_info: DeviceInfo | None,
     ) -> None:
-        """Initialize the ISY Backlight Select entity."""
+        """Initialize the IoX Backlight Select entity."""
         super().__init__(
+            isy_data,
             node=node,
             control=control,
             unique_id=unique_id,
             description=description,
             device_info=device_info,
         )
-        self._memory_change_handler: EventListener | None = None
         self._attr_current_option = None
 
     async def async_added_to_hass(self) -> None:
-        """Load the last known state when added to hass."""
+        """Load the last known state and watch for memory-write echoes."""
         await super().async_added_to_hass()
         if (
             last_state := await self.async_get_last_state()
         ) and last_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
             self._attr_current_option = last_state.state
 
-        # Listen to memory writing events to update state if changed in ISY
-        self._memory_change_handler = self._node.isy.nodes.platform_events.subscribe(
-            self.async_on_memory_write,
-            event_filter={
-                TAG_ADDRESS: self._node.address,
-                ATTR_ACTION: NodeChangeAction.DEVICE_MEMORY,
-                ATTR_EVENT_INFO: BACKLIGHT_MEMORY_FILTER,
-            },
-            key=self.unique_id,
+        # The Insteon backlight memory write echoes back as a control
+        # event with DEVICE_MEMORY's wire code ("_7M"). Subscribe to
+        # all events on this node and filter inside the callback —
+        # rare enough that the cost is irrelevant.
+        self._unsubscribers.append(
+            self._isy_data.controller_events.subscribe_node(
+                self._node.address, NodeChangeAction.DEVICE_MEMORY, self._on_memory_write
+            )
         )
 
     @callback
-    def async_on_memory_write(self, event: NodeLifecycleEvent, key: str) -> None:
-        """Handle a memory write event from the ISY Node."""
-        option = BACKLIGHT_INDEX[event.event_info["value"]]
+    def _on_memory_write(self, event: Event) -> None:
+        """Handle a memory-write echo (BACKLIGHT_MEMORY_FILTER scoped)."""
+        # Without per-event_info filtering we'd react to every memory
+        # write on the node; check the wire-level memory address +
+        # cmd1 byte the legacy filter used.
+        memory = getattr(event, "memory", None)
+        cmd1 = getattr(event, "cmd1", None)
+        value = getattr(event, "value", None)
+        if memory != BACKLIGHT_MEMORY_FILTER.get("memory") or cmd1 != BACKLIGHT_MEMORY_FILTER.get(
+            "cmd1"
+        ):
+            return
+        if value is None:
+            return
+        option = BACKLIGHT_INDEX[value]
         if option == self._attr_current_option:
-            return  # Change was from this entity, don't update twice
+            return
         self._attr_current_option = option
         self.async_write_ha_state()
 

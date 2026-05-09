@@ -27,11 +27,12 @@ from homeassistant.util.percentage import (
     percentage_to_ranged_value,
     ranged_value_to_percentage,
 )
+from collections.abc import Callable
+
 from pyisyox import (
-    EventListener,
+    Event,
     Node,
     NodeCommandError,
-    NodeLifecycleEvent,
     NodePropertyValue,
 )
 from pyisyox.constants import (
@@ -45,7 +46,7 @@ from pyisyox.constants import (
 
 from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity, node_status_int
-from .models import IsyConfigEntry, VariableRecord
+from .models import IsyConfigEntry, IsyData, VariableRecord
 
 ISY_MAX_SIZE = (2**32) / 2
 ON_RANGE = (1, 255)  # Off is not included
@@ -102,6 +103,7 @@ async def async_setup_entry(
 
         entities.append(
             ISYVariableNumberEntity(
+                isy_data,
                 node,
                 unique_id=isy_data.uid_base(node),
                 description=description,
@@ -110,6 +112,7 @@ async def async_setup_entry(
         )
         entities.append(
             ISYVariableNumberEntity(
+                isy_data,
                 node=node,
                 unique_id=f"{isy_data.uid_base(node)}_init",
                 description=description_init,
@@ -120,6 +123,7 @@ async def async_setup_entry(
 
     for node, control in isy_data.aux_properties[Platform.NUMBER]:
         entity_init_info = {
+            "isy_data": isy_data,
             "node": node,
             "control": control,
             "unique_id": f"{isy_data.uid_base(node)}_{control}",
@@ -175,7 +179,13 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
 
 
 class ISYVariableNumberEntity(NumberEntity):
-    """Representation of an ISY variable as a number entity device."""
+    """Representation of an IoX variable as a number entity.
+
+    Variables are exposed as raw dicts in pyisyox 6.0.0a1 — read via
+    ``controller.variables[type][index]``, written via
+    ``controller.set_variable_value(type, id, value)``. Phase 6 wires
+    state updates from the controller's event stream.
+    """
 
     _attr_has_entity_name = False
     _attr_should_poll = False
@@ -185,16 +195,18 @@ class ISYVariableNumberEntity(NumberEntity):
 
     def __init__(
         self,
+        isy_data: IsyData,
         node: VariableRecord,
         unique_id: str,
         description: NumberEntityDescription,
         device_info: DeviceInfo,
         init_entity: bool = False,
     ) -> None:
-        """Initialize the ISY variable number."""
+        """Initialize the IoX variable number."""
+        self._isy_data = isy_data
         self._node = node
         self.entity_description = description
-        self._change_handler: EventListener | None = None
+        self._unsubscribers: list[Callable[[], None]] = []
 
         # Two entities are created for each variable: one for current value,
         # one for initial. Initial value entities are disabled by default.
@@ -203,32 +215,46 @@ class ISYVariableNumberEntity(NumberEntity):
         self._attr_device_info = device_info
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to the node change events."""
-        self._change_handler = self._node.status_events.subscribe(self.async_on_update)
+        """Variables are dict-shaped in pyisyox 6.0.0a1 — no per-entity
+        subscription wiring yet. Phase 6 will route variable change
+        frames into a dedicated dispatcher."""
 
-    @callback
-    def async_on_update(self, event: NodePropertyValue) -> None:
-        """Handle the update event from the ISY Node."""
-        self.async_write_ha_state()
+    async def async_will_remove_from_hass(self) -> None:
+        """Drop subscriptions, if any."""
+        for unsub in self._unsubscribers:
+            unsub()
+        self._unsubscribers.clear()
 
     @property
     def native_value(self) -> float | int | None:
         """Return the state of the variable."""
-        return self._node.initial if self._init_entity else node_status_int(self._node)
+        if self._init_entity:
+            return self._node.get("init")
+        return self._node.get("value")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Get the state attributes for the device."""
-        return {
-            "last_edited": self._node.last_edited,
-        }
+        return {"last_edited": self._node.get("last_edited")}
 
     async def async_set_native_value(self, value: float) -> None:
-        """Set new value."""
-        if not await self._node.set_value(value, init=self._init_entity):
+        """Set new value via the controller."""
+        controller = self._isy_data.root
+        var_type = self._node.get("type")
+        var_id = self._node.get("id")
+        if not var_type or not var_id:
             raise HomeAssistantError(
-                f"Could not set {self.name} to {value} for {self._node.address}"
+                f"Variable record is missing type/id: {self._node!r}"
             )
+        try:
+            if self._init_entity:
+                await controller.set_variable_init(var_type, var_id, value)
+            else:
+                await controller.set_variable_value(var_type, var_id, value)
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Could not set variable {var_type}/{var_id} to {value}: {err}"
+            ) from err
 
 
 class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
@@ -238,25 +264,26 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
 
     def __init__(
         self,
+        isy_data: IsyData,
         node: Node,
         control: str,
         unique_id: str,
         description: NumberEntityDescription,
         device_info: DeviceInfo | None,
     ) -> None:
-        """Initialize the ISY Backlight number entity."""
+        """Initialize the IoX backlight number entity."""
         super().__init__(
+            isy_data,
             node=node,
             control=control,
             unique_id=unique_id,
             description=description,
             device_info=device_info,
         )
-        self._memory_change_handler: EventListener | None = None
         self._attr_native_value = 0
 
     async def async_added_to_hass(self) -> None:
-        """Load the last known state when added to hass."""
+        """Restore last value + subscribe to memory-write echoes."""
         await super().async_added_to_hass()
         if (
             (last_state := await self.async_get_last_state())
@@ -265,23 +292,29 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
         ):
             self._attr_native_value = last_number_data.native_value
 
-        # Listen to memory writing events to update state if changed in ISY
-        self._memory_change_handler = self._node.isy.nodes.platform_events.subscribe(
-            self.async_on_memory_write,
-            event_filter={
-                TAG_ADDRESS: self._node.address,
-                ATTR_ACTION: NodeChangeAction.DEVICE_MEMORY,
-                ATTR_EVENT_INFO: BACKLIGHT_MEMORY_FILTER,
-            },
-            key=self.unique_id,
+        self._unsubscribers.append(
+            self._isy_data.controller_events.subscribe_node(
+                self._node.address,
+                NodeChangeAction.DEVICE_MEMORY,
+                self._on_memory_write,
+            )
         )
 
     @callback
-    def async_on_memory_write(self, event: NodeLifecycleEvent, key: str) -> None:
-        """Handle a memory write event from the ISY Node."""
-        value = ranged_value_to_percentage((0, 127), event.event_info["value"])
+    def _on_memory_write(self, event: Event) -> None:
+        """Handle a memory-write echo (BACKLIGHT_MEMORY_FILTER scoped)."""
+        memory = getattr(event, "memory", None)
+        cmd1 = getattr(event, "cmd1", None)
+        raw_value = getattr(event, "value", None)
+        if memory != BACKLIGHT_MEMORY_FILTER.get("memory") or cmd1 != BACKLIGHT_MEMORY_FILTER.get(
+            "cmd1"
+        ):
+            return
+        if raw_value is None:
+            return
+        value = ranged_value_to_percentage((0, 127), raw_value)
         if value == self._attr_native_value:
-            return  # Change was from this entity, don't update twice
+            return
         self._attr_native_value = value
         self.async_write_ha_state()
 

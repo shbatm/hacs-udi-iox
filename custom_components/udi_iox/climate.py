@@ -52,7 +52,7 @@ from .const import (
 )
 from .entity import ISYNodeEntity, node_status_int
 from .helpers import convert_isy_value_to_hass
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, IsyData
 
 
 async def async_setup_entry(
@@ -66,7 +66,9 @@ async def async_setup_entry(
     isy_data = entry.runtime_data
     devices: dict[str, DeviceInfo] = isy_data.devices
     for node in isy_data.nodes[Platform.CLIMATE]:
-        entities.append(ISYThermostatEntity(node, devices.get(node.primary_node)))
+        entities.append(
+            ISYThermostatEntity(isy_data, node, devices.get(node.primary_node))
+        )
 
     async_add_entities(entities)
 
@@ -88,12 +90,16 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     _attr_fan_modes = [FAN_AUTO, FAN_ON]
     _enable_turn_on_off_backwards_compatibility = False
 
-    def __init__(self, node: Node, device_info: DeviceInfo | None = None) -> None:
-        """Initialize the ISY Thermostat entity."""
-        super().__init__(node=node, device_info=device_info)
-        self._uom = self._node.uom
-        if isinstance(self._uom, list):
-            self._uom = self._node.uom[0]
+    def __init__(
+        self, isy_data: IsyData, node: Node, device_info: DeviceInfo | None = None
+    ) -> None:
+        """Initialize the IoX thermostat entity."""
+        super().__init__(isy_data, node=node, device_info=device_info)
+        # UOM in v6 is per-property, not per-node. Read it from the
+        # primary status reading; fall back to empty when ST hasn't
+        # reported yet.
+        status = self._node.status
+        self._uom = status.uom if status is not None else ""
         self._hvac_action: str | None = None
         self._hvac_mode: str | None = None
         self._fan_mode: str | None = None
@@ -156,9 +162,9 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     @property
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
-        return convert_isy_value_to_hass(
-            node_status_int(self._node), self._uom, self._node.precision, 1
-        )
+        status = self._node.status
+        prec = status.prec if status is not None and status.prec is not None else 0
+        return convert_isy_value_to_hass(node_status_int(self._node), self._uom, prec, 1)
 
     @property
     def target_temperature(self) -> float | None:

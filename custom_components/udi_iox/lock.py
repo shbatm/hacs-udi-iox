@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from pyisyox import Node, NodeCommandError
 
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, ProgramRecord
+from .models import IsyConfigEntry, IsyData, ProgramRecord
 from .services import async_setup_lock_services
 
 VALUE_TO_STATE = {0: False, 100: True}
@@ -30,11 +30,13 @@ async def async_setup_entry(
     entities: list[ISYLockEntity | ISYLockProgramEntity] = []
     for node in isy_data.nodes[Platform.LOCK]:
         entities.append(
-            ISYLockEntity(node=node, device_info=devices.get(node.primary_node))
+            ISYLockEntity(
+                isy_data, node=node, device_info=devices.get(node.primary_node)
+            )
         )
 
     for name, status, actions in isy_data.programs[Platform.LOCK]:
-        entities.append(ISYLockProgramEntity(name, status, actions))
+        entities.append(ISYLockProgramEntity(isy_data, name, status, actions))
 
     async_add_entities(entities)
     async_setup_lock_services(hass)

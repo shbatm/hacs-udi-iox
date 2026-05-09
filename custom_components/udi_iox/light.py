@@ -15,7 +15,7 @@ from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import _LOGGER, CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
 from .entity import ISYNodeEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, IsyData
 
 ATTR_LAST_BRIGHTNESS = "last_brightness"
 
@@ -34,7 +34,9 @@ async def async_setup_entry(
     entities = []
     for node in isy_data.nodes[Platform.LIGHT]:
         entities.append(
-            ISYLightEntity(node, restore_light_state, devices.get(node.primary_node))
+            ISYLightEntity(
+                isy_data, node, restore_light_state, devices.get(node.primary_node)
+            )
         )
 
     async_add_entities(entities)
@@ -49,12 +51,13 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
 
     def __init__(
         self,
+        isy_data: IsyData,
         node: Node,
         restore_light_state: bool,
         device_info: DeviceInfo | None = None,
     ) -> None:
-        """Initialize the ISY light device."""
-        super().__init__(node, device_info=device_info)
+        """Initialize the IoX light device."""
+        super().__init__(isy_data, node, device_info=device_info)
         self._last_brightness: int | None = None
         self._restore_light_state = restore_light_state
 
@@ -71,7 +74,7 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         if node_status_int(self._node) is None:
             return None
         # Special Case for ISY Z-Wave Devices using % instead of 0-255:
-        if self._node.uom == UOM_PERCENTAGE:
+        if (self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE):
             return round(cast(float, node_status_int(self._node)) * 255.0 / 100.0)
         return int(node_status_int(self._node))
 
@@ -88,7 +91,7 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         """Save brightness in the update event from the ISY Node."""
         if node_status_int(self._node):  # Not 0 or None
             self._last_brightness = node_status_int(self._node)
-            if self._node.uom == UOM_PERCENTAGE:
+            if (self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE):
                 self._last_brightness = round(node_status_int(self._node) * 255.0 / 100.0)
             else:
                 self._last_brightness = node_status_int(self._node)
@@ -101,7 +104,7 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         # Z-Wave dimmers report uom as percent (0-100); convert from
         # HA's 0-255 brightness range before handing the value to
         # the editor-validated set_on_level wrapper.
-        if brightness is not None and self._node.uom == UOM_PERCENTAGE:
+        if brightness is not None and (self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE):
             brightness = round(brightness * 100.0 / 255.0)
         try:
             if brightness is None:

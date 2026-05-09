@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -19,7 +19,7 @@ from pyisyox import Group, Node, NodeCommandError
 from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .entity import ISYGroupEntity, ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, ProgramRecord
+from .models import IsyConfigEntry, IsyData, ProgramRecord
 
 
 @dataclass
@@ -47,19 +47,26 @@ async def async_setup_entry(
     device_info = isy_data.devices
     for node in isy_data.nodes[Platform.SWITCH]:
         entities.append(
-            ISYSwitchEntity(node=node, device_info=device_info.get(node.primary_node))
+            ISYSwitchEntity(
+                isy_data,
+                node=node,
+                device_info=device_info.get(node.primary_node),
+            )
         )
 
     for group in isy_data.groups:
         device = None
-        if len(group.controllers) == 1:
-            # If Group has only 1 Controller, link to that device instead of the hub
-            controller = cast(Node, isy_data.root.nodes.entities[group.controllers[0]])
-            device = device_info.get(controller.primary_node)
-        entities.append(ISYGroupSwitchEntity(node=group, device_info=device))
+        if group.controller_addresses and len(group.controller_addresses) == 1:
+            # If Group has only one controller, link to that device
+            # instead of the hub.
+            primary_addr = group.controller_addresses[0]
+            controller_node = isy_data.root.nodes.get(primary_addr)
+            if controller_node is not None:
+                device = device_info.get(controller_node.primary_node)
+        entities.append(ISYGroupSwitchEntity(isy_data, node=group, device_info=device))
 
     for name, status, actions in isy_data.programs[Platform.SWITCH]:
-        entities.append(ISYSwitchProgramEntity(name, status, actions))
+        entities.append(ISYSwitchProgramEntity(isy_data, name, status, actions))
 
     for node, control in isy_data.aux_properties[Platform.SWITCH]:
         # Currently only used for enable switches, will need to be updated for
@@ -72,6 +79,7 @@ async def async_setup_entry(
         )
         entities.append(
             ISYEnableSwitchEntity(
+                isy_data,
                 node=node,
                 control=control,
                 unique_id=f"{isy_data.uid_base(node)}_{control}",
@@ -157,14 +165,16 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
 
     def __init__(
         self,
+        isy_data: IsyData,
         node: Node,
         control: str,
         unique_id: str,
         description: ISYSwitchEntityDescription,
         device_info: DeviceInfo | None,
     ) -> None:
-        """Initialize the ISY Aux Control Number entity."""
+        """Initialize the IoX enable switch entity."""
         super().__init__(
+            isy_data,
             node=node,
             control=control,
             unique_id=unique_id,

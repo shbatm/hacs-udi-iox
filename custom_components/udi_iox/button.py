@@ -1,19 +1,24 @@
-"""Representation of ISY/IoX buttons."""
+"""Representation of IoX buttons."""
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Controller, EventListener, Node, NodePropertyValue
-from pyisyox.constants import TAG_ADDRESS, TAG_ENABLED, Protocol
-
-from .models import NetworkResourceRecord
+from pyisyox import (
+    Controller,
+    NodeLifecycleAction,
+    NodeLifecycleEvent,
+    Node,
+)
+from pyisyox.constants import TAG_ENABLED, Protocol
 
 from .const import CONF_NETWORK, DOMAIN
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, IsyData, NetworkResourceRecord
 
 
 async def async_setup_entry(
@@ -21,9 +26,9 @@ async def async_setup_entry(
     config_entry: IsyConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up ISY/IoX button from config entry."""
+    """Set up IoX buttons from a config entry."""
     isy_data = config_entry.runtime_data
-    isy: Controller = isy_data.root
+    controller: Controller = isy_data.root
     device_info = isy_data.devices
     entities: list[
         ISYNodeQueryButtonEntity
@@ -34,6 +39,7 @@ async def async_setup_entry(
     for node in isy_data.root_nodes[Platform.BUTTON]:
         entities.append(
             ISYNodeQueryButtonEntity(
+                isy_data,
                 node=node,
                 name="Query",
                 unique_id=f"{isy_data.uid_base(node)}_query",
@@ -44,6 +50,7 @@ async def async_setup_entry(
         if node.protocol == Protocol.INSTEON:
             entities.append(
                 ISYNodeBeepButtonEntity(
+                    isy_data,
                     node=node,
                     name="Beep",
                     unique_id=f"{isy_data.uid_base(node)}_beep",
@@ -52,23 +59,25 @@ async def async_setup_entry(
                 )
             )
 
-    for node in isy_data.net_resources:
+    for resource in isy_data.net_resources:
         entities.append(
             ISYNetworkResourceButtonEntity(
-                node=node,
-                name=node.name,
-                unique_id=isy_data.uid_base(node),
+                isy_data,
+                node=resource,
+                name=resource.get("name", ""),
+                unique_id=isy_data.uid_base(resource),
                 device_info=device_info[CONF_NETWORK],
             )
         )
 
-    # Add entity to query full system
+    # System-wide query button
     entities.append(
         ISYNodeQueryButtonEntity(
-            node=isy,
+            isy_data,
+            node=controller,
             name="Query",
-            unique_id=f"{isy.uuid}_query",
-            device_info=DeviceInfo(identifiers={(DOMAIN, isy.uuid)}),
+            unique_id=f"{controller.config.uuid}_query",
+            device_info=DeviceInfo(identifiers={(DOMAIN, controller.config.uuid)}),
             entity_category=EntityCategory.DIAGNOSTIC,
         )
     )
@@ -77,7 +86,7 @@ async def async_setup_entry(
 
 
 class ISYNodeButtonEntity(ButtonEntity):
-    """Representation of an ISY/IoX device button entity."""
+    """Base for IoX device-button entities."""
 
     _attr_should_poll = False
     _attr_has_entity_name = True
@@ -85,22 +94,25 @@ class ISYNodeButtonEntity(ButtonEntity):
 
     def __init__(
         self,
+        isy_data: IsyData,
         node: Node | Controller | NetworkResourceRecord,
         name: str,
         unique_id: str,
         device_info: DeviceInfo,
         entity_category: EntityCategory | None = None,
     ) -> None:
-        """Initialize a query ISY device button entity."""
+        """Initialize a button entity."""
+        self._isy_data = isy_data
         self._node = node
 
-        # Entity class attributes
         self._attr_name = name
         self._attr_entity_category = entity_category
         self._attr_unique_id = unique_id
         self._attr_device_info = device_info
+        # NetworkResourceRecord (a dict) and Controller don't carry an
+        # enabled flag; default to True so the button is always usable.
         self._node_enabled = getattr(node, TAG_ENABLED, True)
-        self._availability_handler: EventListener | None = None
+        self._unsubscribers: list[Callable[[], None]] = []
 
     @property
     def available(self) -> bool:
@@ -108,53 +120,73 @@ class ISYNodeButtonEntity(ButtonEntity):
         return self._node_enabled
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to the node change events."""
-        # No status for NetworkResources or ISY Query buttons
+        """Subscribe to lifecycle events for availability tracking."""
         if not isinstance(self._node, Node):
+            # NetworkResource and system-query buttons aren't nodes.
             return
-        self._availability_handler = self._node.isy.nodes.platform_events.subscribe(
-            self.async_on_update,
-            event_filter={
-                TAG_ADDRESS: self._node.address,
-                ATTR_ACTION: NodeChangeAction.NODE_ENABLED,
-            },
-            key=self.unique_id,
+        self._unsubscribers.append(
+            self._isy_data.controller_events.subscribe_lifecycle(self._on_lifecycle)
         )
 
+    async def async_will_remove_from_hass(self) -> None:
+        """Unsubscribe from controller events."""
+        for unsub in self._unsubscribers:
+            unsub()
+        self._unsubscribers.clear()
+
     @callback
-    def async_on_update(self, event: NodePropertyValue, key: str) -> None:
-        """Handle the update event from the ISY Node."""
-        # Watch for node availability/enabled changes only
+    def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:
+        """Update availability when the controller toggles the node."""
+        if not isinstance(self._node, Node):
+            return
+        if event.node_address != self._node.address:
+            return
+        if event.action != NodeLifecycleAction.NODE_ENABLED:
+            return
         self._node_enabled = getattr(self._node, TAG_ENABLED, True)
         self.async_write_ha_state()
 
 
 class ISYNodeQueryButtonEntity(ISYNodeButtonEntity):
-    """Representation of a device query button entity."""
+    """Press → :meth:`Node.query` (or :meth:`Controller.refresh`)."""
 
     _node: Node | Controller
 
     async def async_press(self) -> None:
         """Press the button."""
-        await self._node.query()
+        if isinstance(self._node, Controller):
+            await self._node.refresh()
+        else:
+            # Node.query is the v3 helper; pyisyox 6 routes it through
+            # send_command(\"QUERY\") — same wire effect.
+            await self._node.send_command("QUERY")
 
 
 class ISYNodeBeepButtonEntity(ISYNodeButtonEntity):
-    """Representation of a device beep button entity."""
+    """Press → Insteon beep."""
 
     _node: Node
 
     async def async_press(self) -> None:
         """Press the button."""
-        await self._node.beep()
+        await self._node.send_command("BEEP")
 
 
 class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
-    """Representation of an ISY/IoX Network Resource button entity."""
+    """Press → run an IoX network resource.
+
+    Network resources aren't yet typed in pyisyox 6.0.0a1; the run
+    surface is deferred to a later release. Pressing the button
+    raises until that wrapper lands.
+    """
 
     _attr_has_entity_name = False
     _node: NetworkResourceRecord
 
     async def async_press(self) -> None:
         """Press the button."""
-        await self._node.run()
+        from homeassistant.exceptions import HomeAssistantError
+
+        raise HomeAssistantError(
+            "Network resource execution is not supported in this release"
+        )

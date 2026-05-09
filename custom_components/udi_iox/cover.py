@@ -19,7 +19,7 @@ from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, ProgramRecord
+from .models import IsyConfigEntry, IsyData, ProgramRecord
 
 
 async def async_setup_entry(
@@ -33,11 +33,13 @@ async def async_setup_entry(
     devices: dict[str, DeviceInfo] = isy_data.devices
     for node in isy_data.nodes[Platform.COVER]:
         entities.append(
-            ISYCoverEntity(node=node, device_info=devices.get(node.primary_node))
+            ISYCoverEntity(
+                isy_data, node=node, device_info=devices.get(node.primary_node)
+            )
         )
 
     for name, status, actions in isy_data.programs[Platform.COVER]:
-        entities.append(ISYCoverProgramEntity(name, status, actions))
+        entities.append(ISYCoverProgramEntity(isy_data, name, status, actions))
 
     async_add_entities(entities)
 
@@ -57,7 +59,7 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
             self._attr_current_cover_position = None
             self._attr_is_closed = None
             return
-        if self._node.uom == UOM_8_BIT_RANGE:
+        if (self._node.status is not None and self._node.status.uom == UOM_8_BIT_RANGE):
             self._attr_current_cover_position = round(
                 cast(float, node_status_int(self._node)) * 100.0 / 255.0
             )
@@ -99,7 +101,7 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Move the cover to a specific position."""
         position = kwargs[ATTR_POSITION]
-        if self._node.uom == UOM_8_BIT_RANGE:
+        if (self._node.status is not None and self._node.status.uom == UOM_8_BIT_RANGE):
             position = round(position * 255.0 / 100.0)
         try:
             await self._node.set_on_level(position)

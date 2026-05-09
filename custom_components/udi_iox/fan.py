@@ -20,7 +20,7 @@ from pyisyox.constants import CMD_OFF, Protocol
 
 from .const import _LOGGER
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, ProgramRecord
+from .models import IsyConfigEntry, IsyData, ProgramRecord
 
 SPEED_RANGE = (1, 255)  # off is not included
 
@@ -37,11 +37,13 @@ async def async_setup_entry(
 
     for node in isy_data.nodes[Platform.FAN]:
         entities.append(
-            ISYFanEntity(node=node, device_info=devices.get(node.primary_node))
+            ISYFanEntity(
+                isy_data, node=node, device_info=devices.get(node.primary_node)
+            )
         )
 
     for name, status, actions in isy_data.programs[Platform.FAN]:
-        entities.append(ISYFanProgramEntity(name, status, actions))
+        entities.append(ISYFanProgramEntity(isy_data, name, status, actions))
 
     async_add_entities(entities)
 
@@ -56,9 +58,11 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
     )
     _node: Node
 
-    def __init__(self, node: Node, device_info: DeviceInfo | None = None) -> None:
-        """Initialize the ISY fan entity."""
-        super().__init__(node=node, device_info=device_info)
+    def __init__(
+        self, isy_data: IsyData, node: Node, device_info: DeviceInfo | None = None
+    ) -> None:
+        """Initialize the IoX fan entity."""
+        super().__init__(isy_data, node=node, device_info=device_info)
         self._attr_speed_count = (
             3 if node.protocol == Protocol.INSTEON else int_states_in_range(SPEED_RANGE)
         )

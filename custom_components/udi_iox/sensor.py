@@ -45,7 +45,7 @@ from .const import (
 )
 from .entity import ISYNodeEntity
 from .helpers import convert_isy_value_to_hass
-from .models import IsyConfigEntry
+from .models import IsyConfigEntry, IsyData
 
 # Disable general purpose and redundant sensors by default
 AUX_DISABLED_BY_DEFAULT_MATCH = ["DO"]
@@ -289,6 +289,7 @@ async def async_setup_entry(
         )
 
         entity = ISYSensorEntity(
+            isy_data,
             node=node,
             control=control,
             description=description,
@@ -311,6 +312,7 @@ class ISYSensorEntity(ISYNodeEntity, SensorEntity):
 
     def __init__(
         self,
+        isy_data: IsyData,
         node: Node,
         control: str = PROP_STATUS,
         unique_id: str | None = None,
@@ -318,8 +320,9 @@ class ISYSensorEntity(ISYNodeEntity, SensorEntity):
         device_info: DeviceInfo | None = None,
         options_dict: dict[int, str] | None = None,
     ) -> None:
-        """Initialize the ISY aux sensor."""
+        """Initialize the IoX aux sensor."""
         super().__init__(
+            isy_data,
             node=node,
             control=control,
             unique_id=unique_id,
