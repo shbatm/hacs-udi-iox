@@ -238,7 +238,13 @@ class ISYVariableNumberEntity(NumberEntity):
         return {"last_edited": self._node.get("last_edited")}
 
     async def async_set_native_value(self, value: float) -> None:
-        """Set new value via the controller."""
+        """Write the variable value via the controller.
+
+        pyisyox 6.0.0a1 doesn't yet dispatch variable-change events on
+        the WS, so the entity optimistically mirrors the write into
+        its local record + HA state. When pyisyox grows variable
+        event routing, this falls through to a real subscription.
+        """
         controller = self._isy_data.root
         var_type = self._node.get("type")
         var_id = self._node.get("id")
@@ -255,6 +261,9 @@ class ISYVariableNumberEntity(NumberEntity):
             raise HomeAssistantError(
                 f"Could not set variable {var_type}/{var_id} to {value}: {err}"
             ) from err
+        # Optimistic — surface the new value immediately.
+        self._node["init" if self._init_entity else "value"] = value
+        self.async_write_ha_state()
 
 
 class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):

@@ -1,33 +1,9 @@
-# Describes the ISY-specific services available
+# IoX integration services
+#
+# Targeted-entity services controlling many entities in one call is not
+# recommended — it may flood the controller with requests. To control
+# multiple devices, define a scene on the controller and target that.
 
-# Note: controlling many entity_ids with one call is not recommended since it may result in
-# flooding the ISY with requests. To control multiple devices with a service call
-# the recommendation is to add a scene in the ISY and control that scene.
-send_raw_node_command:
-  target:
-    entity:
-      integration: udi_iox
-  fields:
-    command:
-      required: true
-      example: "DON"
-      selector:
-        text:
-    value:
-      selector:
-        number:
-          min: 0
-          max: 255
-    parameters:
-      example: { GV2: 0, GV3: 0, GV4: 255 }
-      default: {}
-      selector:
-        object:
-    unit_of_measurement:
-      selector:
-        number:
-          min: 0
-          max: 120
 send_node_command:
   target:
     entity:
@@ -49,87 +25,52 @@ send_node_command:
             - "fast_off"
             - "fast_on"
             - "query"
-get_zwave_parameter:
-  target:
-    entity:
-      integration: udi_iox
+
+system_query:
   fields:
-    parameter:
-      example: 8
-      selector:
-        number:
-          min: 1
-          max: 255
-set_zwave_parameter:
-  target:
-    entity:
-      integration: udi_iox
-  fields:
-    parameter:
-      required: true
-      example: 8
-      selector:
-        number:
-          min: 1
-          max: 255
-    value:
-      required: true
-      example: 33491663
+    address:
+      example: "1A 2B 3C 1"
       selector:
         text:
-    size:
+    isy:
+      example: "00:21:b9:01:23:45"
+      selector:
+        text:
+
+set_variable:
+  fields:
+    address:
       required: true
-      example: 4
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 255
+    type:
+      required: true
+      example: 2
       selector:
         select:
           options:
             - "1"
             - "2"
-            - "4"
-set_zwave_lock_user_code:
-  target:
-    entity:
-      integration: udi_iox
-      domain: lock
-  fields:
-    user_num:
+    value:
       required: true
-      example: 8
+      example: 100
       selector:
         number:
-          min: 1
-          max: 255
-    code:
-      required: true
-      example: 8675309
-      selector:
-        number:
-          min: 1
-          max: 99999999
+          min: -2147483648
+          max: 2147483647
           mode: box
-delete_zwave_lock_user_code:
-  target:
-    entity:
-      integration: udi_iox
-      domain: lock
-  fields:
-    user_num:
-      required: true
-      example: 8
+    init:
+      default: false
       selector:
-        number:
-          min: 1
-          max: 255
-rename_node:
-  target:
-    entity:
-      integration: udi_iox
-  fields:
-    name:
-      required: true
-      example: "Front Door Light"
+        boolean:
+    isy:
+      example: "00:21:b9:01:23:45"
       selector:
         text:
+
 send_program_command:
   fields:
     address:
@@ -154,6 +95,23 @@ send_program_command:
             - "run_then"
             - "stop"
     isy:
-      example: "ISY"
+      example: "00:21:b9:01:23:45"
+      selector:
+        text:
+
+run_network_resource:
+  fields:
+    address:
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 255
+    name:
+      example: "My Resource"
+      selector:
+        text:
+    isy:
+      example: "00:21:b9:01:23:45"
       selector:
         text:

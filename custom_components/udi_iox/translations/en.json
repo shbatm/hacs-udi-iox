@@ -76,126 +76,98 @@
   },
   "system_health": {
     "info": {
-      "host_reachable": "Host Reachable",
-      "device_connected": "ISY Connected",
-      "last_heartbeat": "Last Heartbeat Time",
-      "websocket_status": "Event Socket Status"
+      "host_reachable": "Host reachable",
+      "device_connected": "Controller connected"
     }
   },
   "services": {
-    "send_raw_node_command": {
-      "name": "Send raw node command",
-      "description": "Sends a \"raw\" ISY REST device command to a node using its Home Assistant entity ID.",
-      "fields": {
-        "command": {
-          "name": "Command",
-          "description": "The ISY REST command to be sent to the device."
-        },
-        "value": {
-          "name": "Value",
-          "description": "The integer value to be sent with the command."
-        },
-        "parameters": {
-          "name": "Parameters",
-          "description": "A dict of parameters to be sent in the query string (e.g. for controlling colored bulbs)."
-        },
-        "unit_of_measurement": {
-          "name": "Unit of measurement",
-          "description": "The ISY unit of measurement (UOM) to send with the command, if required."
-        }
-      }
-    },
     "send_node_command": {
       "name": "Send node command",
-      "description": "Sends a command to an ISY device using its Home Assistant entity ID. Valid commands are: beep, brighten, dim, disable, enable, fade_down, fade_stop, fade_up, fast_off, fast_on, and query.",
+      "description": "Send a friendly-named command to an IoX device by entity ID. Valid commands: beep, brighten, dim, disable, enable, fade_down, fade_stop, fade_up, fast_off, fast_on, query.",
       "fields": {
         "command": {
           "name": "Command",
-          "description": "The command to be sent to the device."
+          "description": "The command to send to the device."
         }
       }
     },
-    "get_zwave_parameter": {
-      "name": "Get Z-Wave parameter",
-      "description": "Requests a Z-Wave device parameter via the ISY. The parameter value will be returned as an entity extra state attribute with the name \"ZW_#\" where \"#\" is the parameter number.",
+    "system_query": {
+      "name": "System query",
+      "description": "Refresh the controller's node table. Re-pulls /api/nodes + /rest/status, useful after manual changes in the IoX admin console.",
       "fields": {
-        "parameter": {
-          "name": "Parameter",
-          "description": "The parameter number to retrieve from the device."
+        "address": {
+          "name": "Address",
+          "description": "Optional node address to focus the refresh. Currently advisory — the controller refresh is always full-scope."
+        },
+        "isy": {
+          "name": "Controller",
+          "description": "If you have more than one IoX controller, the controller UUID to target. Omit to refresh every controller."
         }
       }
     },
-    "set_zwave_parameter": {
-      "name": "Set Z-Wave parameter",
-      "description": "Updates a Z-Wave device parameter via the ISY. The parameter value will also be returned as an entity extra state attribute with the name \"ZW_#\" where \"#\" is the parameter number.",
+    "set_variable": {
+      "name": "Set variable",
+      "description": "Write a value to a controller variable.",
       "fields": {
-        "parameter": {
-          "name": "Parameter",
-          "description": "The parameter number to set on the end device."
+        "address": {
+          "name": "Variable id",
+          "description": "Numeric variable id within its type."
+        },
+        "type": {
+          "name": "Variable type",
+          "description": "1 = Integer variable, 2 = State variable."
         },
         "value": {
           "name": "Value",
-          "description": "The value to set for the parameter. May be an integer or byte string (e.g. \"0xFFFF\")."
+          "description": "The integer value to write."
         },
-        "size": {
-          "name": "Size",
-          "description": "The size of the parameter, either 1, 2, or 4 bytes."
-        }
-      }
-    },
-    "set_zwave_lock_user_code": {
-      "name": "Set Z-Wave lock user code",
-      "description": "Sets a user code for a Z-Wave lock via the ISY.",
-      "fields": {
-        "user_num": {
-          "name": "User number",
-          "description": "The user slot number on the lock."
+        "init": {
+          "name": "Set initial value",
+          "description": "When true, write to the variable's restore-on-startup slot instead of its current value."
         },
-        "code": {
-          "name": "Code",
-          "description": "The code to set for the user."
-        }
-      }
-    },
-    "delete_zwave_lock_user_code": {
-      "name": "Delete Z-Wave lock user code",
-      "description": "Deletes a user code for a Z-Wave lock via the ISY.",
-      "fields": {
-        "user_num": {
-          "name": "User number",
-          "description": "The user slot number on the lock."
-        }
-      }
-    },
-    "rename_node": {
-      "name": "Rename node on ISY",
-      "description": "Renames a node or group (scene) on the ISY. Note: this will not automatically change the Home Assistant entity name or entity ID to match. The entity name and ID will only be updated after reloading the integration or restarting Home Assistant, and ONLY IF you have not already customized the name within Home Assistant.",
-      "fields": {
-        "name": {
-          "name": "New name",
-          "description": "The new name to use within the ISY."
+        "isy": {
+          "name": "Controller",
+          "description": "If you have more than one IoX controller, the controller UUID to target."
         }
       }
     },
     "send_program_command": {
       "name": "Send program command",
-      "description": "Sends a command to control an ISY program or folder. Valid commands are run, run_then, run_else, stop, enable, disable, enable_run_at_startup, and disable_run_at_startup.",
+      "description": "Not supported in this release — typed program wrappers are deferred in pyisyox 6.0.0a1. The schema is kept so existing automations parse, but the call will raise.",
       "fields": {
         "address": {
           "name": "Address",
-          "description": "The address of the program to control (use either address or name)."
+          "description": "Address of the program."
         },
         "name": {
           "name": "Name",
-          "description": "The name of the program to control (use either address or name)."
+          "description": "Name of the program."
         },
         "command": {
           "name": "Command",
-          "description": "The ISY program command to be sent."
+          "description": "The program command."
         },
         "isy": {
-          "name": "ISY",
-          "description": "If you have more than one ISY connected, provide the name of the ISY to query (as shown on the Device Registry or as the top-first node in the ISY Admin Console). If you have the same program name or address on multiple ISYs, omitting this will run the command on them all."
+          "name": "Controller",
+          "description": "Controller UUID."
+        }
+      }
+    },
+    "run_network_resource": {
+      "name": "Run network resource",
+      "description": "Not supported in this release — /rest/networking has no typed wrapper in pyisyox 6.0.0a1.",
+      "fields": {
+        "address": {
+          "name": "Address",
+          "description": "Network resource id."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Network resource name."
+        },
+        "isy": {
+          "name": "Controller",
+          "description": "Controller UUID."
         }
       }
     }

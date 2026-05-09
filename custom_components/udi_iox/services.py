@@ -1,4 +1,37 @@
-"""ISY Services and Commands."""
+"""IoX services and commands.
+
+What's wired up vs. what isn't, and why:
+
+* ``send_node_command`` — alive. Routes friendly names ("brighten",
+  "fast_off", ...) into ``Node.send_command(cmd_id)`` via the
+  ``ISYNodeEntity.async_send_node_command`` method. Editor-codec
+  validated by pyisyox.
+* ``set_variable`` — alive. Writes through
+  :meth:`pyisyox.Controller.set_variable_value` /
+  :meth:`set_variable_init`.
+* ``system_query`` — alive. Calls
+  :meth:`pyisyox.Controller.refresh` to re-pull the node table and
+  reset cached state.
+* ``send_program_command`` — stub. Programs are exposed as raw
+  dicts in pyisyox 6.0.0a1 and the controller has no
+  ``send_program_command`` method yet. Service raises
+  HomeAssistantError so service-call traces stay obvious.
+* ``run_network_resource`` — stub. /rest/networking has no typed
+  pyisyox wrapper yet (see fork plan §Deferred).
+
+Removed since the v3 surface is gone:
+* ``send_raw_node_command`` — superseded by ``send_node_command``
+  (every command on Node.send_command is editor-codec validated).
+* ``rename_node`` — pyisyox doesn't expose a rename helper.
+* ``get_zwave_parameter`` / ``set_zwave_parameter`` — Z-Wave wire
+  surface deferred until a live capture lands.
+* ``set_zwave_lock_user_code`` / ``delete_zwave_lock_user_code`` —
+  same Z-Wave deferral; the lock platform's
+  ``async_register_entity_service`` registration is also dropped
+  in lock.py.
+* ``cleanup_entities`` — never had a handler; HA's entity registry
+  cleanup now runs automatically in ``util._async_cleanup_registry_entries``.
+"""
 
 from __future__ import annotations
 
@@ -11,50 +44,34 @@ from homeassistant.const import (
     CONF_COMMAND,
     CONF_NAME,
     CONF_TYPE,
-    CONF_UNIT_OF_MEASUREMENT,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.helpers import entity_platform
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.service import entity_service_call
 from pyisyox.constants import COMMAND_FRIENDLY_NAME
 
 from .const import _LOGGER, DOMAIN
 
-# Common Services for All Platforms:
+# Domain-wide services
 SERVICE_SYSTEM_QUERY = "system_query"
 SERVICE_SET_VARIABLE = "set_variable"
 SERVICE_SEND_PROGRAM_COMMAND = "send_program_command"
 SERVICE_RUN_NETWORK_RESOURCE = "run_network_resource"
-SERVICE_CLEANUP = "cleanup_entities"
 
 INTEGRATION_SERVICES = [
     SERVICE_SYSTEM_QUERY,
     SERVICE_SET_VARIABLE,
     SERVICE_SEND_PROGRAM_COMMAND,
     SERVICE_RUN_NETWORK_RESOURCE,
-    SERVICE_CLEANUP,
 ]
 
-# Entity specific methods (valid for most Groups/ISY Scenes, Lights, Switches, Fans)
-SERVICE_SEND_RAW_NODE_COMMAND = "send_raw_node_command"
+# Entity-targeting service (light, switch, climate, fan, cover, lock, etc.)
 SERVICE_SEND_NODE_COMMAND = "send_node_command"
-SERVICE_GET_ZWAVE_PARAMETER = "get_zwave_parameter"
-SERVICE_SET_ZWAVE_PARAMETER = "set_zwave_parameter"
-SERVICE_RENAME_NODE = "rename_node"
 
-# Services valid only for Z-Wave Locks
-SERVICE_SET_ZWAVE_LOCK_USER_CODE = "set_zwave_lock_user_code"
-SERVICE_DELETE_ZWAVE_LOCK_USER_CODE = "delete_zwave_lock_user_code"
-
-CONF_PARAMETER = "parameter"
-CONF_PARAMETERS = "parameters"
-CONF_USER_NUM = "user_num"
-CONF_CODE = "code"
 CONF_VALUE = "value"
 CONF_INIT = "init"
 CONF_ISY = "isy"
-CONF_SIZE = "size"
 
 VALID_NODE_COMMANDS = [
     "beep",
@@ -79,16 +96,14 @@ VALID_PROGRAM_COMMANDS = [
     "enable_run_at_startup",
     "disable_run_at_startup",
 ]
-VALID_PARAMETER_SIZES = [1, 2, 4]
 
 
-def valid_isy_commands(value: Any) -> str:
-    """Validate the command is valid."""
-    value = str(value).upper()
-    if value in COMMAND_FRIENDLY_NAME:
-        assert isinstance(value, str)
-        return value
-    raise vol.Invalid("Invalid ISY Command.")
+def _valid_iox_command(value: Any) -> str:
+    """Validate the command id is one pyisyox knows about."""
+    cmd = str(value).upper()
+    if cmd in COMMAND_FRIENDLY_NAME:
+        return cmd
+    raise vol.Invalid(f"Unknown IoX command: {value!r}")
 
 
 SCHEMA_GROUP = "name-address"
@@ -97,55 +112,18 @@ SERVICE_SYSTEM_QUERY_SCHEMA = vol.Schema(
     {vol.Optional(CONF_ADDRESS): cv.string, vol.Optional(CONF_ISY): cv.string}
 )
 
-SERVICE_SET_RAMP_RATE_SCHEMA = {
-    vol.Required(CONF_VALUE): vol.All(vol.Coerce(int), vol.Range(0, 31))
-}
-
-SERVICE_SET_VALUE_SCHEMA = {
-    vol.Required(CONF_VALUE): vol.All(vol.Coerce(int), vol.Range(0, 255))
-}
-
-SERVICE_SEND_RAW_NODE_COMMAND_SCHEMA = {
-    vol.Required(CONF_COMMAND): vol.All(cv.string, valid_isy_commands),
-    vol.Optional(CONF_VALUE): vol.All(vol.Coerce(int), vol.Range(0, 255)),
-    vol.Optional(CONF_UNIT_OF_MEASUREMENT): vol.All(vol.Coerce(int), vol.Range(0, 120)),
-    vol.Optional(CONF_PARAMETERS, default={}): {cv.string: cv.string},
-}
-
 SERVICE_SEND_NODE_COMMAND_SCHEMA = {
     vol.Required(CONF_COMMAND): vol.In(VALID_NODE_COMMANDS)
 }
 
-SERVICE_RENAME_NODE_SCHEMA = {vol.Required(CONF_NAME): cv.string}
-
-SERVICE_GET_ZWAVE_PARAMETER_SCHEMA = {vol.Required(CONF_PARAMETER): vol.Coerce(int)}
-
-SERVICE_SET_ZWAVE_PARAMETER_SCHEMA = {
-    vol.Required(CONF_PARAMETER): vol.Coerce(int),
-    vol.Required(CONF_VALUE): vol.Coerce(int),
-    vol.Required(CONF_SIZE): vol.All(vol.Coerce(int), vol.In(VALID_PARAMETER_SIZES)),
-}
-
-SERVICE_SET_USER_CODE_SCHEMA = {
-    vol.Required(CONF_USER_NUM): vol.Coerce(int),
-    vol.Required(CONF_CODE): vol.Coerce(int),
-}
-SERVICE_DELETE_USER_CODE_SCHEMA = {vol.Required(CONF_USER_NUM): vol.Coerce(int)}
-
-SERVICE_SET_VARIABLE_SCHEMA = vol.All(
-    cv.has_at_least_one_key(CONF_ADDRESS, CONF_TYPE, CONF_NAME),
-    vol.Schema(
-        {
-            vol.Exclusive(CONF_NAME, SCHEMA_GROUP): cv.string,
-            vol.Inclusive(CONF_ADDRESS, SCHEMA_GROUP): vol.Coerce(int),
-            vol.Inclusive(CONF_TYPE, SCHEMA_GROUP): vol.All(
-                vol.Coerce(int), vol.Range(1, 2)
-            ),
-            vol.Optional(CONF_INIT, default=False): bool,
-            vol.Required(CONF_VALUE): vol.Coerce(int),
-            vol.Optional(CONF_ISY): cv.string,
-        }
-    ),
+SERVICE_SET_VARIABLE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_ADDRESS): vol.Coerce(int),
+        vol.Required(CONF_TYPE): vol.All(vol.Coerce(int), vol.Range(1, 2)),
+        vol.Required(CONF_VALUE): vol.Coerce(int),
+        vol.Optional(CONF_INIT, default=False): bool,
+        vol.Optional(CONF_ISY): cv.string,
+    }
 )
 
 SERVICE_SEND_PROGRAM_COMMAND_SCHEMA = vol.All(
@@ -172,55 +150,102 @@ SERVICE_RUN_NETWORK_RESOURCE_SCHEMA = vol.All(
 )
 
 
+def _select_isy_data(hass: HomeAssistant, isy_name: str | None):
+    """Yield (entry, isy_data) tuples for the targeted controller(s)."""
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        isy_data = entry.runtime_data
+        if isy_data is None:
+            continue
+        # The legacy isy_name knob targeted by ISY display name; in v6
+        # ControllerConfig has no name field, so the user passes the
+        # uuid (preferred) or we accept any value to mean "first
+        # match" if there's only one entry.
+        if isy_name and isy_name != isy_data.uuid:
+            continue
+        yield entry, isy_data
+
+
 @callback
 def async_setup_services(hass: HomeAssistant) -> None:
-    """Create and register services for the ISY integration."""
+    """Register the domain-wide IoX services."""
     existing_services = hass.services.async_services().get(DOMAIN)
     if existing_services and any(
         service in INTEGRATION_SERVICES for service in existing_services
     ):
-        # Integration-level services have already been added. Return.
+        # Already registered for an earlier entry; the services live for
+        # the lifetime of the integration.
         return
 
-    async def async_send_program_command_service_handler(service: ServiceCall) -> None:
-        """Handle a send program command service call."""
-        address = service.data.get(CONF_ADDRESS)
-        name = service.data.get(CONF_NAME)
-        command = service.data[CONF_COMMAND]
-        isy_name = service.data.get(CONF_ISY)
-
-        for entry in hass.config_entries.async_entries(DOMAIN):
-            isy_data = entry.runtime_data
-            isy = isy_data.root
-            if isy_name and isy_name != isy.config.name:
-                continue
-            program = None
-            if address:
-                program = isy.programs.get_by_id(address)
-            if name:
-                program = isy.programs.get_by_name(name)
-            if program is not None:
-                await getattr(program, command)()
-                return
-        _LOGGER.error("Could not send program command; not found or enabled on the ISY")
+    async def async_system_query(call: ServiceCall) -> None:
+        """Refresh the controller's node + property cache."""
+        isy_name = call.data.get(CONF_ISY)
+        targeted = list(_select_isy_data(hass, isy_name))
+        if not targeted:
+            raise HomeAssistantError(
+                f"No IoX controller matched isy={isy_name!r}"
+            )
+        for _, isy_data in targeted:
+            await isy_data.root.refresh()
 
     hass.services.async_register(
         domain=DOMAIN,
-        service=SERVICE_SEND_PROGRAM_COMMAND,
-        service_func=async_send_program_command_service_handler,
-        schema=SERVICE_SEND_PROGRAM_COMMAND_SCHEMA,
+        service=SERVICE_SYSTEM_QUERY,
+        service_func=async_system_query,
+        schema=SERVICE_SYSTEM_QUERY_SCHEMA,
     )
 
-    async def _async_send_raw_node_command(call: ServiceCall) -> None:
-        await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_send_raw_node_command", call
+    async def async_set_variable(call: ServiceCall) -> None:
+        """Write a variable via the controller."""
+        var_id = call.data[CONF_ADDRESS]
+        var_type = call.data[CONF_TYPE]
+        value = call.data[CONF_VALUE]
+        init = call.data[CONF_INIT]
+        isy_name = call.data.get(CONF_ISY)
+
+        targeted = list(_select_isy_data(hass, isy_name))
+        if not targeted:
+            raise HomeAssistantError(
+                f"No IoX controller matched isy={isy_name!r}"
+            )
+        for _, isy_data in targeted:
+            controller = isy_data.root
+            if init:
+                await controller.set_variable_init(var_type, var_id, value)
+            else:
+                await controller.set_variable_value(var_type, var_id, value)
+
+    hass.services.async_register(
+        domain=DOMAIN,
+        service=SERVICE_SET_VARIABLE,
+        service_func=async_set_variable,
+        schema=SERVICE_SET_VARIABLE_SCHEMA,
+    )
+
+    async def async_send_program_command(call: ServiceCall) -> None:
+        """Stub: programs are deferred in pyisyox 6.0.0a1."""
+        raise HomeAssistantError(
+            "Program command service is not supported in this release;"
+            " typed program wrappers are deferred in pyisyox 6.0.0a1"
         )
 
     hass.services.async_register(
         domain=DOMAIN,
-        service=SERVICE_SEND_RAW_NODE_COMMAND,
-        schema=cv.make_entity_service_schema(SERVICE_SEND_RAW_NODE_COMMAND_SCHEMA),
-        service_func=_async_send_raw_node_command,
+        service=SERVICE_SEND_PROGRAM_COMMAND,
+        service_func=async_send_program_command,
+        schema=SERVICE_SEND_PROGRAM_COMMAND_SCHEMA,
+    )
+
+    async def async_run_network_resource(call: ServiceCall) -> None:
+        """Stub: /rest/networking has no typed wrapper yet."""
+        raise HomeAssistantError(
+            "Network resource service is not supported in this release"
+        )
+
+    hass.services.async_register(
+        domain=DOMAIN,
+        service=SERVICE_RUN_NETWORK_RESOURCE,
+        service_func=async_run_network_resource,
+        schema=SERVICE_RUN_NETWORK_RESOURCE_SCHEMA,
     )
 
     async def _async_send_node_command(call: ServiceCall) -> None:
@@ -235,55 +260,14 @@ def async_setup_services(hass: HomeAssistant) -> None:
         service_func=_async_send_node_command,
     )
 
-    async def _async_get_zwave_parameter(call: ServiceCall) -> None:
-        await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_get_zwave_parameter", call
-        )
 
-    hass.services.async_register(
-        domain=DOMAIN,
-        service=SERVICE_GET_ZWAVE_PARAMETER,
-        schema=cv.make_entity_service_schema(SERVICE_GET_ZWAVE_PARAMETER_SCHEMA),
-        service_func=_async_get_zwave_parameter,
-    )
-
-    async def _async_set_zwave_parameter(call: ServiceCall) -> None:
-        await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_set_zwave_parameter", call
-        )
-
-    hass.services.async_register(
-        domain=DOMAIN,
-        service=SERVICE_SET_ZWAVE_PARAMETER,
-        schema=cv.make_entity_service_schema(SERVICE_SET_ZWAVE_PARAMETER_SCHEMA),
-        service_func=_async_set_zwave_parameter,
-    )
-
-    async def _async_rename_node(call: ServiceCall) -> None:
-        await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_rename_node", call
-        )
-
-    hass.services.async_register(
-        domain=DOMAIN,
-        service=SERVICE_RENAME_NODE,
-        schema=cv.make_entity_service_schema(SERVICE_RENAME_NODE_SCHEMA),
-        service_func=_async_rename_node,
-    )
-
-
+# Compat shim: lock.py still imports this. Z-Wave lock services are
+# deferred — the function is intentionally a no-op so the lock platform
+# can keep its setup_entry call site unchanged until Z-Wave lands.
 @callback
 def async_setup_lock_services(hass: HomeAssistant) -> None:
-    """Create device-specific services for the ISY Integration."""
-    platform = entity_platform.async_get_current_platform()
-
-    platform.async_register_entity_service(
-        SERVICE_SET_ZWAVE_LOCK_USER_CODE,
-        SERVICE_SET_USER_CODE_SCHEMA,
-        "async_set_zwave_lock_user_code",
-    )
-    platform.async_register_entity_service(
-        SERVICE_DELETE_ZWAVE_LOCK_USER_CODE,
-        SERVICE_DELETE_USER_CODE_SCHEMA,
-        "async_delete_zwave_lock_user_code",
+    """No-op while Z-Wave lock services are deferred."""
+    _LOGGER.debug(
+        "Z-Wave lock services (set_zwave_lock_user_code, delete_zwave_lock_user_code)"
+        " are not registered in this release"
     )

@@ -9,7 +9,7 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from pyisyox import Controller
 
-from .const import DOMAIN
+from .const import DOMAIN, ISY_URL_POSTFIX
 from .models import IsyConfigEntry
 
 
@@ -40,7 +40,7 @@ async def system_health_info(hass: HomeAssistant) -> dict[str, Any]:
     controller: Controller = isy_data.root
 
     health_info["host_reachable"] = await system_health.async_check_can_reach_url(
-        hass, entry.data[CONF_HOST]
+        hass, f"{entry.data[CONF_HOST]}{ISY_URL_POSTFIX}"
     )
     health_info["device_connected"] = controller.connected
 
