@@ -119,7 +119,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
 
     isy_data.root = controller
 
-    _categorize_nodes(isy_data, controller.nodes, isy_options)
+    _categorize_nodes(
+        isy_data, controller.nodes, isy_options, controller=controller, host=host
+    )
 
     if enable_programs and controller.programs:
         _categorize_programs(isy_data, controller.programs)
