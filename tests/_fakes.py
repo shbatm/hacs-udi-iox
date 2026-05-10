@@ -69,6 +69,20 @@ class FakeNode:
         self.name = new_name
 
 
+@dataclass
+class FakeNetworkResource:
+    """Stand-in for ``pyisyox.NetworkResource`` (typed wrapper)."""
+
+    address: str
+    name: str = "Test Resource"
+
+    def __post_init__(self) -> None:
+        self.run_calls: list[None] = []
+
+    async def run(self) -> None:
+        self.run_calls.append(None)
+
+
 class FakeController:
     """Minimal Controller stand-in.
 
@@ -92,6 +106,8 @@ class FakeController:
         self.set_variable_value_calls: list[tuple] = []
         self.set_variable_init_calls: list[tuple] = []
         self.rename_variable_calls: list[tuple] = []
+        self.network_resources: dict[str, FakeNetworkResource] = {}
+        self.run_network_resource_calls: list[str | int] = []
 
     def add_event_listener(self, callback: Callable) -> Callable[[], None]:
         self._event_listeners.append(callback)
@@ -144,6 +160,10 @@ class FakeController:
         self, var_type: int | str, var_id: int | str, name: str
     ) -> None:
         self.rename_variable_calls.append((var_type, var_id, name))
+
+    async def run_network_resource(self, resource_id: str | int) -> None:
+        """Mirror ``Controller.run_network_resource``."""
+        self.run_network_resource_calls.append(resource_id)
 
     async def stop(self) -> None:
         self._event_listeners.clear()

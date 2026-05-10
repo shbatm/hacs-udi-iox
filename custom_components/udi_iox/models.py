@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.helpers.entity import DeviceInfo
-from pyisyox import Controller, Group, Node, NodePropertyValue
+from pyisyox import Controller, Group, NetworkResource, Node, NodePropertyValue
 from pyisyox.constants import Protocol
 
 from .const import (
@@ -26,11 +26,11 @@ if TYPE_CHECKING:
     from .controller_events import IsyControllerEvents
 
 
-# Variables, programs and network resources are exposed as raw dicts.
-# Each carries an "address" key for unique-id derivation.
+# Variables and programs are still exposed as raw dicts (typed
+# wrappers are deferred — pyisyox doesn't surface them yet). Each
+# carries an "address" key for unique-id derivation.
 VariableRecord = dict[str, Any]
 ProgramRecord = dict[str, Any]
-NetworkResourceRecord = dict[str, Any]
 
 
 @dataclass
@@ -43,7 +43,7 @@ class IsyData:
     root_nodes: dict[Platform, list[Node]]
     variables: dict[Platform, list[VariableRecord]]
     programs: dict[Platform, list[tuple[str, ProgramRecord, ProgramRecord | None]]]
-    net_resources: list[NetworkResourceRecord]
+    net_resources: list[NetworkResource]
     devices: dict[str, DeviceInfo]
     aux_properties: dict[Platform, list[tuple[Node, str]]]
     controller_events: IsyControllerEvents
@@ -66,11 +66,11 @@ class IsyData:
 
     def uid_base(
         self,
-        node: Node | Group | NodePropertyValue | VariableRecord | ProgramRecord | NetworkResourceRecord,
+        node: Node | Group | NetworkResource | NodePropertyValue | VariableRecord | ProgramRecord,
     ) -> str:
         """Return the unique id base string for a given node."""
         address = node["address"] if isinstance(node, dict) else node.address
-        if isinstance(node, dict) and node.get("_kind") == "network":
+        if isinstance(node, NetworkResource):
             return f"{self.uuid}_{CONF_NETWORK}_{address}"
         return f"{self.uuid}_{address}"
 

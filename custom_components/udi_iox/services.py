@@ -216,10 +216,42 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
 
     async def async_run_network_resource(call: ServiceCall) -> None:
-        """Network resources aren't yet wrapped — schema-only."""
-        raise HomeAssistantError(
-            "Network resource service is not supported"
-        )
+        """Fire a configured IoX network resource by id or name."""
+        address = call.data.get(CONF_ADDRESS)
+        name = call.data.get(CONF_NAME)
+        isy_name = call.data.get(CONF_ISY)
+
+        targeted = list(_select_isy_data(hass, isy_name))
+        if not targeted:
+            raise HomeAssistantError(
+                f"No IoX controller matched isy={isy_name!r}"
+            )
+
+        # The schema enforces "at least one of name/address" — if
+        # address is given, target it directly (cheaper than resolving
+        # by name and works for callers carrying the resource id).
+        # When both are given, address wins (matches the legacy
+        # send_program_command resolution order).
+        for _, isy_data in targeted:
+            controller = isy_data.root
+            resources = controller.network_resources
+            if address is not None:
+                resource_id = str(address)
+                if resource_id not in resources:
+                    raise HomeAssistantError(
+                        f"No network resource with id {address!r} on this controller"
+                    )
+                await controller.run_network_resource(resource_id)
+                continue
+            # Resolve by name — first match wins.
+            match = next(
+                (r for r in resources.values() if r.name == name), None
+            )
+            if match is None:
+                raise HomeAssistantError(
+                    f"No network resource named {name!r} on this controller"
+                )
+            await match.run()
 
     hass.services.async_register(
         domain=DOMAIN,

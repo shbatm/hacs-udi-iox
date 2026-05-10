@@ -11,14 +11,15 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from pyisyox import (
     Controller,
+    NetworkResource,
+    Node,
     NodeLifecycleAction,
     NodeLifecycleEvent,
-    Node,
 )
 from pyisyox.constants import TAG_ENABLED, Protocol
 
 from .const import CONF_NETWORK, DOMAIN
-from .models import IsyConfigEntry, IsyData, NetworkResourceRecord
+from .models import IsyConfigEntry, IsyData
 
 
 async def async_setup_entry(
@@ -64,7 +65,7 @@ async def async_setup_entry(
             ISYNetworkResourceButtonEntity(
                 isy_data,
                 node=resource,
-                name=resource.get("name", ""),
+                name=resource.name,
                 unique_id=isy_data.uid_base(resource),
                 device_info=device_info[CONF_NETWORK],
             )
@@ -90,12 +91,12 @@ class ISYNodeButtonEntity(ButtonEntity):
 
     _attr_should_poll = False
     _attr_has_entity_name = True
-    _node: Node | Controller | NetworkResourceRecord
+    _node: Node | Controller | NetworkResource
 
     def __init__(
         self,
         isy_data: IsyData,
-        node: Node | Controller | NetworkResourceRecord,
+        node: Node | Controller | NetworkResource,
         name: str,
         unique_id: str,
         device_info: DeviceInfo,
@@ -109,8 +110,8 @@ class ISYNodeButtonEntity(ButtonEntity):
         self._attr_entity_category = entity_category
         self._attr_unique_id = unique_id
         self._attr_device_info = device_info
-        # NetworkResourceRecord (a dict) and Controller don't carry an
-        # enabled flag; default to True so the button is always usable.
+        # NetworkResource and Controller don't carry an enabled flag;
+        # default to True so the button is always usable.
         self._node_enabled = getattr(node, TAG_ENABLED, True)
         self._unsubscribers: list[Callable[[], None]] = []
 
@@ -171,15 +172,12 @@ class ISYNodeBeepButtonEntity(ISYNodeButtonEntity):
 
 
 class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
-    """Press → run an IoX network resource (currently unsupported)."""
+    """Press → run an IoX network resource."""
 
     _attr_has_entity_name = False
-    _node: NetworkResourceRecord
+    _node: NetworkResource
 
     async def async_press(self) -> None:
-        """Press the button."""
-        from homeassistant.exceptions import HomeAssistantError
-
-        raise HomeAssistantError(
-            "Network resource execution is not supported"
-        )
+        """Fire the network resource (HTTP / TCP / UDP trigger
+        configured on the controller)."""
+        await self._node.run()

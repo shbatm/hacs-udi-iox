@@ -132,10 +132,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
             controller, host, name=CONF_VARIABLES.title(), unique_id=CONF_VARIABLES
         )
 
-    if enable_networking:
-        _LOGGER.debug(
-            "Network resources requested but no typed wrapper is available;"
-            " skipping"
+    if enable_networking and controller.network_resources:
+        isy_data.net_resources = list(controller.network_resources.values())
+        isy_data.devices[CONF_NETWORK] = _create_service_device_info(
+            controller, host, name=CONF_NETWORK.title(), unique_id=CONF_NETWORK
         )
 
     _async_get_or_create_isy_device_in_registry(hass, entry, controller, host)

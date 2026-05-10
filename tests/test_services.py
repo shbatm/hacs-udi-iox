@@ -135,14 +135,69 @@ async def test_send_program_command_raises(hass, fake_controller) -> None:
         )
 
 
-async def test_run_network_resource_raises(hass, fake_controller) -> None:
+async def test_run_network_resource_by_address_fires_controller(
+    hass, fake_controller
+) -> None:
+    """Targeting a resource by id calls
+    ``Controller.run_network_resource(<id>)`` directly."""
+    from tests._fakes import FakeNetworkResource
+
+    fake_controller.network_resources["5"] = FakeNetworkResource(
+        address="5", name="Webhook"
+    )
     await _wire_services_with_entry(hass, fake_controller)
 
-    with pytest.raises(HomeAssistantError):
+    await hass.services.async_call(
+        DOMAIN, SERVICE_RUN_NETWORK_RESOURCE, {CONF_ADDRESS: 5}, blocking=True
+    )
+    assert fake_controller.run_network_resource_calls == ["5"]
+
+
+async def test_run_network_resource_by_name_resolves_then_fires(
+    hass, fake_controller
+) -> None:
+    """Targeting by name finds the wrapper in
+    ``controller.network_resources`` and calls its ``run()`` rather
+    than going through the controller-level helper. Either path lands
+    the same ``GET /rest/networking/resources/{id}`` on the wire."""
+    from tests._fakes import FakeNetworkResource
+
+    resource = FakeNetworkResource(address="5", name="Webhook")
+    fake_controller.network_resources["5"] = resource
+    await _wire_services_with_entry(hass, fake_controller)
+
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_RUN_NETWORK_RESOURCE,
+        {CONF_NAME: "Webhook"},
+        blocking=True,
+    )
+    assert resource.run_calls == [None]
+    # Address path was not used; controller helper not called.
+    assert fake_controller.run_network_resource_calls == []
+
+
+async def test_run_network_resource_unknown_id_raises(
+    hass, fake_controller
+) -> None:
+    await _wire_services_with_entry(hass, fake_controller)
+
+    with pytest.raises(HomeAssistantError, match="No network resource with id"):
+        await hass.services.async_call(
+            DOMAIN, SERVICE_RUN_NETWORK_RESOURCE, {CONF_ADDRESS: 99}, blocking=True
+        )
+
+
+async def test_run_network_resource_unknown_name_raises(
+    hass, fake_controller
+) -> None:
+    await _wire_services_with_entry(hass, fake_controller)
+
+    with pytest.raises(HomeAssistantError, match="No network resource named"):
         await hass.services.async_call(
             DOMAIN,
             SERVICE_RUN_NETWORK_RESOURCE,
-            {CONF_ADDRESS: 1},
+            {CONF_NAME: "no-such"},
             blocking=True,
         )
 
