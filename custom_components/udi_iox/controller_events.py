@@ -23,6 +23,7 @@ from xml.etree import ElementTree as ET
 
 import homeassistant.helpers.device_registry as dr
 import homeassistant.helpers.entity_registry as er
+import homeassistant.helpers.issue_registry as ir
 from homeassistant.core import HomeAssistant, callback
 from pyisyox import (
     Controller,
@@ -33,6 +34,8 @@ from pyisyox import (
 
 from .const import _LOGGER, DOMAIN, EVENT_UDI_IOX_CONTROL
 from .models import IsyData
+
+ISSUE_LIFECYCLE_RELOAD = "lifecycle_reload_required"
 
 #: Per-property callback. Receives the raw ``Event`` from pyisyox.
 NodeEventCallback = Callable[[Event], None]
@@ -53,10 +56,22 @@ _VAR_INIT_ACTION = "7"
 class IsyControllerEvents:
     """Wire pyisyox 6 controller events into HA + dispatch to entities."""
 
-    def __init__(self, hass: HomeAssistant, isy_data: IsyData) -> None:
-        """Subscribe to event + lifecycle streams from the controller."""
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        isy_data: IsyData,
+        entry_id: str | None = None,
+    ) -> None:
+        """Subscribe to event + lifecycle streams from the controller.
+
+        ``entry_id`` is required for the lifecycle Repair flow; when
+        ``None`` the registry still routes events but skips creating
+        repair issues (test fixtures that don't construct a config
+        entry rely on this).
+        """
         self.isy_data = isy_data
         self.hass = hass
+        self.entry_id = entry_id
         self.dev_reg = dr.async_get(hass)
         self.entity_reg = er.async_get(hass)
         controller: Controller = isy_data.root
@@ -308,8 +323,41 @@ class IsyControllerEvents:
             event.node_address,
         )
 
+        # The reload-required verbs invalidate the cached node registry
+        # (added/removed/renamed/enabled/revised/removed-from-scene). HA
+        # has no live-merge path for those, so surface a Repair card
+        # that lets the user trigger a reload at a safe moment.
+        if event.requires_reload and self.entry_id is not None:
+            self._raise_reload_repair(event, verb)
+
         for listener in tuple(self._lifecycle_listeners):
             try:
                 listener(event)
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("IoX lifecycle listener raised")
+
+    @callback
+    def _raise_reload_repair(
+        self, event: NodeLifecycleEvent, verb: str
+    ) -> None:
+        """Create or refresh the lifecycle-reload Repair issue.
+
+        Coalesces by entry_id: subsequent reload-required events while
+        the card is up overwrite the placeholders (most-recent verb +
+        address) rather than spawning duplicates. The card stays open
+        until the user submits the fix flow, which reloads the entry
+        and clears the issue.
+        """
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            f"{ISSUE_LIFECYCLE_RELOAD}.{self.entry_id}",
+            data={"entry_id": self.entry_id},
+            is_fixable=True,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=ISSUE_LIFECYCLE_RELOAD,
+            translation_placeholders={
+                "verb": verb.replace("_", " ").title(),
+                "address": event.node_address or "(controller)",
+            },
+        )

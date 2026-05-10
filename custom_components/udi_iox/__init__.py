@@ -143,7 +143,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     # Platform setup runs each entity's async_added_to_hass synchronously
     # via async_forward_entry_setups, and entities subscribe through
     # isy_data.controller_events — so the registry must exist first.
-    isy_data.controller_events = IsyControllerEvents(hass, isy_data)
+    isy_data.controller_events = IsyControllerEvents(hass, isy_data, entry.entry_id)
     entry.async_on_unload(isy_data.controller_events.stop)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

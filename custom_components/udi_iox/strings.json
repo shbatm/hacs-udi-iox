@@ -171,5 +171,18 @@
         }
       }
     }
+  },
+  "issues": {
+    "lifecycle_reload_required": {
+      "title": "Controller reports node changes; reload required",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reload {title}?",
+            "description": "The controller reported a {verb} for node {address}. Home Assistant cannot apply added/removed/renamed/enabled/revised nodes without reloading the integration. Reload now to pick up the change?"
+          }
+        }
+      }
+    }
   }
 }

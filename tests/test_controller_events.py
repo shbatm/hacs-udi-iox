@@ -17,6 +17,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from homeassistant.helpers import issue_registry as ir
+
+from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.controller_events import IsyControllerEvents
 from custom_components.udi_iox.models import IsyData
 
@@ -341,3 +344,88 @@ async def test_on_event_fires_udi_iox_control_on_bus(
     assert fired[0]["control"] == "ST"
     assert fired[0]["action"] == "100"
     assert fired[0]["node_address"] == "addr"
+
+
+# --- lifecycle repair issue ------------------------------------------
+
+
+@pytest.fixture
+def events_with_entry(hass, isy_data):
+    """Variant of the registry that knows its entry_id, so the
+    lifecycle Repair flow has a target."""
+    return IsyControllerEvents(hass, isy_data, entry_id="test-entry")
+
+
+def _reload_issue(hass) -> ir.IssueEntry | None:
+    return ir.async_get(hass).async_get_issue(
+        DOMAIN, "lifecycle_reload_required.test-entry"
+    )
+
+
+def test_reload_required_lifecycle_creates_repair_issue(
+    hass, events_with_entry, fake_controller, fake_lifecycle_factory
+):
+    """A reload-worthy verb (``ND``/``NR``/``NN``/``EN``/``RV``/``RG``)
+    raises a Repair card so the user can trigger an entry reload."""
+    fake_controller.fire_lifecycle(
+        fake_lifecycle_factory(action="ND", node_address="aa")
+    )
+
+    issue = _reload_issue(hass)
+    assert issue is not None
+    assert issue.is_fixable is True
+    assert issue.severity == ir.IssueSeverity.WARNING
+    assert issue.data == {"entry_id": "test-entry"}
+    assert issue.translation_placeholders == {
+        "verb": "Node Added",
+        "address": "aa",
+    }
+
+
+def test_soft_lifecycle_does_not_create_repair_issue(
+    hass, events_with_entry, fake_controller, fake_lifecycle_factory
+):
+    """``MV``/``PC``/``WH``/``WD``/``CE``/``NE`` are informational and
+    don't invalidate the cached node registry — no Repair card."""
+    fake_controller.fire_lifecycle(
+        fake_lifecycle_factory(action="NE", node_address="aa")
+    )
+    fake_controller.fire_lifecycle(
+        fake_lifecycle_factory(action="MV", node_address="aa")
+    )
+
+    assert _reload_issue(hass) is None
+
+
+def test_repeated_reload_lifecycle_coalesces(
+    hass, events_with_entry, fake_controller, fake_lifecycle_factory
+):
+    """Two reload-worthy events while the card is up update the card
+    in-place rather than spawning a second one — issue_id is keyed on
+    entry_id, so async_create_issue is idempotent."""
+    fake_controller.fire_lifecycle(
+        fake_lifecycle_factory(action="ND", node_address="aa")
+    )
+    fake_controller.fire_lifecycle(
+        fake_lifecycle_factory(action="NR", node_address="bb")
+    )
+
+    issue = _reload_issue(hass)
+    assert issue is not None
+    # Latest verb + address wins.
+    assert issue.translation_placeholders == {
+        "verb": "Node Removed",
+        "address": "bb",
+    }
+
+
+def test_reload_lifecycle_skipped_when_no_entry_id(
+    hass, events, fake_controller, fake_lifecycle_factory
+):
+    """Test fixtures that don't supply an entry_id (older suites,
+    smoke tests) must still route lifecycle events without raising or
+    creating a malformed Repair card."""
+    fake_controller.fire_lifecycle(
+        fake_lifecycle_factory(action="ND", node_address="aa")
+    )
+    assert _reload_issue(hass) is None

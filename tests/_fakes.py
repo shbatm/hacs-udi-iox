@@ -157,6 +157,9 @@ class FakeEvent:
     event_info: str = ""
 
 
+_RELOAD_REQUIRED_VERBS = frozenset({"ND", "NR", "NN", "RG", "EN", "RV"})
+
+
 @dataclass
 class FakeLifecycleEvent:
     """Mimic pyisyox.NodeLifecycleEvent."""
@@ -166,3 +169,8 @@ class FakeLifecycleEvent:
     raw_action: str = ""
     seqnum: int = 0
     node_xml: str | None = None
+
+    @property
+    def requires_reload(self) -> bool:
+        """Mirror pyisyox NodeLifecycleEvent.requires_reload."""
+        return self.action in _RELOAD_REQUIRED_VERBS
