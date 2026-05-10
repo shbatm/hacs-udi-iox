@@ -23,6 +23,7 @@ class FakeNodePropertyValue:
     formatted: str = ""
     uom: str = ""
     name: str = ""
+    prec: int = 0
 
 
 @dataclass

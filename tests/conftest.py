@@ -179,12 +179,37 @@ def populated_controller() -> FakeController:
     )
     controller.nodes[lock_root.address] = lock_root
 
-    # Thermostat / climate intentionally omitted: ``climate.py`` reads
-    # ``status.prec`` and ``sensor.py`` reads ``target.precision``, but
-    # pyisyox 6's ``NodePropertyValue`` no longer carries a ``prec`` /
-    # ``precision`` field. Surfacing a thermostat through async_setup_entry
-    # crashes both platforms — pre-existing pyisyox-6 migration bugs
-    # tracked separately.
+    # Insteon thermostat root → climate + sensor(comms_error) + aux sensors.
+    # The ``17`` UOM = °F; setpoints share that UOM and a ``prec=1`` so the
+    # snapshot exercises the consumer's ``target.prec`` decimal scaling.
+    thermostat_root = _node(
+        "DD DD DD 1",
+        "Living Thermostat",
+        type_="5.16.0.0",
+        is_thermostat=True,
+        status_value="68",
+        status_formatted="68°F",
+        status_uom="17",
+        extra_props={
+            "CLISPH": FakeNodePropertyValue(
+                id="CLISPH",
+                value="680",
+                formatted="68°F",
+                uom="17",
+                name="Heat Setpoint",
+                prec=1,
+            ),
+            "CLISPC": FakeNodePropertyValue(
+                id="CLISPC",
+                value="760",
+                formatted="76°F",
+                uom="17",
+                name="Cool Setpoint",
+                prec=1,
+            ),
+        },
+    )
+    controller.nodes[thermostat_root.address] = thermostat_root
 
     # FanLinc lamp root (dimmable light) → light
     fanlinc_root = _node(

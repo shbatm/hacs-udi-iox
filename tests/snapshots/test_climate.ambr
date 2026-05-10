@@ -1,0 +1,84 @@
+# serializer version: 1
+# name: test_climate_entities[climate.eisy_local-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'fan_modes': list([
+        'auto',
+        'on',
+      ]),
+      'hvac_modes': list([
+        <HVACMode.OFF: 'off'>,
+        <HVACMode.HEAT: 'heat'>,
+        <HVACMode.COOL: 'cool'>,
+        <HVACMode.HEAT_COOL: 'heat_cool'>,
+        <HVACMode.AUTO: 'auto'>,
+        <HVACMode.FAN_ONLY: 'fan_only'>,
+      ]),
+      'max_temp': 35,
+      'min_temp': 7,
+      'target_temp_step': 1.0,
+    }),
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'climate',
+    'entity_category': None,
+    'entity_id': 'climate.eisy_local',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': None,
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': <ClimateEntityFeature: 395>,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_DD DD DD 1',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_climate_entities[climate.eisy_local-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'current_temperature': 68.0,
+      'fan_mode': 'off',
+      'fan_modes': list([
+        'auto',
+        'on',
+      ]),
+      'friendly_name': 'eisy.local',
+      'hvac_modes': list([
+        <HVACMode.OFF: 'off'>,
+        <HVACMode.HEAT: 'heat'>,
+        <HVACMode.COOL: 'cool'>,
+        <HVACMode.HEAT_COOL: 'heat_cool'>,
+        <HVACMode.AUTO: 'auto'>,
+        <HVACMode.FAN_ONLY: 'fan_only'>,
+      ]),
+      'max_temp': 35,
+      'min_temp': 7,
+      'supported_features': <ClimateEntityFeature: 395>,
+      'target_temp_high': 76.0,
+      'target_temp_low': 68.0,
+      'target_temp_step': 1.0,
+      'temperature': None,
+    }),
+    'context': <ANY>,
+    'entity_id': 'climate.eisy_local',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
