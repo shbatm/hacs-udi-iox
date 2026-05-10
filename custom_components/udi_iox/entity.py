@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
@@ -27,13 +27,17 @@ from pyisyox.constants import (
 from pyisyox.schema.nodedef import NodeDef
 
 from .const import DOMAIN
-from .models import IsyData, ProgramRecord, VariableRecord
 
 if TYPE_CHECKING:
     from .controller_events import IsyControllerEvents
+    from .models import IsyData, ProgramRecord, VariableRecord
 
-NodeType: TypeAlias = Node | Group | Folder | ProgramRecord | VariableRecord
-NodeEventType: TypeAlias = NodePropertyValue | NodeLifecycleEvent
+# PEP 695 lazy type aliases — the right-hand side is evaluated only when
+# the alias is consumed, so the (TYPE_CHECKING-only) ProgramRecord /
+# VariableRecord references don't pull models.py at import time. Keeps
+# the import graph acyclic to match the HA Core isy994 layout.
+type NodeType = Node | Group | Folder | ProgramRecord | VariableRecord
+type NodeEventType = NodePropertyValue | NodeLifecycleEvent
 
 
 def node_status_int(node: Node) -> int | None:

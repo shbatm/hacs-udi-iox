@@ -62,7 +62,7 @@ class IsyData:
     @property
     def uuid(self) -> str:
         """Return the controller UUID identification."""
-        return self.root.uuid
+        return self.root.config.uuid
 
     def uid_base(
         self,
