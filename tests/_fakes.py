@@ -84,6 +84,30 @@ class FakeNetworkResource:
 
 
 @dataclass
+class FakeGroup:
+    """Stand-in for ``pyisyox.Group`` (scene wrapper).
+
+    Mirrors only the fields the consumer's switch / scene code reads:
+    ``address``, ``name``, ``status`` (truthy when any controller is on),
+    ``group_all_on`` (extra-state flag), and ``controller_addresses``
+    (used to link the scene's HA device to its controller node).
+    """
+
+    address: str
+    name: str = "Test Scene"
+    status: int = 0
+    group_all_on: bool = False
+    controller_addresses: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.rename_calls: list[str] = []
+
+    async def rename(self, new_name: str) -> None:
+        self.rename_calls.append(new_name)
+        self.name = new_name
+
+
+@dataclass
 class FakeProgram:
     """Stand-in for ``pyisyox.Program`` (typed wrapper).
 
@@ -237,6 +261,15 @@ class FakeController:
     async def run_network_resource(self, resource_id: str | int) -> None:
         """Mirror ``Controller.run_network_resource``."""
         self.run_network_resource_calls.append(resource_id)
+
+    async def connect(self, *, start_websocket: bool = True) -> None:
+        """No-op stand-in for ``Controller.connect``.
+
+        Real ``connect`` blocks on /api/nodes + /api/programs + WS startup;
+        tests pre-populate ``self.nodes`` / ``self.programs`` etc. directly
+        so this only needs to satisfy the call site in ``async_setup_entry``.
+        """
+        self.connected = True
 
     async def stop(self) -> None:
         self._event_listeners.clear()

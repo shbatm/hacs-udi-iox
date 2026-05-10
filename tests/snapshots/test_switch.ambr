@@ -1,0 +1,100 @@
+# serializer version: 1
+# name: test_switch_entities[switch.eisy_local-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'switch',
+    'entity_category': None,
+    'entity_id': 'switch.eisy_local',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': None,
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_BB BB BB 1',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_switch_entities[switch.eisy_local-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'eisy.local',
+    }),
+    'context': <ANY>,
+    'entity_id': 'switch.eisy_local',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_switch_entities[switch.movie_mode-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'switch',
+    'entity_category': None,
+    'entity_id': 'switch.movie_mode',
+    'has_entity_name': False,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:script-text-outline',
+    'original_name': 'Movie Mode',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_P_SWITCH_S',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_switch_entities[switch.movie_mode-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'actions_enabled': True,
+      'actions_last_finish': None,
+      'actions_last_run': None,
+      'actions_next_scheduled_run': None,
+      'friendly_name': 'Movie Mode',
+      'icon': 'mdi:script-text-outline',
+      'run_at_startup': False,
+      'running': 'idle',
+    }),
+    'context': <ANY>,
+    'entity_id': 'switch.movie_mode',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
