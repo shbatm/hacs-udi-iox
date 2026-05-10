@@ -153,6 +153,12 @@ class FakeController:
         self.network_resources: dict[str, FakeNetworkResource] = {}
         self.run_network_resource_calls: list[str | int] = []
         self.send_program_command_calls: list[tuple[str, str]] = []
+        # ``websocket`` mirrors the real ``Controller.websocket`` property.
+        # Tests that need WS-health surfaces set this to a SimpleNamespace
+        # with ``status`` (StrEnum-like .value) and ``last_event_at`` —
+        # see test_system_health.py. None by default to mirror the
+        # ``start_websocket=False`` case.
+        self.websocket: Any = None
 
     def add_event_listener(self, callback: Callable) -> Callable[[], None]:
         self._event_listeners.append(callback)
