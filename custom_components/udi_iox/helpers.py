@@ -30,14 +30,12 @@ from pyisyox import (
     ClassificationResult,
     ControllablePlatform,
     Controller,
-    Group,
     Node,
     Reading,
     ReadingPlatform,
     classify,
 )
 from pyisyox.constants import (
-    CMD_BACKLIGHT,
     PROP_BUSY,
     PROP_COMMS_ERROR,
     PROP_ON_LEVEL,

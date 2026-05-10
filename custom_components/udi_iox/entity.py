@@ -22,14 +22,12 @@ from pyisyox.constants import (
     COMMAND_FRIENDLY_NAME,
     ISY_VALUE_UNKNOWN,
     PROP_STATUS,
-    Protocol,
 )
 from pyisyox.schema.nodedef import NodeDef
 
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from .controller_events import IsyControllerEvents
     from .models import IsyData, ProgramRecord, VariableRecord
 
 # PEP 695 lazy type aliases — the right-hand side is evaluated only when

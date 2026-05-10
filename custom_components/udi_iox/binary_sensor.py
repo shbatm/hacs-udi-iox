@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
-from pyisyox import Event, Node, NodePropertyValue
+from pyisyox import Event, Node
 from pyisyox.constants import (
     CMD_OFF,
     CMD_ON,

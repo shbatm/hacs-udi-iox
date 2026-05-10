@@ -16,18 +16,13 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from pyisyox.constants import (
-    ATTR_ACTION,
     BACKLIGHT_INDEX,
     CMD_BACKLIGHT,
     COMMAND_FRIENDLY_NAME,
     INSTEON_RAMP_RATES,
     PROP_RAMP_RATE,
-    TAG_ADDRESS,
     UOM_TO_STATES,
     NodeChangeAction,
-)
-from pyisyox.constants import (
-    UOM_INDEX as ISY_UOM_INDEX,
 )
 from pyisyox import (
     Event,
@@ -149,8 +144,6 @@ class ISYAuxControlIndexSelectEntity(ISYNodeEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
-        node_prop: NodePropertyValue = self._node.properties[self._control]
-
         # send_command resolves the editor codec from the node's profile —
         # the v3 explicit uom kwarg is gone.
         await self._node.send_command(self._control, self.options.index(option))

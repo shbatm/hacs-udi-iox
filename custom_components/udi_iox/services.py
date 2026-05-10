@@ -29,7 +29,7 @@ from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.service import entity_service_call
 from pyisyox.constants import COMMAND_FRIENDLY_NAME
 
-from .const import _LOGGER, DOMAIN
+from .const import DOMAIN
 
 # Domain-wide services
 SERVICE_SYSTEM_QUERY = "system_query"

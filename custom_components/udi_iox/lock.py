@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from pyisyox import Node, NodeCommandError
 
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, IsyData, ProgramRecord
+from .models import IsyConfigEntry, ProgramRecord
 from .services import async_setup_lock_services
 
 VALUE_TO_STATE = {0: False, 100: True}

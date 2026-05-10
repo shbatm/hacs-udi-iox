@@ -36,16 +36,13 @@ from pyisyox import (
     NodePropertyValue,
 )
 from pyisyox.constants import (
-    ATTR_ACTION,
     CMD_BACKLIGHT,
     PROP_ON_LEVEL,
-    TAG_ADDRESS,
-    UOM_PERCENTAGE,
     NodeChangeAction,
 )
 
 from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
-from .entity import ISYNodeEntity, node_status_int
+from .entity import ISYNodeEntity
 from .models import IsyConfigEntry, IsyData, VariableRecord
 
 ISY_MAX_SIZE = (2**32) / 2

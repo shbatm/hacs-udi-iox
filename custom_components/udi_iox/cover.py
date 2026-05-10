@@ -19,7 +19,7 @@ from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, IsyData, ProgramRecord
+from .models import IsyConfigEntry, ProgramRecord
 
 
 async def async_setup_entry(
