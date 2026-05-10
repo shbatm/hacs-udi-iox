@@ -89,23 +89,29 @@ class FakeGroup:
     """Stand-in for ``pyisyox.Group`` (scene wrapper).
 
     Mirrors only the fields the consumer's switch / scene code reads:
-    ``address``, ``name``, ``status`` (truthy when any controller is on),
-    ``group_all_on`` (extra-state flag), and ``controller_addresses``
-    (used to link the scene's HA device to its controller node).
+    ``address``, ``name``, the two aggregates (``group_any_on`` /
+    ``group_all_on``), and ``controller_addresses`` (used to link the
+    scene's HA device to its controller node). The real Group derives
+    the aggregates from the nodes registry; here they're static — set
+    them directly per test.
     """
 
     address: str
     name: str = "Test Scene"
-    status: int = 0
+    group_any_on: bool = False
     group_all_on: bool = False
     controller_addresses: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.rename_calls: list[str] = []
+        self.send_command_calls: list[tuple] = []
 
     async def rename(self, new_name: str) -> None:
         self.rename_calls.append(new_name)
         self.name = new_name
+
+    async def send_command(self, command_id: str, *params: int) -> None:
+        self.send_command_calls.append((command_id, *params))
 
 
 @dataclass

@@ -122,10 +122,21 @@ class ISYSwitchEntityMixin(SwitchEntity):
 
 
 class ISYGroupSwitchEntity(ISYGroupEntity, ISYSwitchEntityMixin):
-    """Representation of an ISY group switch device."""
+    """Representation of an ISY group switch device.
+
+    ``pyisyox.Group`` deliberately exposes no live ``status`` — groups
+    don't carry wire-level state of their own. The is_on aggregation is
+    derived on access from the controller's nodes registry via
+    ``group_any_on`` (any member currently non-zero).
+    """
 
     _node: Group
     _attr_icon: str = "mdi:google-circles-communities"
+
+    @property
+    def is_on(self) -> bool:
+        """True iff any member node is currently on."""
+        return self._node.group_any_on
 
 
 class ISYSwitchEntity(ISYNodeEntity, ISYSwitchEntityMixin):

@@ -52,6 +52,7 @@ from custom_components.udi_iox.const import (  # noqa: E402
 from tests._fakes import (  # noqa: E402
     FakeController,
     FakeEvent,
+    FakeGroup,
     FakeLifecycleEvent,
     FakeNetworkResource,
     FakeNode,
@@ -233,11 +234,18 @@ def populated_controller() -> FakeController:
     )
     controller.nodes[fanlinc_motor.address] = fanlinc_motor
 
-    # Group / scene intentionally omitted: switch.py routes group state
-    # through ``node_status_int`` which assumes a ``NodePropertyValue``,
-    # but ``pyisyox.Group`` doesn't expose a ``status`` property at all
-    # (groups don't carry live state). Pre-existing pyisyox-6 migration
-    # bug tracked separately.
+    # Group / scene → switch.
+    # ``group_any_on`` is the consumer's ``is_on`` aggregation; set to
+    # True so the snapshot exercises the non-default "scene currently on"
+    # state. ``controller_addresses`` links the scene's HA device to the
+    # primary Insteon switch root.
+    controller.groups["GRP_1"] = FakeGroup(
+        address="GRP_1",
+        name="Living Room Scene",
+        group_any_on=True,
+        group_all_on=False,
+        controller_addresses=[switch_root.address],
+    )
 
     # Network resource → button
     controller.network_resources["1"] = FakeNetworkResource(
