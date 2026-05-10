@@ -44,6 +44,7 @@ class FakeNode:
     protocol: str = "insteon"
     is_thermostat: bool = False
     is_lock: bool = False
+    is_fan: bool = False
     is_dimmable: bool = False
     is_battery_node: bool = False
     nodedef: Any | None = None

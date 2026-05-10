@@ -4,7 +4,7 @@ Two-tier strategy that mirrors pyisyox 6's design:
 
 1. **Native nodes** (Insteon, Z-Wave, Zigbee, X10) are classified by
    the type-based introspection that pyisyox exposes on ``Node``:
-   ``is_thermostat`` / ``is_lock`` / ``is_dimmable`` /
+   ``is_thermostat`` / ``is_lock`` / ``is_fan`` / ``is_dimmable`` /
    ``is_battery_node``. No hardcoded type-prefix tables here — pyisyox
    owns that knowledge.
 2. **Plugin nodes** (PG3 node-server, ``protocol == "node_server"``)
@@ -105,6 +105,8 @@ def _primary_platform_for_native(node: Node) -> Platform:
         return Platform.CLIMATE
     if node.is_lock:
         return Platform.LOCK
+    if node.is_fan:
+        return Platform.FAN
     if node.is_dimmable:
         return Platform.LIGHT
     return Platform.SWITCH

@@ -76,6 +76,30 @@ def test_dimmable_classifies_as_light(
     assert isy_data.nodes[Platform.LIGHT] == [node]
 
 
+def test_fan_classifies_as_fan(
+    isy_data, options, fake_node_factory, fake_controller
+):
+    """FanLincMotor surfaces as ``Platform.FAN`` rather than falling
+    through to SWITCH (its current behaviour without ``is_fan``)."""
+    node = fake_node_factory(address="A 2", is_fan=True, parent_address=None)
+    _categorize(isy_data, node, options, controller=fake_controller)
+    assert isy_data.nodes[Platform.FAN] == [node]
+
+
+def test_fan_takes_precedence_over_dimmable(
+    isy_data, options, fake_node_factory, fake_controller
+):
+    """A node reporting both ``is_fan`` and ``is_dimmable`` (e.g. a
+    plugin fan with a multilevel ST editor) classifies as FAN, not
+    LIGHT."""
+    node = fake_node_factory(
+        address="A 3", is_fan=True, is_dimmable=True, parent_address=None
+    )
+    _categorize(isy_data, node, options, controller=fake_controller)
+    assert isy_data.nodes[Platform.FAN] == [node]
+    assert isy_data.nodes[Platform.LIGHT] == []
+
+
 def test_default_native_classifies_as_switch(
     isy_data, options, fake_node_factory, fake_controller
 ):
