@@ -27,6 +27,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.service import entity_service_call
+from pyisyox import ProgramCommand
 from pyisyox.constants import COMMAND_FRIENDLY_NAME
 
 from .const import DOMAIN
@@ -65,16 +66,16 @@ VALID_NODE_COMMANDS = [
     "fast_on",
     "query",
 ]
-VALID_PROGRAM_COMMANDS = [
-    "run",
-    "run_then",
-    "run_else",
-    "stop",
-    "enable",
-    "disable",
-    "enable_run_at_startup",
-    "disable_run_at_startup",
-]
+#: Service verbs are 1:1 with the snake-case method names on
+#: ``pyisyox.Program``. Derived from the upstream ``ProgramCommand``
+#: StrEnum so new pyisyox verbs surface here automatically without
+#: having to maintain a parallel list. Dispatch happens via
+#: ``getattr(program, command)`` — the snake-case → camelCase wire
+#: mapping lives entirely in pyisyox.
+VALID_PROGRAM_COMMANDS = [member.name.lower() for member in ProgramCommand]
+#: Folders only support the subset shared by ``_ProgramBase``;
+#: the rest raise AttributeError on a folder.
+FOLDER_COMMANDS = frozenset({"run", "stop", "enable", "disable"})
 
 
 def _valid_iox_command(value: Any) -> str:
@@ -203,10 +204,60 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
 
     async def async_send_program_command(call: ServiceCall) -> None:
-        """Programs aren't yet wrapped on the controller — schema-only."""
-        raise HomeAssistantError(
-            "Program command service is not supported"
-        )
+        """Send a verb (``run`` / ``run_then`` / ``enable`` / …) to a
+        program or folder by id or name.
+
+        Resolution order: id wins over name when both are supplied;
+        name lookup is exact-match against ``Program.name`` (programs
+        preferred over folders). Folder targets are restricted to the
+        subset of verbs ``ProgramFolder`` exposes — the others raise
+        a targeted ``HomeAssistantError`` rather than an opaque
+        ``AttributeError``.
+        """
+        address = call.data.get(CONF_ADDRESS)
+        name = call.data.get(CONF_NAME)
+        command = call.data[CONF_COMMAND]
+        isy_name = call.data.get(CONF_ISY)
+
+        targeted = list(_select_isy_data(hass, isy_name))
+        if not targeted:
+            raise HomeAssistantError(
+                f"No IoX controller matched isy={isy_name!r}"
+            )
+
+        for _, isy_data in targeted:
+            controller = isy_data.root
+            programs = controller.programs
+            folders = controller.program_folders
+
+            target = None
+            if address is not None:
+                program_id = str(address)
+                target = programs.get(program_id) or folders.get(program_id)
+                if target is None:
+                    raise HomeAssistantError(
+                        f"No program or folder with id {address!r} on this controller"
+                    )
+            else:
+                target = next(
+                    (p for p in programs.values() if p.name == name),
+                    None,
+                ) or next(
+                    (f for f in folders.values() if f.name == name),
+                    None,
+                )
+                if target is None:
+                    raise HomeAssistantError(
+                        f"No program or folder named {name!r} on this controller"
+                    )
+
+            # Folders only support the subset shared by _ProgramBase.
+            if target.address in folders and command not in FOLDER_COMMANDS:
+                raise HomeAssistantError(
+                    f"Folder {target.address} does not support command {command!r}"
+                )
+
+            await getattr(target, command)()
 
     hass.services.async_register(
         domain=DOMAIN,

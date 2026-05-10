@@ -19,7 +19,9 @@ from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, ProgramRecord
+from pyisyox import Program
+
+from .models import IsyConfigEntry
 
 
 async def async_setup_entry(
@@ -112,27 +114,21 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
 
 
 class ISYCoverProgramEntity(ISYProgramEntity, CoverEntity):
-    """Representation of an ISY cover program."""
+    """Representation of an ISY cover program.
 
-    _actions: ProgramRecord
+    Status program True → closed (matches the legacy v3 convention).
+    Open / close run the actions program's ``then`` / ``else`` clauses
+    respectively.
+    """
 
-    async def async_added_to_hass(self) -> None:
-        """Subscribe to events and set initial state."""
-        await super().async_added_to_hass()
-        self._attr_is_closed = bool(node_status_int(self._node))
+    _actions: Program
 
-    @callback
-    def async_on_update(self, event: NodeEventType, key: str) -> None:
-        """Handle the update event from the ISY Node."""
-        self._attr_is_closed = bool(node_status_int(self._node))
-        super().async_on_update(event, key)
+    @property
+    def is_closed(self) -> bool:
+        return self._node.status
 
     async def async_open_cover(self, **kwargs: Any) -> None:
-        """Send the open cover command to the ISY cover program."""
-        if not await self._actions.run_then():
-            raise HomeAssistantError(f"Unable to open the cover {self._node.address}")
+        await self._actions.run_then()
 
     async def async_close_cover(self, **kwargs: Any) -> None:
-        """Send the close cover command to the ISY cover program."""
-        if not await self._actions.run_else():
-            raise HomeAssistantError(f"Unable to close the cover {self._node.address}")
+        await self._actions.run_else()

@@ -31,6 +31,7 @@ from pyisyox import (
     ControllablePlatform,
     Controller,
     Node,
+    Program,
     Reading,
     ReadingPlatform,
     classify,
@@ -282,19 +283,22 @@ def _categorize_nodes(
             isy_data.nodes[Platform.EVENT].append(node)
 
 
-def _categorize_programs(isy_data: IsyData, programs: list[dict]) -> None:
+def _categorize_programs(
+    isy_data: IsyData, programs: dict[str, Program]
+) -> None:
     """Categorize the controller's programs onto HA platforms.
 
-    Programs are exposed as raw dicts (whatever ``/api/programs``
-    returns — at minimum ``id``, ``name``, ``enabled``, ``path``).
-    Classification walks the ``HA.<platform>/`` folder convention the
-    legacy integration established.
+    Walks the legacy ``HA.<platform>/<name>/<status|actions>`` folder
+    convention pyisy 3.x consumers established. ``Program.path`` is
+    reconstructed from the ``parentId`` chain by pyisyox at parse
+    time, so this side just splits on the platform prefix and pairs
+    ``status`` / ``actions`` programs by their inner name.
     """
-    by_path: dict[str, dict] = {p.get("path", ""): p for p in programs if "path" in p}
+    by_path: dict[str, Program] = {p.path: p for p in programs.values() if p.path}
 
     for platform in PROGRAM_PLATFORMS:
         folder_prefix = f"{DEFAULT_PROGRAM_STRING}{platform}/"
-        entities: dict[str, dict] = {
+        entities: dict[str, Program] = {
             path.partition(folder_prefix)[2]: program
             for path, program in by_path.items()
             if folder_prefix in path
@@ -304,14 +308,14 @@ def _categorize_programs(isy_data: IsyData, programs: list[dict]) -> None:
             continue
 
         status_programs = {
-            path.rstrip(f"/{KEY_STATUS}"): status
+            path.removesuffix(f"/{KEY_STATUS}"): status
             for path, status in entities.items()
-            if path.endswith(KEY_STATUS)
+            if path.endswith(f"/{KEY_STATUS}")
         }
         action_programs = {
-            path.rstrip(f"/{KEY_ACTIONS}"): action
+            path.removesuffix(f"/{KEY_ACTIONS}"): action
             for path, action in entities.items()
-            if path.endswith(KEY_ACTIONS)
+            if path.endswith(f"/{KEY_ACTIONS}")
         }
 
         for name, program in status_programs.items():

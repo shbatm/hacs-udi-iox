@@ -15,12 +15,11 @@ from homeassistant.util.percentage import (
     percentage_to_ranged_value,
     ranged_value_to_percentage,
 )
-from pyisyox import Node
+from pyisyox import Node, Program
 from pyisyox.constants import CMD_OFF, Protocol
 
-from .const import _LOGGER
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, IsyData, ProgramRecord
+from .models import IsyConfigEntry, IsyData
 
 SPEED_RANGE = (1, 255)  # off is not included
 
@@ -112,37 +111,19 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
 
 
 class ISYFanProgramEntity(ISYProgramEntity, FanEntity):
-    """Representation of an ISY fan program."""
+    """Representation of an ISY fan program (on/off only).
+
+    Programs only carry boolean status, so program-driven fans
+    don't expose a percentage / speed control. Multi-speed fans
+    should be wired via a Node FAN entity instead.
+    """
 
     _attr_supported_features = FanEntityFeature.TURN_OFF | FanEntityFeature.TURN_ON
-    _attr_speed_count = int_states_in_range(SPEED_RANGE)
-    _actions: ProgramRecord
+    _actions: Program
 
-    async def async_added_to_hass(self) -> None:
-        """Subscribe to events and set initial state."""
-        await super().async_added_to_hass()
-        self._update_fan_attrs()
-
-    def _update_fan_attrs(self) -> None:
-        if node_status_int(self._node) is None:
-            self._attr_is_on = None
-            self._attr_percentage = None
-        else:
-            self._attr_is_on = bool(node_status_int(self._node) != 0)
-            self._attr_percentage = ranged_value_to_percentage(
-                SPEED_RANGE, float(node_status_int(self._node))
-            )
-
-    @callback
-    def async_on_update(self, event: NodeEventType, key: str) -> None:
-        """Handle the update event from the ISY Node."""
-        self._update_fan_attrs()
-        super().async_on_update(event, key)
-
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        """Send the turn on command to ISY fan program."""
-        if not await self._actions.run_then():
-            _LOGGER.error("Unable to turn off the fan")
+    @property
+    def is_on(self) -> bool:
+        return self._node.status
 
     async def async_turn_on(
         self,
@@ -150,6 +131,9 @@ class ISYFanProgramEntity(ISYProgramEntity, FanEntity):
         preset_mode: str | None = None,
         **kwargs: Any,
     ) -> None:
-        """Send the turn off command to ISY fan program."""
-        if not await self._actions.run_else():
-            _LOGGER.error("Unable to turn on the fan")
+        """Run the actions program's ``then`` clause."""
+        await self._actions.run_then()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Run the actions program's ``else`` clause."""
+        await self._actions.run_else()

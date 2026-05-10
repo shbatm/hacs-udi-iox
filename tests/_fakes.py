@@ -83,6 +83,48 @@ class FakeNetworkResource:
         self.run_calls.append(None)
 
 
+@dataclass
+class FakeProgram:
+    """Stand-in for ``pyisyox.Program`` (typed wrapper).
+
+    Field names mirror the real surface so production code reads
+    attributes it expects without monkeypatching. The ``run`` /
+    ``run_then`` / ``run_else`` methods record calls into separate
+    lists per verb so service-layer + entity-layer tests can assert
+    on routing.
+    """
+
+    address: str
+    name: str = "Test Program"
+    path: str = ""
+    status: bool = False
+    enabled: bool | None = True
+    run_at_startup: bool | None = False
+    running: str | None = "idle"
+    last_run_time: str | None = None
+    last_finish_time: str | None = None
+    next_scheduled_run_time: str | None = None
+    parent_address: str | None = None
+
+    def __post_init__(self) -> None:
+        self.run_calls: list[None] = []
+        self.run_then_calls: list[None] = []
+        self.run_else_calls: list[None] = []
+        self.stop_calls: list[None] = []
+
+    async def run(self) -> None:
+        self.run_calls.append(None)
+
+    async def run_then(self) -> None:
+        self.run_then_calls.append(None)
+
+    async def run_else(self) -> None:
+        self.run_else_calls.append(None)
+
+    async def stop(self) -> None:
+        self.stop_calls.append(None)
+
+
 class FakeController:
     """Minimal Controller stand-in.
 
@@ -98,16 +140,19 @@ class FakeController:
         self.connected = True
         self.nodes: dict[str, Any] = {}
         self.groups: dict[str, Any] = {}
-        self.programs: list[dict] = []
+        self.programs: dict[str, FakeProgram] = {}
+        self.program_folders: dict[str, FakeProgram] = {}
         self.variables: dict[str, list[dict]] = {"1": [], "2": []}
         self._event_listeners: list[Callable] = []
         self._lifecycle_listeners: list[Callable] = []
+        self._program_status_listeners: list[Callable] = []
         self.refresh_calls = 0
         self.set_variable_value_calls: list[tuple] = []
         self.set_variable_init_calls: list[tuple] = []
         self.rename_variable_calls: list[tuple] = []
         self.network_resources: dict[str, FakeNetworkResource] = {}
         self.run_network_resource_calls: list[str | int] = []
+        self.send_program_command_calls: list[tuple[str, str]] = []
 
     def add_event_listener(self, callback: Callable) -> Callable[[], None]:
         self._event_listeners.append(callback)
@@ -132,6 +177,28 @@ class FakeController:
                 pass
 
         return _unsub
+
+    def add_program_status_listener(
+        self, callback: Callable
+    ) -> Callable[[], None]:
+        self._program_status_listeners.append(callback)
+
+        def _unsub() -> None:
+            try:
+                self._program_status_listeners.remove(callback)
+            except ValueError:
+                pass
+
+        return _unsub
+
+    def fire_program_status(self, event: Any) -> None:
+        """Fan a ProgramStatusEvent-shaped object to listeners."""
+        for listener in tuple(self._program_status_listeners):
+            listener(event)
+
+    async def send_program_command(self, program_id: str, command: str) -> None:
+        """Mirror ``Controller.send_program_command``."""
+        self.send_program_command_calls.append((program_id, command))
 
     def fire_event(self, event: Any) -> None:
         """Fan an Event-shaped object to all event listeners."""

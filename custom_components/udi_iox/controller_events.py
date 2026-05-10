@@ -30,6 +30,7 @@ from pyisyox import (
     Event,
     NodeLifecycleAction,
     NodeLifecycleEvent,
+    ProgramStatusEvent,
 )
 
 from .const import _LOGGER, DOMAIN, EVENT_UDI_IOX_CONTROL
@@ -44,6 +45,9 @@ LifecycleCallback = Callable[[NodeLifecycleEvent], None]
 #: Per-variable callback. Receives ``(value, init)`` extracted from the
 #: ``<eventInfo><var ...>`` payload of a ``_1`` action=6/7 frame.
 VariableEventCallback = Callable[[int | None, int | None], None]
+#: Per-program callback. Receives the ``ProgramStatusEvent`` after
+#: the matching ``ProgramRecord`` has been mutated in place.
+ProgramEventCallback = Callable[[ProgramStatusEvent], None]
 
 # IoX system control codes for variables and programs. The action code
 # disambiguates: ``"6"`` = current value change, ``"7"`` = init change,
@@ -93,10 +97,15 @@ class IsyControllerEvents:
         self._variable_listeners: dict[
             tuple[str, str], list[VariableEventCallback]
         ] = {}
+        # Per-program-id registry. pyisyox normalises the wire's
+        # unpadded id ("8D") to the 4-character form ("008D") before
+        # firing the listener, so consumers key on the 4-character id.
+        self._program_listeners: dict[str, list[ProgramEventCallback]] = {}
 
         self._unsubscribe: list[Callable[[], None]] = [
             controller.add_event_listener(self._on_event),
             controller.add_node_lifecycle_listener(self._on_lifecycle),
+            controller.add_program_status_listener(self._on_program_status),
         ]
 
     # --- subscription API for entities -----------------------------------
@@ -188,6 +197,38 @@ class IsyControllerEvents:
         return _unsubscribe
 
     @callback
+    def subscribe_program(
+        self, program_id: str, listener: ProgramEventCallback
+    ) -> Callable[[], None]:
+        """Register a callback for one program's status frames.
+
+        pyisyox normalises the wire's unpadded program id (``"8D"``)
+        to the 4-character ``/api/programs`` form (``"008D"``) before
+        firing the upstream listener, so subscribe with the same
+        4-character id you read from ``controller.programs[id]``.
+
+        ``ProgramRecord.status`` / ``running`` are mutated in place
+        before this callback fires, so reading
+        ``program.status`` from inside the callback returns the new
+        value.
+
+        Returns:
+            An unsubscribe callable. Idempotent.
+        """
+        listeners = self._program_listeners.setdefault(program_id, [])
+        listeners.append(listener)
+
+        def _unsubscribe() -> None:
+            try:
+                listeners.remove(listener)
+            except ValueError:
+                return
+            if not listeners:
+                self._program_listeners.pop(program_id, None)
+
+        return _unsubscribe
+
+    @callback
     def stop(self) -> None:
         """Drop all controller subscriptions."""
         for unsub in self._unsubscribe:
@@ -196,6 +237,7 @@ class IsyControllerEvents:
         self._node_listeners.clear()
         self._lifecycle_listeners.clear()
         self._variable_listeners.clear()
+        self._program_listeners.clear()
 
     # --- pyisyox listener entry points -----------------------------------
 
@@ -335,6 +377,23 @@ class IsyControllerEvents:
                 listener(event)
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("IoX lifecycle listener raised")
+
+    @callback
+    def _on_program_status(self, event: ProgramStatusEvent) -> None:
+        """Dispatch a program-status update to entities subscribed to that id.
+
+        pyisyox already mutated ``ProgramRecord.status`` /
+        ``running`` before firing this; entities just need to refresh
+        their HA state.
+        """
+        listeners = self._program_listeners.get(event.address, ())
+        for listener in tuple(listeners):
+            try:
+                listener(event)
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception(
+                    "IoX program listener for %s raised", event.address
+                )
 
     @callback
     def _raise_reload_repair(

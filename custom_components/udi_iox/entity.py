@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo, Entity, EntityDescription
-from homeassistant.util.dt import as_local
 from pyisyox import (
     Event,
     Folder,
@@ -17,6 +16,7 @@ from pyisyox import (
     NodeLifecycleAction,
     NodeLifecycleEvent,
     NodePropertyValue,
+    Program,
 )
 from pyisyox.constants import (
     COMMAND_FRIENDLY_NAME,
@@ -28,13 +28,13 @@ from pyisyox.schema.nodedef import NodeDef
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from .models import IsyData, ProgramRecord, VariableRecord
+    from .models import IsyData, VariableRecord
 
 # PEP 695 lazy type aliases — the right-hand side is evaluated only when
-# the alias is consumed, so the (TYPE_CHECKING-only) ProgramRecord /
+# the alias is consumed, so the (TYPE_CHECKING-only) Program /
 # VariableRecord references don't pull models.py at import time. Keeps
 # the import graph acyclic to match the HA Core isy994 layout.
-type NodeType = Node | Group | Folder | ProgramRecord | VariableRecord
+type NodeType = Node | Group | Folder | Program | VariableRecord
 type NodeEventType = NodePropertyValue | NodeLifecycleEvent
 
 
@@ -295,42 +295,83 @@ class ISYNodeEntity(ISYEntity):
 
 
 class ISYProgramEntity(ISYEntity):
-    """Representation of an IoX program base."""
+    """Representation of an IoX program base.
 
-    _actions: ProgramRecord | None
-    _status: ProgramRecord
+    Programs flow through the dedicated ``subscribe_program`` channel
+    (control ``_1`` action ``"0"`` frames carrying the program id in
+    ``<eventInfo>``) rather than the per-(addr, control) registry that
+    nodes use, so we override ``async_added_to_hass`` to subscribe via
+    that path.
+    """
+
+    _node: Program  # noqa: F821 — Program is imported above
+    _actions: Program | None
 
     def __init__(
         self,
         isy_data: IsyData,
         name: str,
-        status: ProgramRecord,
-        actions: ProgramRecord | None = None,
+        status: Program,
+        actions: Program | None = None,
     ) -> None:
-        """Initialize the program-based entity."""
+        """Initialize the program-based entity. ``status`` is the
+        program this entity reflects (becomes ``self._node``);
+        ``actions`` is the optional sibling program that runs the
+        ``then`` / ``else`` clauses for non-binary platforms."""
         super().__init__(isy_data, status)
         self._attr_name = name
         self._actions = actions
 
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to status updates for the underlying program.
+
+        The base ``ISYEntity.async_added_to_hass`` subscribes through
+        the per-(addr, control) registry which doesn't dispatch
+        program-status frames; programs need the dedicated
+        ``subscribe_program`` channel.
+        """
+        program: Program = self._node  # type: ignore[assignment]
+        self._unsubscribers.append(
+            self._isy_data.controller_events.subscribe_program(
+                program.address, self._on_program_status
+            )
+        )
+
+    @callback
+    def _on_program_status(self, event: object) -> None:
+        """Refresh HA state when the program toggles.
+
+        ``ProgramRecord.status`` has already been mutated by the
+        pyisyox dispatcher, so ``is_on`` / ``is_locked`` / ``is_closed``
+        / etc. read the new value on the very next render.
+        """
+        self.async_write_ha_state()
+
     @property
     def extra_state_attributes(self) -> dict:
-        """Get the state attributes for the device."""
-        # Programs are raw dicts; extract known fields with .get() so
-        # missing keys don't blow up.
-        attr: dict[str, Any] = {}
-        if self._actions:
-            attr["actions_enabled"] = self._actions.get("enabled")
-            for key in ("last_finish_time", "last_run_time", "last_update"):
-                value = self._actions.get(key)
-                if value is not None:
-                    attr[f"actions_{key.replace('_time', '')}"] = str(as_local(value))
-            attr["run_at_startup"] = self._actions.get("run_at_startup")
-            attr["running"] = self._actions.get("running")
+        """Get the state attributes for the device.
 
-        status = self._node if isinstance(self._node, dict) else {}
-        attr["status_enabled"] = status.get("enabled")
-        for key in ("last_finish_time", "last_run_time", "last_update"):
-            value = status.get(key)
-            if value is not None:
-                attr[f"status_{key.replace('_time', '')}"] = str(as_local(value))
+        Surfaces the actions / status program metadata pyisy 3.x
+        consumers expected. The runtime ``Program`` wrapper exposes
+        the timing fields as ISO 8601 strings; we keep them as-is
+        here (the wrapper-side decode keeps the path symmetrical with
+        the wire shape, and downstream automations that parsed the
+        old strings still see strings).
+        """
+        attr: dict[str, Any] = {}
+        actions = self._actions
+        if actions is not None:
+            attr["actions_enabled"] = actions.enabled
+            attr["actions_last_finish"] = actions.last_finish_time
+            attr["actions_last_run"] = actions.last_run_time
+            attr["actions_next_scheduled_run"] = actions.next_scheduled_run_time
+            attr["run_at_startup"] = actions.run_at_startup
+            attr["running"] = actions.running
+
+        status = self._node
+        if isinstance(status, Program):
+            attr["status_enabled"] = status.enabled
+            attr["status_last_finish"] = status.last_finish_time
+            attr["status_last_run"] = status.last_run_time
+            attr["status_next_scheduled_run"] = status.next_scheduled_run_time
         return attr

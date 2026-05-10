@@ -15,11 +15,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Group, Node, NodeCommandError
+from pyisyox import Group, Node, NodeCommandError, Program
 from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .entity import ISYGroupEntity, ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, IsyData, ProgramRecord
+from .models import IsyConfigEntry, IsyData
 
 
 @dataclass
@@ -135,29 +135,31 @@ class ISYSwitchEntity(ISYNodeEntity, ISYSwitchEntityMixin):
 
 
 class ISYSwitchProgramEntity(ISYProgramEntity, SwitchEntity):
-    """A representation of an ISY program switch."""
+    """A representation of an ISY program switch.
 
-    _actions: ProgramRecord
+    ``status`` (``self._node``) is the program that drives ``is_on``.
+    ``self._actions`` is the sibling program that runs on user input
+    — its ``then`` clause turns the switch on; ``else`` turns it off.
+    The status program flips back through the WS dispatcher; the
+    optimistic local state is the ``then`` / ``else`` branch we just
+    requested.
+    """
+
+    _actions: Program
     _attr_icon: str = "mdi:script-text-outline"  # Matches isy program icon
 
     @property
     def is_on(self) -> bool:
         """Get whether the ISY switch program is on."""
-        return bool(node_status_int(self._node))
+        return self._node.status
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Send the turn on command to the ISY switch program."""
-        if not await self._actions.run_then():
-            raise HomeAssistantError(
-                f"Unable to run 'then' clause on program switch {self._actions.address}"
-            )
+        """Run the actions program's ``then`` clause."""
+        await self._actions.run_then()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Send the turn off command to the ISY switch program."""
-        if not await self._actions.run_else():
-            raise HomeAssistantError(
-                f"Unable to run 'else' clause on program switch {self._actions.address}"
-            )
+        """Run the actions program's ``else`` clause."""
+        await self._actions.run_else()
 
 
 class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):

@@ -8,7 +8,14 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.helpers.entity import DeviceInfo
-from pyisyox import Controller, Group, NetworkResource, Node, NodePropertyValue
+from pyisyox import (
+    Controller,
+    Group,
+    NetworkResource,
+    Node,
+    NodePropertyValue,
+    Program,
+)
 from pyisyox.constants import Protocol
 
 from .const import (
@@ -26,11 +33,10 @@ if TYPE_CHECKING:
     from .controller_events import IsyControllerEvents
 
 
-# Variables and programs are still exposed as raw dicts (typed
-# wrappers are deferred — pyisyox doesn't surface them yet). Each
-# carries an "address" key for unique-id derivation.
+# Variables are still exposed as raw dicts — pyisyox doesn't ship a
+# typed Variable wrapper yet. Each carries an "address" key for
+# unique-id derivation.
 VariableRecord = dict[str, Any]
-ProgramRecord = dict[str, Any]
 
 
 @dataclass
@@ -42,7 +48,7 @@ class IsyData:
     groups: list[Group]
     root_nodes: dict[Platform, list[Node]]
     variables: dict[Platform, list[VariableRecord]]
-    programs: dict[Platform, list[tuple[str, ProgramRecord, ProgramRecord | None]]]
+    programs: dict[Platform, list[tuple[str, Program, Program | None]]]
     net_resources: list[NetworkResource]
     devices: dict[str, DeviceInfo]
     aux_properties: dict[Platform, list[tuple[Node, str]]]
@@ -66,7 +72,7 @@ class IsyData:
 
     def uid_base(
         self,
-        node: Node | Group | NetworkResource | NodePropertyValue | VariableRecord | ProgramRecord,
+        node: Node | Group | NetworkResource | NodePropertyValue | VariableRecord | Program,
     ) -> str:
         """Return the unique id base string for a given node."""
         address = node["address"] if isinstance(node, dict) else node.address

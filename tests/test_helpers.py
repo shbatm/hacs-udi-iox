@@ -19,7 +19,7 @@ from typing import Any
 import pytest
 from homeassistant.const import Platform
 
-from custom_components.udi_iox.helpers import _categorize_nodes
+from custom_components.udi_iox.helpers import _categorize_nodes, _categorize_programs
 from custom_components.udi_iox.models import IsyData
 
 
@@ -289,3 +289,61 @@ def test_categorize_no_op_when_controller_is_none(
     node = fake_node_factory(address="A 1")
     _categorize_nodes(isy_data, {"A 1": node}, options, controller=None)
     assert isy_data.nodes[Platform.SWITCH] == []
+
+
+# --- _categorize_programs --------------------------------------------
+
+
+def test_categorize_programs_pairs_status_with_actions(isy_data):
+    """``HA.switch/Foo/status`` + ``HA.switch/Foo/actions`` programs
+    pair up under ``Platform.SWITCH`` keyed by the inner name ``Foo``."""
+    from tests._fakes import FakeProgram
+
+    status = FakeProgram(address="0010", name="status", path="HA.switch/Foo/status")
+    actions = FakeProgram(address="0011", name="actions", path="HA.switch/Foo/actions")
+
+    _categorize_programs(isy_data, {"0010": status, "0011": actions})
+
+    assert isy_data.programs[Platform.SWITCH] == [("Foo", status, actions)]
+
+
+def test_categorize_programs_warns_when_actions_missing(isy_data, caplog):
+    """For non-binary platforms a status program without a sibling
+    actions program logs a warning but still loads — the entity will
+    just have no working ``turn_on`` / ``turn_off`` path."""
+    from tests._fakes import FakeProgram
+
+    status = FakeProgram(address="0010", name="status", path="HA.switch/Foo/status")
+
+    _categorize_programs(isy_data, {"0010": status})
+
+    assert isy_data.programs[Platform.SWITCH] == [("Foo", status, None)]
+    assert any("missing actions program" in m for m in caplog.messages)
+
+
+def test_categorize_programs_binary_sensor_skips_actions_check(isy_data, caplog):
+    """``Platform.BINARY_SENSOR`` programs are status-only (no
+    actions program is expected); the warning shouldn't fire."""
+    from tests._fakes import FakeProgram
+
+    status = FakeProgram(
+        address="0020", name="status", path="HA.binary_sensor/Bar/status"
+    )
+
+    _categorize_programs(isy_data, {"0020": status})
+
+    assert isy_data.programs[Platform.BINARY_SENSOR] == [("Bar", status, None)]
+    assert not any("missing actions program" in m for m in caplog.messages)
+
+
+def test_categorize_programs_ignores_paths_outside_HA_namespace(isy_data):
+    """Programs without an ``HA.<platform>/`` ancestor stay outside
+    HA entity construction — the user uses them server-side only."""
+    from tests._fakes import FakeProgram
+
+    other = FakeProgram(address="0030", name="My Routine", path="My Programs/My Routine")
+
+    _categorize_programs(isy_data, {"0030": other})
+
+    for platform_programs in isy_data.programs.values():
+        assert platform_programs == []

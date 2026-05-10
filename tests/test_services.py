@@ -120,17 +120,99 @@ async def test_set_variable_init_routes_to_init_method(
     assert fake_controller.set_variable_value_calls == []
 
 
-# --- deferred services ------------------------------------------------
+# --- send_program_command ---------------------------------------------
 
 
-async def test_send_program_command_raises(hass, fake_controller) -> None:
+async def test_send_program_command_by_id_dispatches_via_wrapper(
+    hass, fake_controller
+) -> None:
+    """Targeting a program by id calls the matching method on the
+    typed wrapper; for ``run_then`` that lands on ``Program.run_then()``
+    which posts ``GET /rest/programs/{id}/runThen`` upstream."""
+    from tests._fakes import FakeProgram
+
+    program = FakeProgram(address="0030", name="Switch")
+    fake_controller.programs["0030"] = program
     await _wire_services_with_entry(hass, fake_controller)
 
-    with pytest.raises(HomeAssistantError):
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_SEND_PROGRAM_COMMAND,
+        {CONF_ADDRESS: "0030", "command": "run_then"},
+        blocking=True,
+    )
+    assert program.run_then_calls == [None]
+
+
+async def test_send_program_command_by_name_resolves_then_dispatches(
+    hass, fake_controller
+) -> None:
+    """By-name lookup finds the program in
+    ``controller.programs.values()`` and invokes the same method."""
+    from tests._fakes import FakeProgram
+
+    program = FakeProgram(address="0030", name="Hallway")
+    fake_controller.programs["0030"] = program
+    await _wire_services_with_entry(hass, fake_controller)
+
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_SEND_PROGRAM_COMMAND,
+        {CONF_NAME: "Hallway", "command": "run_else"},
+        blocking=True,
+    )
+    assert program.run_else_calls == [None]
+
+
+async def test_send_program_command_unknown_id_raises(
+    hass, fake_controller
+) -> None:
+    await _wire_services_with_entry(hass, fake_controller)
+
+    with pytest.raises(
+        HomeAssistantError, match="No program or folder with id"
+    ):
         await hass.services.async_call(
             DOMAIN,
             SERVICE_SEND_PROGRAM_COMMAND,
-            {CONF_NAME: "My Program", "command": "run"},
+            {CONF_ADDRESS: "FFFF", "command": "run"},
+            blocking=True,
+        )
+
+
+async def test_send_program_command_unknown_name_raises(
+    hass, fake_controller
+) -> None:
+    await _wire_services_with_entry(hass, fake_controller)
+
+    with pytest.raises(
+        HomeAssistantError, match="No program or folder named"
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SEND_PROGRAM_COMMAND,
+            {CONF_NAME: "no-such", "command": "run"},
+            blocking=True,
+        )
+
+
+async def test_send_program_command_folder_rejects_program_only_verb(
+    hass, fake_controller
+) -> None:
+    """``run_then`` is a Program-only verb. Targeting a folder with
+    it raises a targeted error instead of a downstream
+    ``AttributeError``."""
+    from tests._fakes import FakeProgram
+
+    folder = FakeProgram(address="0001", name="Container")
+    fake_controller.program_folders["0001"] = folder
+    await _wire_services_with_entry(hass, fake_controller)
+
+    with pytest.raises(HomeAssistantError, match="does not support command"):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SEND_PROGRAM_COMMAND,
+            {CONF_ADDRESS: "0001", "command": "run_then"},
             blocking=True,
         )
 

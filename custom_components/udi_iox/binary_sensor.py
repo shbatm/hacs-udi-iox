@@ -554,11 +554,11 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
 class ISYBinarySensorProgramEntity(ISYProgramEntity, BinarySensorEntity):
     """Representation of an ISY binary sensor program.
 
-    This does not need all of the subnode logic in the device version of binary
-    sensors.
+    Reads the program's bool ``status`` directly. No subnode logic;
+    binary sensor programs only have a status program (no actions).
     """
 
     @property
     def is_on(self) -> bool:
-        """Get whether the ISY binary sensor device is on."""
-        return bool(node_status_int(self._node))
+        """Get whether the program's last evaluation was True."""
+        return self._node.status

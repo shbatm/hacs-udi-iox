@@ -13,7 +13,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from pyisyox import Node, NodeCommandError
 
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from .models import IsyConfigEntry, ProgramRecord
+from pyisyox import Program
+
+from .models import IsyConfigEntry
 from .services import async_setup_lock_services
 
 VALUE_TO_STATE = {0: False, 100: True}
@@ -98,25 +100,17 @@ class ISYLockEntity(ISYNodeEntity, LockEntity):
 class ISYLockProgramEntity(ISYProgramEntity, LockEntity):
     """Representation of a ISY lock program."""
 
-    _actions: ProgramRecord
+    _actions: Program
 
-    async def async_added_to_hass(self) -> None:
-        """Subscribe to events and set initial state."""
-        await super().async_added_to_hass()
-        self._attr_is_locked = bool(node_status_int(self._node))
-
-    @callback
-    def async_on_update(self, event: NodeEventType, key: str) -> None:
-        """Handle the update event from the ISY Node."""
-        self._attr_is_locked = bool(node_status_int(self._node))
-        super().async_on_update(event, key)
+    @property
+    def is_locked(self) -> bool:
+        """Lock state — True when the program's status program is True."""
+        return self._node.status
 
     async def async_lock(self, **kwargs: Any) -> None:
-        """Lock the device."""
-        if not await self._actions.run_then():
-            raise HomeAssistantError(f"Unable to lock device {self._node.address}")
+        """Run the actions program's ``then`` clause to lock."""
+        await self._actions.run_then()
 
     async def async_unlock(self, **kwargs: Any) -> None:
-        """Unlock the device."""
-        if not await self._actions.run_else():
-            raise HomeAssistantError(f"Unable to unlock device {self._node.address}")
+        """Run the actions program's ``else`` clause to unlock."""
+        await self._actions.run_else()
