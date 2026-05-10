@@ -44,8 +44,9 @@ INTEGRATION_SERVICES = [
     SERVICE_RUN_NETWORK_RESOURCE,
 ]
 
-# Entity-targeting service (light, switch, climate, fan, cover, lock, etc.)
+# Entity-targeting services (light, switch, climate, fan, cover, lock, etc.)
 SERVICE_SEND_NODE_COMMAND = "send_node_command"
+SERVICE_RENAME_NODE = "rename_node"
 
 CONF_VALUE = "value"
 CONF_INIT = "init"
@@ -93,6 +94,8 @@ SERVICE_SYSTEM_QUERY_SCHEMA = vol.Schema(
 SERVICE_SEND_NODE_COMMAND_SCHEMA = {
     vol.Required(CONF_COMMAND): vol.In(VALID_NODE_COMMANDS)
 }
+
+SERVICE_RENAME_NODE_SCHEMA = {vol.Required(CONF_NAME): cv.string}
 
 SERVICE_SET_VARIABLE_SCHEMA = vol.Schema(
     {
@@ -235,6 +238,18 @@ def async_setup_services(hass: HomeAssistant) -> None:
         service=SERVICE_SEND_NODE_COMMAND,
         schema=cv.make_entity_service_schema(SERVICE_SEND_NODE_COMMAND_SCHEMA),
         service_func=_async_send_node_command,
+    )
+
+    async def _async_rename_node(call: ServiceCall) -> None:
+        await entity_service_call(
+            hass, async_get_platforms(hass, DOMAIN), "async_rename_node", call
+        )
+
+    hass.services.async_register(
+        domain=DOMAIN,
+        service=SERVICE_RENAME_NODE,
+        schema=cv.make_entity_service_schema(SERVICE_RENAME_NODE_SCHEMA),
+        service_func=_async_rename_node,
     )
 
 

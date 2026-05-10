@@ -54,10 +54,19 @@ class FakeNode:
     def __post_init__(self) -> None:
         if self.primary_node is None:
             self.primary_node = self.parent_address
+        # Initialised here rather than as a default field so each
+        # FakeNode gets a fresh list (avoids the dataclass-mutable-default
+        # pitfall) without requiring callers to pass it.
+        self.rename_calls: list[str] = []
 
     @property
     def status(self) -> FakeNodePropertyValue | None:
         return self.properties.get("ST")
+
+    async def rename(self, new_name: str) -> None:
+        """Mirror ``pyisyox.Node.rename``."""
+        self.rename_calls.append(new_name)
+        self.name = new_name
 
 
 class FakeController:

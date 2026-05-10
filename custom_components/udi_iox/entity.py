@@ -155,6 +155,15 @@ class ISYGroupEntity(ISYEntity):
         """Get the state attributes for the device."""
         return {"group_all_on": self._node.group_all_on}
 
+    async def async_rename_node(self, name: str) -> None:
+        """Rename the underlying group on the controller.
+
+        The IoX rename endpoint takes the same path for nodes and
+        groups; ``Group.rename`` posts ``nodeType: "group"`` so the
+        server dispatches through the scene registry.
+        """
+        await self._node.rename(name)
+
 
 class ISYNodeEntity(ISYEntity):
     """Base class for IoX entities scoped to a single Node + control."""
@@ -277,10 +286,14 @@ class ISYNodeEntity(ISYEntity):
         )
 
     async def async_rename_node(self, name: str) -> None:
-        """Rename the underlying node — not supported."""
-        raise HomeAssistantError(
-            "Renaming nodes from HA is not supported"
-        )
+        """Rename the underlying node on the controller.
+
+        The IoX server emits a ``NodeLifecycleEvent`` with action
+        ``NN`` after the rename succeeds; the lifecycle Repair card
+        prompts the user to reload the entry so HA's name caches
+        catch up.
+        """
+        await self._node.rename(name)
 
 
 class ISYProgramEntity(ISYEntity):

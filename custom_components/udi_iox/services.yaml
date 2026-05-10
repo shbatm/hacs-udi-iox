@@ -26,6 +26,17 @@ send_node_command:
             - "fast_on"
             - "query"
 
+rename_node:
+  target:
+    entity:
+      integration: udi_iox
+  fields:
+    name:
+      required: true
+      example: "Hallway Dimmer"
+      selector:
+        text:
+
 system_query:
   fields:
     address:

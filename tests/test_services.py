@@ -20,7 +20,9 @@ from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.services import (
+    SERVICE_RENAME_NODE,
     SERVICE_RUN_NETWORK_RESOURCE,
+    SERVICE_SEND_NODE_COMMAND,
     SERVICE_SEND_PROGRAM_COMMAND,
     SERVICE_SET_VARIABLE,
     SERVICE_SYSTEM_QUERY,
@@ -143,3 +145,37 @@ async def test_run_network_resource_raises(hass, fake_controller) -> None:
             {CONF_ADDRESS: 1},
             blocking=True,
         )
+
+
+# --- entity-targeting service registration ---------------------------
+
+
+async def test_rename_node_service_is_registered(hass, fake_controller) -> None:
+    """The ``rename_node`` HA entity service must register at setup
+    time. End-to-end dispatch through ``entity_service_call`` is
+    exercised at the entity layer (``ISYNodeEntity.async_rename_node``);
+    here we just pin that the service is wired so HA can route to it."""
+    await _wire_services_with_entry(hass, fake_controller)
+    assert hass.services.has_service(DOMAIN, SERVICE_RENAME_NODE)
+    assert hass.services.has_service(DOMAIN, SERVICE_SEND_NODE_COMMAND)
+
+
+# --- entity rename plumbing ------------------------------------------
+
+
+async def test_isy_node_entity_async_rename_calls_node_rename(
+    fake_node_factory,
+) -> None:
+    """``ISYNodeEntity.async_rename_node`` calls ``node.rename(name)``
+    (which the runtime ``Node`` then routes to
+    ``POST /api/nodes/{addr}`` with ``nodeType: "node"``)."""
+    from custom_components.udi_iox.entity import ISYNodeEntity
+
+    node = fake_node_factory(address="A 1")
+    entity = ISYNodeEntity.__new__(ISYNodeEntity)
+    entity._node = node
+
+    await entity.async_rename_node("Renamed")
+
+    assert node.rename_calls == ["Renamed"]
+    assert node.name == "Renamed"
