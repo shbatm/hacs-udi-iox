@@ -7,20 +7,34 @@ Pins behavior that's invisible from a single function read:
 - aux-property fan-out (binary UOMs vs. sensor)
 - plugin nodedefs falling through to pyisyox.classify
 
-The tests build FakeNode instances with the exact introspection
-shape that pyisyox would produce for the case under test.
+The tests build real :class:`pyisyox.Node` instances via
+:mod:`tests.builders` — introspection (``is_thermostat`` / ``is_lock`` /
+``is_dimmable`` / ``is_fan``) flows through the real nodedef + editor
+codec from the bundled anonymized eisy6 profile, so a pyisyox API change
+fails these tests instead of drifting silently.
 """
 
 from __future__ import annotations
 
 from types import MappingProxyType
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from homeassistant.const import Platform
+from pyisyox import Node, NodePropertyValue
 
 from custom_components.udi_iox.helpers import _categorize_nodes, _categorize_programs
 from custom_components.udi_iox.models import IsyData
+from tests.builders import (
+    make_classified_node_record,
+    make_controller,
+    make_load_result,
+    make_node,
+    make_node_record,
+    make_program,
+    make_program_record,
+)
 
 
 @pytest.fixture
@@ -33,9 +47,27 @@ def options():
     return MappingProxyType({})
 
 
+@pytest.fixture
+def controller():
+    return make_controller(make_load_result())
+
+
+def _node(
+    controller, address: str, *, target: str | None = None, **kwargs: Any
+) -> Node:
+    """Build a real Node from a record. ``target`` picks a nodedef id
+    that resolves to the requested platform via the bundled profile."""
+    name = kwargs.pop("name", "Test")
+    if target is not None:
+        record = make_classified_node_record(address, name, target=target, **kwargs)
+    else:
+        record = make_node_record(address, name, **kwargs)
+    return make_node(record, controller)
+
+
 def _categorize(
     isy_data: IsyData,
-    node: Any,
+    node: Node,
     options: MappingProxyType[str, Any],
     *,
     controller: Any,
@@ -48,55 +80,53 @@ def _categorize(
 # --- primary platform routing -----------------------------------------
 
 
-def test_thermostat_classifies_as_climate(
-    isy_data, options, fake_node_factory, fake_controller
-):
-    node = fake_node_factory(address="A 1", is_thermostat=True, parent_address=None)
-    _categorize(isy_data, node, options, controller=fake_controller)
+def test_thermostat_classifies_as_climate(isy_data, options, controller):
+    node = _node(controller, "A 1", target="climate")
+    _categorize(isy_data, node, options, controller=controller)
     assert isy_data.nodes[Platform.CLIMATE] == [node]
 
 
-def test_lock_classifies_as_lock(isy_data, options, fake_node_factory, fake_controller):
-    node = fake_node_factory(address="A 1", is_lock=True, parent_address=None)
-    _categorize(isy_data, node, options, controller=fake_controller)
+def test_lock_classifies_as_lock(isy_data, options, controller):
+    node = _node(controller, "A 1", target="lock")
+    _categorize(isy_data, node, options, controller=controller)
     assert isy_data.nodes[Platform.LOCK] == [node]
 
 
-def test_dimmable_classifies_as_light(
-    isy_data, options, fake_node_factory, fake_controller
-):
-    node = fake_node_factory(address="A 1", is_dimmable=True, parent_address=None)
-    _categorize(isy_data, node, options, controller=fake_controller)
+def test_dimmable_classifies_as_light(isy_data, options, controller):
+    node = _node(controller, "A 1", target="light")
+    _categorize(isy_data, node, options, controller=controller)
     assert isy_data.nodes[Platform.LIGHT] == [node]
 
 
-def test_fan_classifies_as_fan(isy_data, options, fake_node_factory, fake_controller):
+def test_fan_classifies_as_fan(isy_data, options, controller):
     """FanLincMotor surfaces as ``Platform.FAN`` rather than falling
     through to SWITCH (its current behaviour without ``is_fan``)."""
-    node = fake_node_factory(address="A 2", is_fan=True, parent_address=None)
-    _categorize(isy_data, node, options, controller=fake_controller)
+    node = _node(controller, "A 2", target="fan")
+    _categorize(isy_data, node, options, controller=controller)
     assert isy_data.nodes[Platform.FAN] == [node]
 
 
-def test_fan_takes_precedence_over_dimmable(
-    isy_data, options, fake_node_factory, fake_controller
-):
+def test_fan_takes_precedence_over_dimmable(isy_data, options, controller):
     """A node reporting both ``is_fan`` and ``is_dimmable`` (e.g. a
     plugin fan with a multilevel ST editor) classifies as FAN, not
-    LIGHT."""
-    node = fake_node_factory(
-        address="A 3", is_fan=True, is_dimmable=True, parent_address=None
-    )
-    _categorize(isy_data, node, options, controller=fake_controller)
+    LIGHT.
+
+    No profile nodedef satisfies both naturally — patch ``is_dimmable``
+    on the FanLincMotor-resolved Node so the test exercises the
+    consumer's ``_primary_platform_for_native`` ordering directly.
+    """
+    node = _node(controller, "A 3", target="fan")
+    with patch.object(
+        Node, "is_dimmable", new_callable=lambda: property(lambda _self: True)
+    ):
+        _categorize(isy_data, node, options, controller=controller)
     assert isy_data.nodes[Platform.FAN] == [node]
     assert isy_data.nodes[Platform.LIGHT] == []
 
 
-def test_default_native_classifies_as_switch(
-    isy_data, options, fake_node_factory, fake_controller
-):
-    node = fake_node_factory(address="A 1", parent_address=None)
-    _categorize(isy_data, node, options, controller=fake_controller)
+def test_default_native_classifies_as_switch(isy_data, options, controller):
+    node = _node(controller, "A 1", target="switch")
+    _categorize(isy_data, node, options, controller=controller)
     assert isy_data.nodes[Platform.SWITCH] == [node]
 
 
@@ -104,64 +134,57 @@ def test_default_native_classifies_as_switch(
 
 
 def test_subbutton_with_parent_suppresses_switch_keeps_event(
-    isy_data, options, fake_node_factory, fake_controller
+    isy_data, options, controller
 ):
     """KeypadLinc-style sub-button: parent_address set, classifies
     as SWITCH, Insteon — must end up EVENT-only."""
-    node = fake_node_factory(
-        address="AA BB CC 2",
-        parent_address="AA BB CC 1",
-        protocol="insteon",
+    node = _node(
+        controller, "AA BB CC 2", target="subbutton", parent_address="AA BB CC 1"
     )
-    _categorize(isy_data, node, options, controller=fake_controller)
+    _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.SWITCH] == []
     assert isy_data.nodes[Platform.EVENT] == [node]
 
 
 def test_subbutton_dimmer_paddle_keeps_light_classification(
-    isy_data, options, fake_node_factory, fake_controller
+    isy_data, options, controller
 ):
     """A dimmable sub-node (BRT/DIM accept commands) is a real load
     surface, not a button — keep primary=LIGHT + parallel=EVENT."""
-    node = fake_node_factory(
-        address="AA BB CC 2",
-        parent_address="AA BB CC 1",
-        protocol="insteon",
-        is_dimmable=True,
+    node = _node(
+        controller, "AA BB CC 2", target="subdimmer", parent_address="AA BB CC 1"
     )
-    _categorize(isy_data, node, options, controller=fake_controller)
+    _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.LIGHT] == [node]
     assert isy_data.nodes[Platform.EVENT] == [node]
 
 
-def test_root_load_keeps_switch_classification(
-    isy_data, options, fake_node_factory, fake_controller
-):
-    """Root SWITCH-shape Insteon node → SWITCH + EVENT, NOT
-    suppressed."""
-    node = fake_node_factory(
-        address="AA BB CC 1", parent_address=None, protocol="insteon"
-    )
-    _categorize(isy_data, node, options, controller=fake_controller)
+def test_root_load_keeps_switch_classification(isy_data, options, controller):
+    """Root SWITCH-shape Insteon node → SWITCH + EVENT, NOT suppressed."""
+    node = _node(controller, "AA BB CC 1", target="switch")
+    _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.SWITCH] == [node]
     assert isy_data.nodes[Platform.EVENT] == [node]
 
 
-def test_subbutton_non_insteon_not_suppressed(
-    isy_data, options, fake_node_factory, fake_controller
-):
+def test_subbutton_non_insteon_not_suppressed(isy_data, options, controller):
     """The sub-button rule is Insteon-specific; Z-Wave sub-nodes (rare
-    but real on multi-endpoint devices) shouldn't be silently
-    dropped."""
-    node = fake_node_factory(
-        address="ZW 2",
+    but real on multi-endpoint devices) shouldn't be silently dropped.
+
+    Family ``"4"`` is Z-Wave — overrides the default Insteon family
+    on the relay nodedef so ``Node.protocol`` resolves to ``"zwave"``.
+    """
+    node = _node(
+        controller,
+        "ZW 2",
+        target="switch",
+        family_id="4",
         parent_address="ZW 1",
-        protocol="zwave",
     )
-    _categorize(isy_data, node, options, controller=fake_controller)
+    _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.SWITCH] == [node]
     # EVENT branch is also gated on Insteon, so a Z-Wave sub-node
@@ -172,24 +195,21 @@ def test_subbutton_non_insteon_not_suppressed(
 # --- aux property fan-out ---------------------------------------------
 
 
-def test_root_dimmer_fans_aux_props_to_number_select(
-    isy_data, options, fake_node_factory, fake_controller
-):
+def test_root_dimmer_fans_aux_props_to_number_select(isy_data, options, controller):
     """Root dimmable nodes spawn NUMBER (on_level) + SELECT
     (ramp_rate) entities for the matching aux properties."""
-    from tests._fakes import FakeNodePropertyValue as _PV
-
-    node = fake_node_factory(
-        address="AA BB CC 1",
-        parent_address=None,
-        is_dimmable=True,
+    record = make_classified_node_record(
+        "AA BB CC 1",
+        "Hallway Dimmer",
+        target="light",
         properties={
-            "ST": _PV(id="ST", value="100", uom="51"),
-            "OL": _PV(id="OL", value="200", uom="100"),
-            "RR": _PV(id="RR", value="20", uom="25"),
+            "ST": NodePropertyValue(id="ST", value="100", uom="51"),
+            "OL": NodePropertyValue(id="OL", value="200", uom="100"),
+            "RR": NodePropertyValue(id="RR", value="20", uom="25"),
         },
     )
-    _categorize(isy_data, node, options, controller=fake_controller)
+    node = make_node(record, controller)
+    _categorize(isy_data, node, options, controller=controller)
 
     on_level_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.NUMBER]]
     ramp_rate_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.SELECT]]
@@ -198,24 +218,24 @@ def test_root_dimmer_fans_aux_props_to_number_select(
 
 
 def test_aux_property_with_binary_uom_routes_to_binary_sensor(
-    isy_data, options, fake_node_factory, fake_controller
+    isy_data, options, controller
 ):
     """Aux properties with UOM 2 / 78 / 79 fan out to BINARY_SENSOR,
     not SENSOR."""
-    from tests._fakes import FakeNodePropertyValue as _PV
-
-    node = fake_node_factory(
-        address="AA BB CC 1",
-        parent_address=None,
+    record = make_classified_node_record(
+        "AA BB CC 1",
+        "Mixed-UOM Device",
+        target="switch",
         properties={
-            "ST": _PV(id="ST", value="100", uom="51"),
+            "ST": NodePropertyValue(id="ST", value="100", uom="51"),
             # GVx aux property with UOM 2 → binary
-            "GV1": _PV(id="GV1", value="0", uom="2"),
+            "GV1": NodePropertyValue(id="GV1", value="0", uom="2"),
             # GVy aux property with a non-binary UOM → sensor
-            "GV2": _PV(id="GV2", value="50", uom="51"),
+            "GV2": NodePropertyValue(id="GV2", value="50", uom="51"),
         },
     )
-    _categorize(isy_data, node, options, controller=fake_controller)
+    node = make_node(record, controller)
+    _categorize(isy_data, node, options, controller=controller)
 
     assert (node, "GV1") in [
         (n, c) for n, c in isy_data.aux_properties[Platform.BINARY_SENSOR]
@@ -228,14 +248,12 @@ def test_aux_property_with_binary_uom_routes_to_binary_sensor(
 # --- ignore / sensor identifier ---------------------------------------
 
 
-def test_ignore_string_skips_node(isy_data, fake_node_factory, fake_controller):
+def test_ignore_string_skips_node(isy_data, controller):
     """A node whose name contains the configured ignore string is
     excluded from every platform."""
-    node = fake_node_factory(
-        address="A 1", parent_address=None, name="Hallway {IGNORE ME}"
-    )
+    node = _node(controller, "A 1", target="switch", name="Hallway {IGNORE ME}")
     opts = MappingProxyType({"ignore_string": "{IGNORE ME}"})
-    _categorize(isy_data, node, opts, controller=fake_controller)
+    _categorize(isy_data, node, opts, controller=controller)
 
     for platform in (
         Platform.LIGHT,
@@ -247,23 +265,19 @@ def test_ignore_string_skips_node(isy_data, fake_node_factory, fake_controller):
         assert isy_data.nodes[platform] == []
 
 
-def test_sensor_identifier_forces_sensor_classification(
-    isy_data, fake_node_factory, fake_controller
-):
+def test_sensor_identifier_forces_sensor_classification(isy_data, controller):
     """A node whose name contains the sensor identifier is forced to
     SENSOR, bypassing the type-based introspection. Useful for
     custom dimmable devices the user wants reported as a sensor."""
-    from tests._fakes import FakeNodePropertyValue as _PV
-
-    node = fake_node_factory(
-        address="A 1",
-        parent_address=None,
-        is_dimmable=True,  # Would normally classify as LIGHT
-        name="Outdoor Lux sensor",
-        properties={"ST": _PV(id="ST", value="500", uom="36")},
+    record = make_classified_node_record(
+        "A 1",
+        "Outdoor Lux sensor",
+        target="light",  # Would normally classify as LIGHT
+        properties={"ST": NodePropertyValue(id="ST", value="500", uom="36")},
     )
+    node = make_node(record, controller)
     opts = MappingProxyType({"sensor_string": "sensor"})
-    _categorize(isy_data, node, opts, controller=fake_controller)
+    _categorize(isy_data, node, opts, controller=controller)
 
     assert isy_data.nodes[Platform.SENSOR] == [node]
     assert isy_data.nodes[Platform.LIGHT] == []
@@ -272,11 +286,11 @@ def test_sensor_identifier_forces_sensor_classification(
 # --- guard rail -------------------------------------------------------
 
 
-def test_categorize_no_op_when_controller_is_none(isy_data, options, fake_node_factory):
+def test_categorize_no_op_when_controller_is_none(isy_data, options, controller):
     """Defensive default — older test fixtures invoke
     _categorize_nodes without a controller; the function returns
     cleanly so the test isn't forced to mock the full surface."""
-    node = fake_node_factory(address="A 1")
+    node = _node(controller, "A 1", target="switch")
     _categorize_nodes(isy_data, {"A 1": node}, options, controller=None)
     assert isy_data.nodes[Platform.SWITCH] == []
 
@@ -284,26 +298,35 @@ def test_categorize_no_op_when_controller_is_none(isy_data, options, fake_node_f
 # --- _categorize_programs --------------------------------------------
 
 
-def test_categorize_programs_pairs_status_with_actions(isy_data):
+def test_categorize_programs_pairs_status_with_actions(isy_data, controller):
     """``HA.switch/Foo/status`` + ``HA.switch/Foo/actions`` programs
     pair up under ``Platform.SWITCH`` keyed by the inner name ``Foo``."""
-    from tests._fakes import FakeProgram
-
-    status = FakeProgram(address="0010", name="status", path="HA.switch/Foo/status")
-    actions = FakeProgram(address="0011", name="actions", path="HA.switch/Foo/actions")
+    status = make_program(
+        make_program_record(
+            "0010", "status", path="HA.switch/Foo/status", status=False
+        ),
+        controller,
+    )
+    actions = make_program(
+        make_program_record("0011", "actions", path="HA.switch/Foo/actions"),
+        controller,
+    )
 
     _categorize_programs(isy_data, {"0010": status, "0011": actions})
 
     assert isy_data.programs[Platform.SWITCH] == [("Foo", status, actions)]
 
 
-def test_categorize_programs_warns_when_actions_missing(isy_data, caplog):
+def test_categorize_programs_warns_when_actions_missing(isy_data, controller, caplog):
     """For non-binary platforms a status program without a sibling
     actions program logs a warning but still loads — the entity will
     just have no working ``turn_on`` / ``turn_off`` path."""
-    from tests._fakes import FakeProgram
-
-    status = FakeProgram(address="0010", name="status", path="HA.switch/Foo/status")
+    status = make_program(
+        make_program_record(
+            "0010", "status", path="HA.switch/Foo/status", status=False
+        ),
+        controller,
+    )
 
     _categorize_programs(isy_data, {"0010": status})
 
@@ -311,13 +334,19 @@ def test_categorize_programs_warns_when_actions_missing(isy_data, caplog):
     assert any("missing actions program" in m for m in caplog.messages)
 
 
-def test_categorize_programs_binary_sensor_skips_actions_check(isy_data, caplog):
+def test_categorize_programs_binary_sensor_skips_actions_check(
+    isy_data, controller, caplog
+):
     """``Platform.BINARY_SENSOR`` programs are status-only (no
     actions program is expected); the warning shouldn't fire."""
-    from tests._fakes import FakeProgram
-
-    status = FakeProgram(
-        address="0020", name="status", path="HA.binary_sensor/Bar/status"
+    status = make_program(
+        make_program_record(
+            "0020",
+            "status",
+            path="HA.binary_sensor/Bar/status",
+            status=False,
+        ),
+        controller,
     )
 
     _categorize_programs(isy_data, {"0020": status})
@@ -326,13 +355,12 @@ def test_categorize_programs_binary_sensor_skips_actions_check(isy_data, caplog)
     assert not any("missing actions program" in m for m in caplog.messages)
 
 
-def test_categorize_programs_ignores_paths_outside_HA_namespace(isy_data):
+def test_categorize_programs_ignores_paths_outside_HA_namespace(isy_data, controller):
     """Programs without an ``HA.<platform>/`` ancestor stay outside
     HA entity construction — the user uses them server-side only."""
-    from tests._fakes import FakeProgram
-
-    other = FakeProgram(
-        address="0030", name="My Routine", path="My Programs/My Routine"
+    other = make_program(
+        make_program_record("0030", "My Routine", path="My Programs/My Routine"),
+        controller,
     )
 
     _categorize_programs(isy_data, {"0030": other})

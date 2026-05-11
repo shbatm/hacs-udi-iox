@@ -2,21 +2,27 @@
 
 Pins:
 - ``set_variable`` routes through ``Controller.set_variable_value`` /
-  ``set_variable_init`` based on the ``init`` flag.
+  ``set_variable_init`` based on the ``init`` flag — both land
+  ``POST /api/variables/{type}/{id}`` on the client.
 - ``system_query`` routes through ``Controller.refresh``.
-- The deferred services (``send_program_command``,
-  ``run_network_resource``) raise so callers know they're not wired
-  rather than silently no-op'ing.
+- ``send_program_command`` resolves the target by id / name, then
+  invokes the matching method on the typed ``Program`` /
+  ``ProgramFolder`` wrapper (which fires
+  ``GET /rest/programs/{id}/{command}`` on the client).
+- ``run_network_resource`` routes by id straight through the
+  controller helper, and by name through the typed
+  ``NetworkResource.run()`` wrapper.
 """
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from homeassistant.const import CONF_ADDRESS, CONF_NAME, CONF_TYPE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from pyisyox import Controller
 
 from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.models import IsyData
@@ -29,19 +35,46 @@ from custom_components.udi_iox.services import (
     SERVICE_SYSTEM_QUERY,
     async_setup_services,
 )
+from tests.builders import (
+    make_controller,
+    make_load_result,
+    make_network_resource_record,
+    make_node_record,
+    make_program_record,
+)
 
 
-async def _wire_services_with_entry(hass: HomeAssistant, fake_controller) -> None:
-    """Register services + add a fake config entry whose runtime_data
-    points at the FakeController so service handlers can resolve it."""
-    # Build a stub config entry with runtime_data so
-    # ``_select_isy_data`` finds it.
+@pytest.fixture
+def service_controller():
+    """Real :class:`Controller` shaped for service-layer tests.
+
+    The default load_result carries one program ("0030", "Switch"), one
+    folder ("0001", "Container"), one network resource ("5", "Webhook"),
+    and one node — enough to exercise the by-id / by-name resolution
+    paths in ``send_program_command`` / ``run_network_resource`` without
+    each test having to re-seed the controller.
+    """
+    program = make_program_record("0030", "Switch")
+    folder = make_program_record("0001", "Container", is_folder=True)
+    resource = make_network_resource_record("5", "Webhook")
+    node = make_node_record("A 1", "Test Node")
+    load_result = make_load_result(
+        uuid="test-uuid",
+        nodes={node.address: node},
+        programs={program.address: program, folder.address: folder},
+        network_resources={resource.address: resource},
+    )
+    return make_controller(load_result)
+
+
+async def _wire_services_with_entry(hass: HomeAssistant, controller) -> None:
+    """Register services + add a stub config entry whose runtime_data
+    points at the Controller so service handlers can resolve it."""
     isy_data = IsyData()
-    isy_data.root = fake_controller
+    isy_data.root = controller
 
     entry = MagicMock()
     entry.runtime_data = isy_data
-    # Patch the config-entries lookup so service handlers see our entry.
     hass.config_entries.async_entries = MagicMock(return_value=[entry])
 
     async_setup_services(hass)
@@ -51,26 +84,38 @@ async def _wire_services_with_entry(hass: HomeAssistant, fake_controller) -> Non
 # --- system_query -----------------------------------------------------
 
 
-async def test_system_query_calls_controller_refresh(hass, fake_controller) -> None:
-    await _wire_services_with_entry(hass, fake_controller)
+async def test_system_query_calls_controller_refresh(hass, service_controller) -> None:
+    """``system_query`` lands on ``Controller.refresh``. Patched at the
+    class level because ``Controller`` uses ``__slots__`` — we can't
+    drop an ``AsyncMock`` on the instance directly."""
+    await _wire_services_with_entry(hass, service_controller)
 
-    await hass.services.async_call(DOMAIN, SERVICE_SYSTEM_QUERY, {}, blocking=True)
+    with patch.object(
+        Controller, "refresh", new=AsyncMock(return_value=None)
+    ) as refresh_mock:
+        await hass.services.async_call(DOMAIN, SERVICE_SYSTEM_QUERY, {}, blocking=True)
 
-    assert fake_controller.refresh_calls == 1
+    refresh_mock.assert_awaited_once()
 
 
-async def test_system_query_targets_controller_by_uuid(hass, fake_controller) -> None:
+async def test_system_query_targets_controller_by_uuid(
+    hass, service_controller
+) -> None:
     """Passing isy=<uuid> targets only the matching controller."""
-    await _wire_services_with_entry(hass, fake_controller)
+    await _wire_services_with_entry(hass, service_controller)
 
-    await hass.services.async_call(
-        DOMAIN, SERVICE_SYSTEM_QUERY, {"isy": "test-uuid"}, blocking=True
-    )
-    assert fake_controller.refresh_calls == 1
+    with patch.object(
+        Controller, "refresh", new=AsyncMock(return_value=None)
+    ) as refresh_mock:
+        await hass.services.async_call(
+            DOMAIN, SERVICE_SYSTEM_QUERY, {"isy": "test-uuid"}, blocking=True
+        )
+
+    refresh_mock.assert_awaited_once()
 
 
-async def test_system_query_with_unmatched_isy_raises(hass, fake_controller) -> None:
-    await _wire_services_with_entry(hass, fake_controller)
+async def test_system_query_with_unmatched_isy_raises(hass, service_controller) -> None:
+    await _wire_services_with_entry(hass, service_controller)
 
     with pytest.raises(HomeAssistantError):
         await hass.services.async_call(
@@ -82,9 +127,12 @@ async def test_system_query_with_unmatched_isy_raises(hass, fake_controller) -> 
 
 
 async def test_set_variable_value_writes_through_controller(
-    hass, fake_controller
+    hass, service_controller
 ) -> None:
-    await _wire_services_with_entry(hass, fake_controller)
+    """``init=False`` (the default) maps to
+    ``Controller.set_variable_value`` which lands
+    ``POST /api/variables/{type}/{id}`` with ``{"value": <int>}``."""
+    await _wire_services_with_entry(hass, service_controller)
 
     await hass.services.async_call(
         DOMAIN,
@@ -93,13 +141,17 @@ async def test_set_variable_value_writes_through_controller(
         blocking=True,
     )
 
-    assert fake_controller.set_variable_value_calls == [(2, 5, 100)]
-    assert fake_controller.set_variable_init_calls == []
+    assert service_controller._client.post_variable_update.await_args_list == [
+        call(2, 5, {"value": 100})
+    ]
 
 
-async def test_set_variable_init_routes_to_init_method(hass, fake_controller) -> None:
-    """init=True routes to set_variable_init instead of set_variable_value."""
-    await _wire_services_with_entry(hass, fake_controller)
+async def test_set_variable_init_routes_to_init_method(
+    hass, service_controller
+) -> None:
+    """``init=True`` maps to ``Controller.set_variable_init`` which
+    lands the same endpoint with ``{"init": <int>}`` instead."""
+    await _wire_services_with_entry(hass, service_controller)
 
     await hass.services.async_call(
         DOMAIN,
@@ -108,24 +160,21 @@ async def test_set_variable_init_routes_to_init_method(hass, fake_controller) ->
         blocking=True,
     )
 
-    assert fake_controller.set_variable_init_calls == [(1, 5, 42)]
-    assert fake_controller.set_variable_value_calls == []
+    assert service_controller._client.post_variable_update.await_args_list == [
+        call(1, 5, {"init": 42})
+    ]
 
 
 # --- send_program_command ---------------------------------------------
 
 
 async def test_send_program_command_by_id_dispatches_via_wrapper(
-    hass, fake_controller
+    hass, service_controller
 ) -> None:
-    """Targeting a program by id calls the matching method on the
-    typed wrapper; for ``run_then`` that lands on ``Program.run_then()``
-    which posts ``GET /rest/programs/{id}/runThen`` upstream."""
-    from tests._fakes import FakeProgram
-
-    program = FakeProgram(address="0030", name="Switch")
-    fake_controller.programs["0030"] = program
-    await _wire_services_with_entry(hass, fake_controller)
+    """Targeting a program by id calls the matching method on the typed
+    ``Program`` wrapper (for ``run_then`` that lands
+    ``GET /rest/programs/{id}/runThen`` on the client)."""
+    await _wire_services_with_entry(hass, service_controller)
 
     await hass.services.async_call(
         DOMAIN,
@@ -133,31 +182,32 @@ async def test_send_program_command_by_id_dispatches_via_wrapper(
         {CONF_ADDRESS: "0030", "command": "run_then"},
         blocking=True,
     )
-    assert program.run_then_calls == [None]
+    assert service_controller._client.run_program_command.await_args_list == [
+        call("0030", "runThen")
+    ]
 
 
 async def test_send_program_command_by_name_resolves_then_dispatches(
-    hass, fake_controller
+    hass, service_controller
 ) -> None:
     """By-name lookup finds the program in
-    ``controller.programs.values()`` and invokes the same method."""
-    from tests._fakes import FakeProgram
-
-    program = FakeProgram(address="0030", name="Hallway")
-    fake_controller.programs["0030"] = program
-    await _wire_services_with_entry(hass, fake_controller)
+    ``controller.programs.values()`` and invokes the same wrapper
+    method — same wire shape as the by-id path."""
+    await _wire_services_with_entry(hass, service_controller)
 
     await hass.services.async_call(
         DOMAIN,
         SERVICE_SEND_PROGRAM_COMMAND,
-        {CONF_NAME: "Hallway", "command": "run_else"},
+        {CONF_NAME: "Switch", "command": "run_else"},
         blocking=True,
     )
-    assert program.run_else_calls == [None]
+    assert service_controller._client.run_program_command.await_args_list == [
+        call("0030", "runElse")
+    ]
 
 
-async def test_send_program_command_unknown_id_raises(hass, fake_controller) -> None:
-    await _wire_services_with_entry(hass, fake_controller)
+async def test_send_program_command_unknown_id_raises(hass, service_controller) -> None:
+    await _wire_services_with_entry(hass, service_controller)
 
     with pytest.raises(HomeAssistantError, match="No program or folder with id"):
         await hass.services.async_call(
@@ -168,8 +218,10 @@ async def test_send_program_command_unknown_id_raises(hass, fake_controller) -> 
         )
 
 
-async def test_send_program_command_unknown_name_raises(hass, fake_controller) -> None:
-    await _wire_services_with_entry(hass, fake_controller)
+async def test_send_program_command_unknown_name_raises(
+    hass, service_controller
+) -> None:
+    await _wire_services_with_entry(hass, service_controller)
 
     with pytest.raises(HomeAssistantError, match="No program or folder named"):
         await hass.services.async_call(
@@ -181,16 +233,13 @@ async def test_send_program_command_unknown_name_raises(hass, fake_controller) -
 
 
 async def test_send_program_command_folder_rejects_program_only_verb(
-    hass, fake_controller
+    hass, service_controller
 ) -> None:
-    """``run_then`` is a Program-only verb. Targeting a folder with
-    it raises a targeted error instead of a downstream
-    ``AttributeError``."""
-    from tests._fakes import FakeProgram
-
-    folder = FakeProgram(address="0001", name="Container")
-    fake_controller.program_folders["0001"] = folder
-    await _wire_services_with_entry(hass, fake_controller)
+    """``run_then`` is a Program-only verb. Targeting a folder with it
+    raises a targeted ``HomeAssistantError`` instead of letting the
+    request flow through to ``ProgramFolder`` (where ``run_then`` would
+    raise ``AttributeError`` opaquely)."""
+    await _wire_services_with_entry(hass, service_controller)
 
     with pytest.raises(HomeAssistantError, match="does not support command"):
         await hass.services.async_call(
@@ -201,36 +250,33 @@ async def test_send_program_command_folder_rejects_program_only_verb(
         )
 
 
+# --- run_network_resource --------------------------------------------
+
+
 async def test_run_network_resource_by_address_fires_controller(
-    hass, fake_controller
+    hass, service_controller
 ) -> None:
     """Targeting a resource by id calls
-    ``Controller.run_network_resource(<id>)`` directly."""
-    from tests._fakes import FakeNetworkResource
-
-    fake_controller.network_resources["5"] = FakeNetworkResource(
-        address="5", name="Webhook"
-    )
-    await _wire_services_with_entry(hass, fake_controller)
+    ``Controller.run_network_resource(<id>)`` directly — lands
+    ``GET /rest/networking/resources/{id}`` on the client."""
+    await _wire_services_with_entry(hass, service_controller)
 
     await hass.services.async_call(
         DOMAIN, SERVICE_RUN_NETWORK_RESOURCE, {CONF_ADDRESS: 5}, blocking=True
     )
-    assert fake_controller.run_network_resource_calls == ["5"]
+    assert service_controller._client.run_network_resource.await_args_list == [
+        call("5")
+    ]
 
 
 async def test_run_network_resource_by_name_resolves_then_fires(
-    hass, fake_controller
+    hass, service_controller
 ) -> None:
-    """Targeting by name finds the wrapper in
-    ``controller.network_resources`` and calls its ``run()`` rather
-    than going through the controller-level helper. Either path lands
-    the same ``GET /rest/networking/resources/{id}`` on the wire."""
-    from tests._fakes import FakeNetworkResource
-
-    resource = FakeNetworkResource(address="5", name="Webhook")
-    fake_controller.network_resources["5"] = resource
-    await _wire_services_with_entry(hass, fake_controller)
+    """By-name resolution finds the wrapper in
+    ``controller.network_resources`` and calls its ``run()`` —
+    same ``GET /rest/networking/resources/{id}`` on the wire as the
+    by-id path."""
+    await _wire_services_with_entry(hass, service_controller)
 
     await hass.services.async_call(
         DOMAIN,
@@ -238,13 +284,13 @@ async def test_run_network_resource_by_name_resolves_then_fires(
         {CONF_NAME: "Webhook"},
         blocking=True,
     )
-    assert resource.run_calls == [None]
-    # Address path was not used; controller helper not called.
-    assert fake_controller.run_network_resource_calls == []
+    assert service_controller._client.run_network_resource.await_args_list == [
+        call("5")
+    ]
 
 
-async def test_run_network_resource_unknown_id_raises(hass, fake_controller) -> None:
-    await _wire_services_with_entry(hass, fake_controller)
+async def test_run_network_resource_unknown_id_raises(hass, service_controller) -> None:
+    await _wire_services_with_entry(hass, service_controller)
 
     with pytest.raises(HomeAssistantError, match="No network resource with id"):
         await hass.services.async_call(
@@ -252,8 +298,10 @@ async def test_run_network_resource_unknown_id_raises(hass, fake_controller) -> 
         )
 
 
-async def test_run_network_resource_unknown_name_raises(hass, fake_controller) -> None:
-    await _wire_services_with_entry(hass, fake_controller)
+async def test_run_network_resource_unknown_name_raises(
+    hass, service_controller
+) -> None:
+    await _wire_services_with_entry(hass, service_controller)
 
     with pytest.raises(HomeAssistantError, match="No network resource named"):
         await hass.services.async_call(
@@ -267,12 +315,12 @@ async def test_run_network_resource_unknown_name_raises(hass, fake_controller) -
 # --- entity-targeting service registration ---------------------------
 
 
-async def test_rename_node_service_is_registered(hass, fake_controller) -> None:
+async def test_rename_node_service_is_registered(hass, service_controller) -> None:
     """The ``rename_node`` HA entity service must register at setup
     time. End-to-end dispatch through ``entity_service_call`` is
     exercised at the entity layer (``ISYNodeEntity.async_rename_node``);
     here we just pin that the service is wired so HA can route to it."""
-    await _wire_services_with_entry(hass, fake_controller)
+    await _wire_services_with_entry(hass, service_controller)
     assert hass.services.has_service(DOMAIN, SERVICE_RENAME_NODE)
     assert hass.services.has_service(DOMAIN, SERVICE_SEND_NODE_COMMAND)
 
@@ -281,18 +329,19 @@ async def test_rename_node_service_is_registered(hass, fake_controller) -> None:
 
 
 async def test_isy_node_entity_async_rename_calls_node_rename(
-    fake_node_factory,
+    service_controller,
 ) -> None:
-    """``ISYNodeEntity.async_rename_node`` calls ``node.rename(name)``
-    (which the runtime ``Node`` then routes to
-    ``POST /api/nodes/{addr}`` with ``nodeType: "node"``)."""
+    """``ISYNodeEntity.async_rename_node`` calls ``node.rename(name)``,
+    which lands ``POST /api/nodes/{addr}`` with
+    ``{"nodeType": "node", "name": "..."}`` on the client."""
     from custom_components.udi_iox.entity import ISYNodeEntity
 
-    node = fake_node_factory(address="A 1")
+    node = next(iter(service_controller.nodes.values()))
     entity = ISYNodeEntity.__new__(ISYNodeEntity)
     entity._node = node
 
     await entity.async_rename_node("Renamed")
 
-    assert node.rename_calls == ["Renamed"]
-    assert node.name == "Renamed"
+    assert service_controller._client.post_node_update.await_args_list == [
+        call("A 1", {"nodeType": "node", "name": "Renamed"})
+    ]

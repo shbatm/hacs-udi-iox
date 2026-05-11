@@ -1,9 +1,10 @@
 """Shared fixtures for the udi_iox test suite.
 
-The lightweight stand-ins for pyisyox's :class:`Controller` and
-:class:`Node` live in :mod:`tests._fakes` so test modules can import
-the dataclasses directly. These fixtures wire them up for tests that
-prefer the pytest-fixture style.
+Tests drive a real :class:`pyisyox.Controller` (with its HTTP-side
+client coroutines stubbed) via the factories in :mod:`tests.builders`.
+The fixtures here wire that controller up against an HA-side
+``MockConfigEntry`` and forward only the platforms a given test wants
+to exercise.
 """
 
 from __future__ import annotations
@@ -50,13 +51,6 @@ from custom_components.udi_iox.const import (  # noqa: E402
     CONF_ENABLE_VARIABLES,
     DOMAIN,
 )
-from tests._fakes import (  # noqa: E402
-    FakeController,
-    FakeEvent,
-    FakeLifecycleEvent,
-    FakeNode,
-    FakeNodePropertyValue,
-)
 from tests.builders import (  # noqa: E402
     make_controller,
     make_group_record,
@@ -73,24 +67,6 @@ pytest_plugins = "pytest_homeassistant_custom_component"
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Allow the test runner to load the udi_iox custom integration."""
-
-
-@pytest.fixture
-def fake_node_factory():
-    """Build a FakeNode with sensible defaults; override per test."""
-    return FakeNode
-
-
-@pytest.fixture
-def fake_property_factory():
-    """Build a FakeNodePropertyValue."""
-    return FakeNodePropertyValue
-
-
-@pytest.fixture
-def fake_controller():
-    """Return a fresh FakeController per test."""
-    return FakeController()
 
 
 @pytest.fixture
@@ -271,16 +247,6 @@ def populated_controller():
         network_resources=network_resources,
     )
     return make_controller(load_result)
-
-
-@pytest.fixture
-def fake_event_factory():
-    return FakeEvent
-
-
-@pytest.fixture
-def fake_lifecycle_factory():
-    return FakeLifecycleEvent
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.udi_iox.models import IsyData
 from custom_components.udi_iox.system_health import system_health_info
+from tests.builders import make_controller, make_load_result
 
 
 async def _wire_entry_with_controller(
@@ -34,13 +35,13 @@ async def _wire_entry_with_controller(
     hass.config_entries.async_entries = MagicMock(return_value=[entry])
 
 
-async def test_system_health_includes_ws_rows_when_websocket_present(
-    hass, fake_controller, monkeypatch
-):
+async def test_system_health_includes_ws_rows_when_websocket_present(hass, monkeypatch):
     """When the controller exposes a live WS, ``event_stream_status`` +
     ``last_event_at`` show up alongside the baseline rows."""
+    controller = make_controller(make_load_result())
     captured_at = datetime(2026, 5, 10, 14, 35, tzinfo=UTC)
-    fake_controller.websocket = SimpleNamespace(
+    # ``_ws`` is the backing slot for the ``websocket`` property.
+    controller._ws = SimpleNamespace(
         status=SimpleNamespace(value="connected"),
         last_event_at=captured_at,
     )
@@ -49,28 +50,27 @@ async def test_system_health_includes_ws_rows_when_websocket_present(
         "custom_components.udi_iox.system_health.system_health.async_check_can_reach_url",
         AsyncMock(return_value=True),
     )
-    await _wire_entry_with_controller(hass, fake_controller)
+    await _wire_entry_with_controller(hass, controller)
 
     info = await system_health_info(hass)
 
     assert info["host_reachable"] is True
-    assert info["device_connected"] is True  # FakeController.connected = True
+    assert info["device_connected"] is True
     assert info["event_stream_status"] == "connected"
     assert info["last_event_at"] == captured_at
 
 
-async def test_system_health_omits_ws_rows_when_websocket_is_none(
-    hass, fake_controller, monkeypatch
-):
+async def test_system_health_omits_ws_rows_when_websocket_is_none(hass, monkeypatch):
     """Without a WS (start_websocket=False), the ws rows are omitted
     so the page doesn't misrepresent a happy integration as broken."""
-    fake_controller.websocket = None
+    controller = make_controller(make_load_result())
+    # ``_ws`` defaults to None via the Controller __init__ — leave it.
 
     monkeypatch.setattr(
         "custom_components.udi_iox.system_health.system_health.async_check_can_reach_url",
         AsyncMock(return_value=True),
     )
-    await _wire_entry_with_controller(hass, fake_controller)
+    await _wire_entry_with_controller(hass, controller)
 
     info = await system_health_info(hass)
 

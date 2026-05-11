@@ -279,12 +279,104 @@ def _build_fake_client(host: str, auth: Any, session: Any) -> IoXClient:
         "send_node_command",
         "post_node_update",
         "post_variable_update",
-        "send_program_command",
+        "run_program_command",
         "run_network_resource",
     ):
         setattr(client, method_name, AsyncMock(return_value=None))
 
     return client
+
+
+# ---------------------------------------------------------------------------
+# Event firing helpers — drive listeners on a real Controller's dispatcher.
+#
+# The real ``EventDispatcher`` keeps three listener lists (events,
+# lifecycle, program-status). Tests that want to assert on the
+# consumer's dispatch logic synthesise ``Event`` / ``NodeLifecycleEvent``
+# / ``ProgramStatusEvent`` instances and route them to the dispatcher's
+# listeners via the helpers below. We hit the dispatcher's internal
+# lists directly because the public ``feed`` path requires raw XML
+# frames, which would force every test to round-trip its synthetic
+# events through pyisyox's parser. The shape contract is locked by
+# pyisyox's own test suite — these helpers just fan the dataclass out
+# to whatever listeners the consumer registered.
+# ---------------------------------------------------------------------------
+
+
+def fire_event(controller: Controller, event: Any) -> None:
+    """Fan ``event`` (a :class:`pyisyox.Event`) to every event listener
+    on ``controller``'s dispatcher."""
+    for listener in tuple(controller._dispatcher._listeners):
+        listener(event)
+
+
+def fire_lifecycle(controller: Controller, event: Any) -> None:
+    """Fan ``event`` (a :class:`pyisyox.NodeLifecycleEvent`) to every
+    lifecycle listener on ``controller``'s dispatcher."""
+    for listener in tuple(controller._dispatcher._lifecycle_listeners):
+        listener(event)
+
+
+def fire_program_status(controller: Controller, event: Any) -> None:
+    """Fan ``event`` (a :class:`pyisyox.runtime.events.ProgramStatusEvent`)
+    to every program-status listener on ``controller``'s dispatcher."""
+    for listener in tuple(controller._dispatcher._program_status_listeners):
+        listener(event)
+
+
+# ---------------------------------------------------------------------------
+# Per-platform node shortcuts.
+#
+# Native introspection (``is_thermostat`` / ``is_lock`` / ``is_dimmable`` /
+# ``is_fan``) is derived from the resolved nodedef + editor codec on the
+# bundled profile. These shortcuts pin a nodedef id that produces the
+# expected classification, so classifier unit tests don't need to know
+# pyisyox's introspection internals.
+# ---------------------------------------------------------------------------
+
+#: Nodedef ids in ``tests/fixtures/eisy6_profile.json`` that classify cleanly
+#: to each native platform. ``RelayLampSwitch_ADV`` is the non-dimmable
+#: keypad sub-button shape the consumer's sub-button suppression rule
+#: targets.
+NODEDEF_FOR_PLATFORM: dict[str, str] = {
+    "climate": "Thermostat",
+    "lock": "DoorLock",
+    "light": "DimmerLampOnly",
+    "fan": "FanLincMotor",
+    "switch": "RelayLampOnly",
+    "subbutton": "RelayLampSwitch_ADV",
+    "subdimmer": "DimmerLampSwitch_ADV",
+}
+
+
+def make_classified_node_record(
+    address: str,
+    name: str,
+    *,
+    target: str,
+    parent_address: str | None = None,
+    family_id: str = "1",
+    properties: dict[str, NodePropertyValue] | None = None,
+    **status_kwargs,
+) -> NodeRecord:
+    """Shortcut for :func:`make_node_record` that picks a real nodedef id
+    for the requested target platform.
+
+    ``target`` is one of the keys in :data:`NODEDEF_FOR_PLATFORM`. Lock
+    uses ``family_id="4"`` (Z-Wave) by default; everything else is
+    Insteon family ``"1"``. Override via the ``family_id`` kwarg.
+    """
+    if target == "lock":
+        family_id = "4"
+    return make_node_record(
+        address,
+        name,
+        nodedef_id=NODEDEF_FOR_PLATFORM[target],
+        family_id=family_id,
+        parent_address=parent_address,
+        properties=properties,
+        **status_kwargs,
+    )
 
 
 # ---------------------------------------------------------------------------
