@@ -233,28 +233,22 @@ class ISYVariableNumberEntity(NumberEntity):
 
     @callback
     def _on_variable_change(self, value: int | None, init: int | None) -> None:
-        """Mirror a variable-change frame into local state.
+        """Push the new value to the entity registry.
 
-        The wrapper's :class:`VariableRecord` is shared with the
-        controller's loaded state; the WS dispatcher updates it in
-        place, but the controller doesn't currently overlay variable
-        events onto the record — so do it here so the entity surface
-        stays in sync.
+        pyisyox's :class:`EventDispatcher` (PR #71) already overlays the
+        ``<var><val>`` payload onto the underlying ``VariableRecord``
+        before this listener fires, so reads from ``self._node.value`` /
+        ``self._node.init`` already reflect the wire change. Only the
+        HA state-write is left for us.
+
+        The ``value`` / ``init`` kwargs stay on the signature for
+        backward compat — they let the listener decide whether the
+        frame was for this entity's slot without re-reading the wrapper.
         """
-        # ``Variable._record`` is the canonical store; pyisyox doesn't
-        # currently expose a public "apply a WS-derived update" method
-        # (the wrapper's ``set_value`` would POST), so write through the
-        # private record directly. Track the upstream gap if it bites
-        # again — could be a small Variable.apply_update() helper.
-        # pylint: disable=protected-access
-        if self._init_entity:
-            if init is None:
-                return  # current-value frame; not for this entity
-            self._node._record.init = init
-        else:
-            if value is None:
-                return
-            self._node._record.value = value
+        if self._init_entity and init is None:
+            return  # current-value frame; not for this entity
+        if not self._init_entity and value is None:
+            return  # init frame; not for this entity
         self.async_write_ha_state()
 
     @property
