@@ -43,6 +43,7 @@ from pyisyox.constants import (
     PROP_ON_LEVEL,
     PROP_RAMP_RATE,
     PROP_STATUS,
+    TAG_ENABLED,
     Protocol,
 )
 
@@ -216,6 +217,12 @@ def _categorize_nodes(
             )
             isy_data.root_nodes[Platform.BUTTON].append(node)
             isy_data.aux_properties[Platform.SENSOR].append((node, PROP_COMMS_ERROR))
+            # Per-device enable/disable switch — mirrors hacs-isy994's
+            # exposure of the controller-side enabled flag, useful for
+            # automations that need to mute a flaky node without removing
+            # it from the controller.
+            if hasattr(node, TAG_ENABLED):
+                isy_data.aux_properties[Platform.SWITCH].append((node, TAG_ENABLED))
 
             if node.is_dimmable:
                 for control in ROOT_AUX_CONTROLS.intersection(node.properties):

@@ -135,9 +135,41 @@ async def async_setup_entry(
 
 
 class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
-    """Representation of a ISY/IoX Aux Control Number entity."""
+    """Representation of a ISY/IoX Aux Control Number entity.
+
+    HA shows the entity as a 0-100 percentage slider regardless of the
+    underlying device's encoding. The IoX editor that backs the control
+    decides whether the controller wants the value as raw bytes
+    (0-255, e.g. classic Insteon dimmers) or already as a percentage
+    (0-100, e.g. KeypadDimmer_ADV, Z-Wave dimmers). At init we resolve
+    the editor on this node's nodedef and cache its max, then scale
+    on read and write accordingly.
+    """
 
     _attr_mode = NumberMode.SLIDER
+    _editor_max: float | None = None
+
+    @property
+    def _resolved_editor_max(self) -> float | None:
+        """Return the editor's max for this node's control, or ``None``.
+
+        Cached on first call so the per-event read path stays cheap.
+        ``None`` means "couldn't resolve" — caller should fall back to
+        passing the raw value through unscaled.
+        """
+        if self._editor_max is not None:
+            return self._editor_max
+        if (nodedef := self._node.nodedef) is None:
+            return None
+        if (prop := nodedef.properties.get(self._control)) is None:
+            return None
+        editor = self._isy_data.root.profile.find_editor(
+            prop.editor_id, self._node.family_id, self._node.instance_id
+        )
+        if editor is None or not editor.ranges:
+            return None
+        self._editor_max = editor.ranges[0].max
+        return self._editor_max
 
     @property
     def native_value(self) -> float | int | None:
@@ -151,23 +183,31 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
         except (TypeError, ValueError):
             return None
 
-        if (
-            self.entity_description.native_unit_of_measurement == PERCENTAGE
-            and node_prop.uom == UOM_8_BIT_RANGE  # Insteon 0-255
-        ):
-            return ranged_value_to_percentage(ON_RANGE, raw)
+        if self.entity_description.native_unit_of_measurement == PERCENTAGE:
+            editor_max = self._resolved_editor_max
+            # Controller reports the value in the editor's range:
+            # > 100 → raw bytes (e.g. Insteon 0-255), scale to percent.
+            # ≤ 100 → already percent (KeypadDimmer_ADV / Z-Wave), as-is.
+            # Unresolved → fall back to the legacy uom-only heuristic.
+            if editor_max is not None:
+                if editor_max > 100:
+                    return ranged_value_to_percentage(ON_RANGE, raw)
+                return raw
+            if node_prop.uom == UOM_8_BIT_RANGE:
+                return ranged_value_to_percentage(ON_RANGE, raw)
         return raw
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        node_prop: NodePropertyValue = self._node.properties[self._control]
-
         if self.entity_description.native_unit_of_measurement == PERCENTAGE:
-            value = (
-                percentage_to_ranged_value(ON_RANGE, round(value))
-                if node_prop.uom == UOM_8_BIT_RANGE
-                else value
-            )
+            # HA passes 0-100; scale into the editor's expected range
+            # (0-255 raw for classic Insteon dimmers, 0-100 percentage
+            # for KeypadDimmer_ADV / Z-Wave / etc). The editor's max is
+            # the source of truth — falling back to no-scale if we
+            # can't resolve it lets pyisyox surface the codec error.
+            editor_max = self._resolved_editor_max
+            if editor_max is not None and editor_max > 100:
+                value = percentage_to_ranged_value(ON_RANGE, round(value))
         if self._control == PROP_ON_LEVEL:
             await self._node.set_on_level(int(value))
             return
