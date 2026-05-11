@@ -34,6 +34,7 @@ from pyisyox import (
     Program,
     Reading,
     ReadingPlatform,
+    Variable,
     classify,
 )
 from pyisyox.constants import (
@@ -324,16 +325,13 @@ def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> Non
             )
 
 
-def _categorize_variables(isy_data: IsyData, variables: dict[str, list[dict]]) -> None:
+def _categorize_variables(
+    isy_data: IsyData, variables: dict[str, dict[str, Variable]]
+) -> None:
     """Add controller variables as Number platform entities."""
     numbers = isy_data.variables[Platform.NUMBER]
-    for type_id, entries in variables.items():
-        for variable in entries:
-            # Stamp the type id onto the dict so unique-ids can use it
-            # (variables come keyed by type id, but the dict itself
-            # doesn't carry that.)
-            variable.setdefault("type", type_id)
-            numbers.append(variable)
+    for entries in variables.values():
+        numbers.extend(entries.values())
 
 
 def convert_isy_value_to_hass(

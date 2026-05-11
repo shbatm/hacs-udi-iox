@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_climate_entities[climate.eisy_local-entry]
+# name: test_climate_entities[climate.eisy_local_temperature-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -27,7 +27,7 @@
     'disabled_by': None,
     'domain': 'climate',
     'entity_category': None,
-    'entity_id': 'climate.eisy_local',
+    'entity_id': 'climate.eisy_local_temperature',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -39,7 +39,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': None,
+    'original_name': 'Temperature',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': <ClimateEntityFeature: 395>,
@@ -48,7 +48,7 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_climate_entities[climate.eisy_local-state]
+# name: test_climate_entities[climate.eisy_local_temperature-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'current_temperature': 68.0,
@@ -57,7 +57,7 @@
         'auto',
         'on',
       ]),
-      'friendly_name': 'eisy.local',
+      'friendly_name': 'eisy.local Temperature',
       'hvac_modes': list([
         <HVACMode.OFF: 'off'>,
         <HVACMode.HEAT: 'heat'>,
@@ -75,7 +75,7 @@
       'temperature': None,
     }),
     'context': <ANY>,
-    'entity_id': 'climate.eisy_local',
+    'entity_id': 'climate.eisy_local_temperature',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

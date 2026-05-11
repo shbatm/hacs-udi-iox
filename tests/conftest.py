@@ -29,7 +29,7 @@ for _module_name, _attr in (
         setattr(_stub, _attr, type(_attr, (), {}))
         sys.modules[_module_name] = _stub
 
-from unittest.mock import patch  # noqa: E402
+from unittest.mock import AsyncMock, patch  # noqa: E402
 
 import pytest  # noqa: E402
 from homeassistant.const import (  # noqa: E402
@@ -39,6 +39,7 @@ from homeassistant.const import (  # noqa: E402
     Platform,
 )
 from homeassistant.core import HomeAssistant  # noqa: E402
+from pyisyox.client import NodePropertyValue  # noqa: E402
 from pytest_homeassistant_custom_component.common import (  # noqa: E402
     MockConfigEntry,
 )
@@ -52,12 +53,18 @@ from custom_components.udi_iox.const import (  # noqa: E402
 from tests._fakes import (  # noqa: E402
     FakeController,
     FakeEvent,
-    FakeGroup,
     FakeLifecycleEvent,
-    FakeNetworkResource,
     FakeNode,
     FakeNodePropertyValue,
-    FakeProgram,
+)
+from tests.builders import (  # noqa: E402
+    make_controller,
+    make_group_record,
+    make_load_result,
+    make_network_resource_record,
+    make_node_record,
+    make_program_record,
+    make_variable_record,
 )
 
 pytest_plugins = "pytest_homeassistant_custom_component"
@@ -87,110 +94,80 @@ def fake_controller():
 
 
 @pytest.fixture
-def populated_controller() -> FakeController:
-    """A FakeController seeded with one node per device family.
+def populated_controller():
+    """A real :class:`pyisyox.Controller` seeded with one record per device family.
 
-    Used by snapshot tests to drive ``_categorize_nodes`` end-to-end. Each
-    family is intentionally minimal — just enough for the classifier to
-    place the node on the right HA platform and for the entity's read-side
-    properties (``status``, ``properties``) to render.
+    Drives the snapshot tests through actual ``async_setup_entry`` — so the
+    consumer's reads exercise the real ``Node`` / ``Group`` / ``Program`` /
+    ``Variable`` attribute surface, with introspection (``is_thermostat`` /
+    ``is_lock`` / ``is_dimmable`` / ``is_fan``) resolved against the bundled
+    anonymized eisy6 profile.
+
+    Each family is minimal: one record per platform the classifier cares
+    about. Specific nodedef ids picked so the real profile resolves the
+    right editor codecs:
+
+    * ``DimmerLampOnly`` — dimmable Insteon → ``Platform.LIGHT``
+    * ``RelayLampOnly`` — non-dimmable Insteon → ``Platform.SWITCH``
+    * ``DoorLock`` — Z-Wave lock → ``Platform.LOCK``
+    * ``Thermostat`` — Insteon climate → ``Platform.CLIMATE``
+    * ``FanLincMotor`` — FanLinc fan side → ``Platform.FAN``
+    * ``KeypadDimmer_ADV`` for the keypad sub-button (event-only).
     """
-    controller = FakeController(uuid="aa:bb:cc:dd:ee:ff")
-
-    def _node(
-        address: str,
-        name: str,
-        *,
-        protocol: str = "insteon",
-        type_: str = "1.0.0.0",
-        nodedef_id: str = "",
-        parent: str | None = None,
-        is_thermostat: bool = False,
-        is_lock: bool = False,
-        is_fan: bool = False,
-        is_dimmable: bool = False,
-        status_value: str = "0",
-        status_uom: str = "100",
-        status_formatted: str = "Off",
-        extra_props: dict[str, FakeNodePropertyValue] | None = None,
-    ) -> FakeNode:
-        props = {
-            "ST": FakeNodePropertyValue(
-                id="ST",
-                value=status_value,
-                formatted=status_formatted,
-                uom=status_uom,
-                name="Status",
-            )
-        }
-        if extra_props:
-            props.update(extra_props)
-        return FakeNode(
-            address=address,
-            name=name,
-            protocol=protocol,
-            type=type_,
-            nodedef_id=nodedef_id,
-            parent_address=parent,
-            is_thermostat=is_thermostat,
-            is_lock=is_lock,
-            is_fan=is_fan,
-            is_dimmable=is_dimmable,
-            properties=props,
-        )
-
-    # Insteon dimmable root → light + event + sensor(comms_error) + select(RR).
-    # ``OL`` (NUMBER aux) is intentionally omitted: number.py crashes on
-    # NodePropertyValue.value being a string when ranged_value_to_percentage
-    # runs — a pre-existing pyisyox-6 migration bug tracked separately.
-    light_root = _node(
+    # --- Nodes ----------------------------------------------------------
+    light_root = make_node_record(
         "AA AA AA 1",
         "Hallway Light",
-        is_dimmable=True,
+        nodedef_id="DimmerLampOnly",
         status_value="255",
         status_formatted="On",
-        extra_props={
-            "RR": FakeNodePropertyValue(
-                id="RR", value="21", formatted="0.5s", uom="57", name="Ramp Rate"
+        properties={
+            "ST": NodePropertyValue(
+                id="ST", value="255", formatted="On", uom="100", name="Status"
+            ),
+            "RR": NodePropertyValue(
+                id="RR", value="21", formatted="0.5 seconds", uom="25", name="Ramp Rate"
             ),
         },
     )
-    controller.nodes[light_root.address] = light_root
-
-    # KeypadLinc-style sub-button: insteon, parent set, non-dimmable → event only.
-    sub_button = _node("AA AA AA 2", "Hallway Button B", parent=light_root.address)
-    controller.nodes[sub_button.address] = sub_button
-
-    # Insteon non-dimmable root → switch + event + sensor(comms_error)
-    switch_root = _node("BB BB BB 1", "Garage Outlet")
-    controller.nodes[switch_root.address] = switch_root
-
-    # Z-Wave lock root → lock + sensor(comms_error)
-    lock_root = _node(
+    sub_button = make_node_record(
+        "AA AA AA 2",
+        "Hallway Button B",
+        # ``RelayLampSwitch_ADV`` is a non-dimmable keypad sub-button —
+        # primary classifies to SWITCH; the consumer's
+        # ``_categorize_nodes`` then suppresses it as a KeypadLinc-style
+        # sub-button and routes it to EVENT instead.
+        nodedef_id="RelayLampSwitch_ADV",
+        parent_address=light_root.address,
+    )
+    switch_root = make_node_record(
+        "BB BB BB 1",
+        "Garage Outlet",
+        nodedef_id="RelayLampOnly",
+    )
+    lock_root = make_node_record(
         "CC CC CC 1",
         "Front Door Lock",
-        protocol="zwave",
+        nodedef_id="DoorLock",
+        family_id="4",  # Z-Wave family
         type_="111.5.0.0",
-        is_lock=True,
         status_value="0",
-        status_formatted="Unlocked",
         status_uom="11",
+        status_formatted="Unlocked",
     )
-    controller.nodes[lock_root.address] = lock_root
-
-    # Insteon thermostat root → climate + sensor(comms_error) + aux sensors.
-    # The ``17`` UOM = °F; setpoints share that UOM and a ``prec=1`` so the
-    # snapshot exercises the consumer's ``target.prec`` decimal scaling.
-    thermostat_root = _node(
+    thermostat_root = make_node_record(
         "DD DD DD 1",
         "Living Thermostat",
+        nodedef_id="Thermostat",
         type_="5.16.0.0",
-        is_thermostat=True,
         status_value="68",
-        status_formatted="68°F",
         status_uom="17",
-        extra_props={
-            "CLISPH": FakeNodePropertyValue(
+        status_formatted="68°F",
+        properties={
+            "ST": NodePropertyValue(
+                id="ST", value="68", formatted="68°F", uom="17", name="Status"
+            ),
+            "CLISPH": NodePropertyValue(
                 id="CLISPH",
                 value="680",
                 formatted="68°F",
@@ -198,7 +175,7 @@ def populated_controller() -> FakeController:
                 name="Heat Setpoint",
                 prec=1,
             ),
-            "CLISPC": FakeNodePropertyValue(
+            "CLISPC": NodePropertyValue(
                 id="CLISPC",
                 value="760",
                 formatted="76°F",
@@ -208,76 +185,92 @@ def populated_controller() -> FakeController:
             ),
         },
     )
-    controller.nodes[thermostat_root.address] = thermostat_root
-
-    # FanLinc lamp root (dimmable light) → light
-    fanlinc_root = _node(
+    fanlinc_root = make_node_record(
         "EE EE EE 1",
         "FanLinc Lamp",
+        nodedef_id="DimmerLampOnly",
         type_="1.46.0.0",
-        is_dimmable=True,
     )
-    controller.nodes[fanlinc_root.address] = fanlinc_root
-
-    # FanLinc fan motor sub-node → fan
-    fanlinc_motor = _node(
+    fanlinc_motor = make_node_record(
         "EE EE EE 2",
         "FanLinc Motor",
+        nodedef_id="FanLincMotor",
         type_="1.46.0.0",
-        is_fan=True,
-        parent=fanlinc_root.address,
-        status_value="0",
-        status_formatted="Off",
+        parent_address=fanlinc_root.address,
         status_uom="25",
     )
-    controller.nodes[fanlinc_motor.address] = fanlinc_motor
+    nodes = {
+        record.address: record
+        for record in (
+            light_root,
+            sub_button,
+            switch_root,
+            lock_root,
+            thermostat_root,
+            fanlinc_root,
+            fanlinc_motor,
+        )
+    }
 
-    # Group / scene → switch.
-    # ``group_any_on`` is the consumer's ``is_on`` aggregation; set to
-    # True so the snapshot exercises the non-default "scene currently on"
-    # state. ``controller_addresses`` links the scene's HA device to the
-    # primary Insteon switch root.
-    controller.groups["GRP_1"] = FakeGroup(
-        address="GRP_1",
-        name="Living Room Scene",
-        group_any_on=True,
-        group_all_on=False,
-        controller_addresses=[switch_root.address],
+    # --- Groups / scenes ------------------------------------------------
+    # `group_any_on` is computed from member ST values at access time —
+    # switch_root has ST="0" so any-on is False here. Override by setting
+    # the ST value on the member node directly in tests that need it.
+    scene = make_group_record(
+        "55090",
+        "Living Room Scene",
+        member_addresses=(switch_root.address,),
+        controller_addresses=(switch_root.address,),
     )
 
-    # Network resource → button
-    controller.network_resources["1"] = FakeNetworkResource(
-        address="1", name="Reboot Router"
-    )
-
-    # Programs: one switch (status + actions), one binary_sensor (status only)
-    controller.programs["P_SWITCH_S"] = FakeProgram(
-        address="P_SWITCH_S",
-        name="Status",
+    # --- Programs -------------------------------------------------------
+    switch_status = make_program_record(
+        "0001",
+        "Status",
         path="HA.switch/Movie Mode/status",
         status=False,
     )
-    controller.programs["P_SWITCH_A"] = FakeProgram(
-        address="P_SWITCH_A",
-        name="Actions",
+    switch_actions = make_program_record(
+        "0002",
+        "Actions",
         path="HA.switch/Movie Mode/actions",
     )
-    controller.programs["P_BS_S"] = FakeProgram(
-        address="P_BS_S",
-        name="Status",
+    binary_status = make_program_record(
+        "0003",
+        "Status",
         path="HA.binary_sensor/Front Door Open/status",
         status=True,
     )
+    programs = {
+        record.address: record
+        for record in (switch_status, switch_actions, binary_status)
+    }
 
-    # Variables intentionally left empty: ``number.async_setup_entry``
-    # currently reads ``node.precision`` / ``.address`` / ``.name`` as
-    # attributes, but ``isy_data.variables`` is a list of plain dicts
-    # (``VariableRecord = dict[str, Any]``). That's a pre-existing bug
-    # tracked separately — the snapshot tests cover the aux-property
-    # number entities (OL on dimmable Insteon roots), which exercise
-    # the same async_setup_entry paths via a stable Node-attribute API.
+    # --- Network resources ---------------------------------------------
+    network_resources = {
+        "1": make_network_resource_record("1", "Reboot Router"),
+    }
 
-    return controller
+    # --- Variables ------------------------------------------------------
+    # PR #68's typed Variable surface — the number platform reads value /
+    # init / prec / name straight off the wrapper now.
+    variables = {
+        "1": {
+            "10": make_variable_record(
+                "1", "10", "Boost Mode", value=5, init=0, prec=0
+            ),
+        },
+        "2": {},
+    }
+
+    load_result = make_load_result(
+        nodes=nodes,
+        groups={scene.address: scene},
+        programs=programs,
+        variables=variables,
+        network_resources=network_resources,
+    )
+    return make_controller(load_result)
 
 
 @pytest.fixture
@@ -354,24 +347,36 @@ def mock_config_entry() -> MockConfigEntry:
 @pytest.fixture
 async def init_integration(
     hass: HomeAssistant,
-    populated_controller: FakeController,
+    populated_controller,
     mock_config_entry: MockConfigEntry,
     platforms: list[Platform],
 ) -> MockConfigEntry:
-    """Set up the udi_iox integration with a pre-populated FakeController.
+    """Set up the udi_iox integration against the pre-populated real Controller.
 
     Patches the production ``Controller`` constructor to hand back our
-    seeded stand-in, restricts the platform list so only one platform
-    forwards (per ``platforms`` fixture override), then runs the real
-    ``async_setup_entry`` so HA's entity registry populates from the
-    classifier output.
+    pre-loaded instance and stubs ``connect()`` / ``stop()`` so the
+    network is never touched. Restricts the platform list so only one
+    platform forwards (per ``platforms`` fixture override), then runs
+    the real ``async_setup_entry`` so HA's entity registry populates
+    from the classifier output against real types.
     """
     mock_config_entry.add_to_hass(hass)
 
+    # ``connect()`` would clobber ``_loaded`` by hitting HTTP; patch it
+    # (and ``stop``) at the class level since :class:`Controller` uses
+    # ``__slots__``. The controller instance is already loaded.
     with (
         patch(
             "custom_components.udi_iox.Controller",
             return_value=populated_controller,
+        ),
+        patch(
+            "pyisyox.Controller.connect",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "pyisyox.Controller.stop",
+            new=AsyncMock(return_value=None),
         ),
         patch("custom_components.udi_iox.PLATFORMS", platforms),
     ):

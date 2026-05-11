@@ -1,27 +1,29 @@
-"""Snapshot tests for the udi_iox number platform — currently blocked.
-
-The number platform exercises a pre-existing pyisyox-6 migration gap
-that crashes ``async_setup_entry`` end-to-end:
-
-* ``number.py:async_setup_entry`` reads ``node.precision`` /
-  ``node.address`` / ``node.name`` as attributes, but
-  ``isy_data.variables`` is a list of plain dicts (``VariableRecord =
-  dict[str, Any]``); the entity class itself uses dict access
-  (``self._node["value"]``).
-* The dimmable-aux ``OL`` path passes ``NodePropertyValue.value`` (a
-  string) into ``ranged_value_to_percentage`` which expects an int.
-
-Once that's fixed upstream, drop the ``skip`` and let the snapshot harness
-populate ``tests/snapshots/test_number.ambr``.
-"""
+"""Snapshot tests for the udi_iox number platform."""
 
 from __future__ import annotations
 
 import pytest
-
-pytestmark = pytest.mark.skip(
-    reason=(
-        "number.py treats VariableRecord as object; OL aux passes str to "
-        "ranged_value_to_percentage"
-    )
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    SnapshotAssertion,
+    snapshot_platform,
 )
+
+
+@pytest.fixture
+def platforms() -> list[Platform]:
+    return [Platform.NUMBER]
+
+
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
+async def test_number_entities(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Snapshot every number entity created by the integration."""
+    await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)

@@ -28,13 +28,15 @@ from pyisyox.schema.nodedef import NodeDef
 from .const import DOMAIN
 
 if TYPE_CHECKING:
-    from .models import IsyData, VariableRecord
+    from pyisyox import Variable
+
+    from .models import IsyData
 
 # PEP 695 lazy type aliases — the right-hand side is evaluated only when
-# the alias is consumed, so the (TYPE_CHECKING-only) Program /
-# VariableRecord references don't pull models.py at import time. Keeps
-# the import graph acyclic to match the HA Core isy994 layout.
-type NodeType = Node | Group | Folder | Program | VariableRecord
+# the alias is consumed, so the (TYPE_CHECKING-only) Program / Variable
+# references don't pull models.py at import time. Keeps the import
+# graph acyclic to match the HA Core isy994 layout.
+type NodeType = Node | Group | Folder | Program | Variable
 type NodeEventType = NodePropertyValue | NodeLifecycleEvent
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -15,6 +15,7 @@ from pyisyox import (
     Node,
     NodePropertyValue,
     Program,
+    Variable,
 )
 from pyisyox.constants import Protocol
 
@@ -33,12 +34,6 @@ if TYPE_CHECKING:
     from .controller_events import IsyControllerEvents
 
 
-# Variables are still exposed as raw dicts — pyisyox doesn't ship a
-# typed Variable wrapper yet. Each carries an "address" key for
-# unique-id derivation.
-VariableRecord = dict[str, Any]
-
-
 @dataclass
 class IsyData:
     """Data for the IoX integration."""
@@ -47,7 +42,7 @@ class IsyData:
     nodes: dict[Platform, list[Node]]
     groups: list[Group]
     root_nodes: dict[Platform, list[Node]]
-    variables: dict[Platform, list[VariableRecord]]
+    variables: dict[Platform, list[Variable]]
     programs: dict[Platform, list[tuple[str, Program, Program | None]]]
     net_resources: list[NetworkResource]
     devices: dict[str, DeviceInfo]
@@ -72,18 +67,12 @@ class IsyData:
 
     def uid_base(
         self,
-        node: Node
-        | Group
-        | NetworkResource
-        | NodePropertyValue
-        | VariableRecord
-        | Program,
+        node: Node | Group | NetworkResource | NodePropertyValue | Variable | Program,
     ) -> str:
         """Return the unique id base string for a given node."""
-        address = node["address"] if isinstance(node, dict) else node.address
         if isinstance(node, NetworkResource):
-            return f"{self.uuid}_{CONF_NETWORK}_{address}"
-        return f"{self.uuid}_{address}"
+            return f"{self.uuid}_{CONF_NETWORK}_{node.address}"
+        return f"{self.uuid}_{node.address}"
 
     @property
     def unique_ids(self) -> set[tuple[Platform, str]]:

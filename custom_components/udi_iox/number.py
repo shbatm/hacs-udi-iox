@@ -33,6 +33,7 @@ from pyisyox import (
     Node,
     NodeCommandError,
     NodePropertyValue,
+    Variable,
 )
 from pyisyox.constants import (
     CMD_BACKLIGHT,
@@ -42,7 +43,7 @@ from pyisyox.constants import (
 
 from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity
-from .models import IsyConfigEntry, IsyData, VariableRecord
+from .models import IsyConfigEntry, IsyData
 
 ISY_MAX_SIZE = (2**32) / 2
 ON_RANGE = (1, 255)  # Off is not included
@@ -79,8 +80,8 @@ async def async_setup_entry(
     ] = []
 
     for node in isy_data.variables[Platform.NUMBER]:
-        step = 10 ** (-1 * node.precision)
-        min_max = ISY_MAX_SIZE / (10**node.precision)
+        step = 10 ** (-1 * node.prec)
+        min_max = ISY_MAX_SIZE / (10**node.prec)
         description = NumberEntityDescription(
             key=node.address,
             name=node.name,
@@ -177,10 +178,14 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
 class ISYVariableNumberEntity(NumberEntity):
     """IoX variable as a number entity.
 
-    Variables are raw dicts — read via ``controller.variables``,
-    written via ``controller.set_variable_value`` /
-    ``set_variable_init``. Variable change frames ride on the unified
-    event stream (control ``_1``, action ``"6"`` value / ``"7"`` init);
+    Reads / writes against the typed :class:`pyisyox.Variable` wrapper —
+    ``self._node.value`` / ``self._node.init`` reflect the record in
+    place, and the mutation coroutines on the wrapper handle the
+    ``POST /api/variables/{type}/{id}`` round-trip plus the record
+    update on success.
+
+    Variable change frames ride on the unified event stream
+    (control ``_1``, action ``"6"`` value / ``"7"`` init);
     :class:`IsyControllerEvents` parses the ``<var>`` payload off
     ``Event.event_info`` and fans out to per-(type, id) listeners.
     """
@@ -188,13 +193,13 @@ class ISYVariableNumberEntity(NumberEntity):
     _attr_has_entity_name = False
     _attr_should_poll = False
     _init_entity: bool
-    _node: VariableRecord
+    _node: Variable
     entity_description: NumberEntityDescription
 
     def __init__(
         self,
         isy_data: IsyData,
-        node: VariableRecord,
+        node: Variable,
         unique_id: str,
         description: NumberEntityDescription,
         device_info: DeviceInfo,
@@ -214,13 +219,9 @@ class ISYVariableNumberEntity(NumberEntity):
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to this variable's change frames."""
-        var_type = self._node.get("type")
-        var_id = self._node.get("id")
-        if not var_type or not var_id:
-            return
         self._unsubscribers.append(
             self._isy_data.controller_events.subscribe_variable(
-                var_type, var_id, self._on_variable_change
+                self._node.type_id, self._node.id, self._on_variable_change
             )
         )
 
@@ -232,54 +233,56 @@ class ISYVariableNumberEntity(NumberEntity):
 
     @callback
     def _on_variable_change(self, value: int | None, init: int | None) -> None:
-        """Mirror a variable-change frame into local state."""
+        """Mirror a variable-change frame into local state.
+
+        The wrapper's :class:`VariableRecord` is shared with the
+        controller's loaded state; the WS dispatcher updates it in
+        place, but the controller doesn't currently overlay variable
+        events onto the record — so do it here so the entity surface
+        stays in sync.
+        """
+        # ``Variable._record`` is the canonical store; pyisyox doesn't
+        # currently expose a public "apply a WS-derived update" method
+        # (the wrapper's ``set_value`` would POST), so write through the
+        # private record directly. Track the upstream gap if it bites
+        # again — could be a small Variable.apply_update() helper.
+        # pylint: disable=protected-access
         if self._init_entity:
             if init is None:
-                # Frame was a current-value change; not for this entity.
-                return
-            self._node["init"] = init
+                return  # current-value frame; not for this entity
+            self._node._record.init = init
         else:
             if value is None:
                 return
-            self._node["value"] = value
+            self._node._record.value = value
         self.async_write_ha_state()
 
     @property
     def native_value(self) -> float | int | None:
         """Return the state of the variable."""
-        if self._init_entity:
-            return self._node.get("init")
-        return self._node.get("value")
+        return self._node.init if self._init_entity else self._node.value
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Get the state attributes for the device."""
-        return {"last_edited": self._node.get("last_edited")}
+        return {"last_edited": self._node.ts or None}
 
     async def async_set_native_value(self, value: float) -> None:
-        """Write the variable value via the controller.
+        """Write the variable value via its typed wrapper.
 
-        Updates local state optimistically before the WS echo arrives —
-        if the write fails the next event re-syncs.
+        The wrapper updates its own record on success so the next
+        ``native_value`` read reflects the new state — no separate
+        optimistic mutation needed.
         """
-        controller = self._isy_data.root
-        var_type = self._node.get("type")
-        var_id = self._node.get("id")
-        if not var_type or not var_id:
-            raise HomeAssistantError(
-                f"Variable record is missing type/id: {self._node!r}"
-            )
         try:
             if self._init_entity:
-                await controller.set_variable_init(var_type, var_id, value)
+                await self._node.set_init(int(value))
             else:
-                await controller.set_variable_value(var_type, var_id, value)
+                await self._node.set_value(int(value))
         except Exception as err:  # pylint: disable=broad-except
             raise HomeAssistantError(
-                f"Could not set variable {var_type}/{var_id} to {value}: {err}"
+                f"Could not set variable {self._node.address} to {value}: {err}"
             ) from err
-        # Optimistic — surface the new value immediately.
-        self._node["init" if self._init_entity else "value"] = value
         self.async_write_ha_state()
 
 

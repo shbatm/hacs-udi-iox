@@ -28,7 +28,7 @@
     'previous_unique_id': None,
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': 'aa:bb:cc:dd:ee:ff_P_BS_S',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_0003',
     'unit_of_measurement': None,
   })
 # ---
@@ -36,6 +36,10 @@
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'friendly_name': 'Front Door Open',
+      'status_enabled': True,
+      'status_last_finish': None,
+      'status_last_run': None,
+      'status_next_scheduled_run': None,
     }),
     'context': <ANY>,
     'entity_id': 'binary_sensor.front_door_open',
