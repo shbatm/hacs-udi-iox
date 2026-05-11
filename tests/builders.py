@@ -121,6 +121,22 @@ def make_node_record(
                 precision=status_precision,
             ),
         }
+    # Native Insteon nodes carry an ERR (comms-error counter) property on
+    # the wire — the integration surfaces it as the diagnostic
+    # ``device_communication_errors`` ("…responding") sensor. Seed it for
+    # any family-1 record (default ST-only AND callers that supply
+    # ``properties=``) so the diagnostic appears on every Insteon
+    # fixture. Z-Wave (family "4") / plugin (family "100"+) nodes don't
+    # carry ERR and intentionally skip this.
+    if family_id == "1" and "ERR" not in properties:
+        properties["ERR"] = NodePropertyValue(
+            id="ERR",
+            value="0",
+            formatted="0",
+            uom="0",
+            name="Responding",
+            precision=0,
+        )
     return NodeRecord(
         address=address,
         name=name,

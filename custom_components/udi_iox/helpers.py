@@ -122,8 +122,30 @@ def _is_device_root(node: Node) -> bool:
     Sub-nodes of multi-button devices (KeypadLinc, RemoteLinc, FanLinc
     sides) expose ``primary_address`` pointing at the device primary;
     primaries themselves return ``None``.
+
+    Used to gate the root-only scaffold (BUTTON entity, comms_error
+    sensor, enable switch) — those only make sense on a physical
+    device's primary node, not on plugin-side logical children.
     """
     return node.primary_address is None
+
+
+def _has_own_device(node: Node) -> bool:
+    """Whether this node should have its own HA :class:`DeviceInfo`.
+
+    True for top-level roots AND for node-server plugin children: each
+    plugin node is a distinct logical device on the upstream service
+    (e.g. each Flume sensor / hub under a Flume controller node), so
+    we mirror the eisy UI by giving each its own HA device card rather
+    than folding every child's aux properties under the controller —
+    which produces duplicate "Current" / "Leak Detected" entities the
+    user can't tell apart.
+
+    False for Insteon / Z-Wave physical sub-nodes (KeypadLinc buttons,
+    FanLinc fan-vs-light sides): those are sub-parts of one physical
+    device and stay folded under the primary.
+    """
+    return node.primary_address is None or node.protocol == Protocol.NODE_SERVER
 
 
 def _primary_platform_for_native(node: Node) -> Platform:
@@ -179,7 +201,13 @@ def _fan_out_native_aux(isy_data: IsyData, node: Node) -> None:
 
 
 def _generate_device_info(controller: Controller, node: Node, host: str) -> DeviceInfo:
-    """Generate the device info for a root node device."""
+    """Generate the device info for a node that gets its own HA device.
+
+    For node-server plugin children (``primary_address`` set + protocol
+    is ``NODE_SERVER``), anchor ``via_device`` on the controller node
+    instead of the eisy root so HA renders the hub→sensor hierarchy
+    (eisy → FlumeWater controller → Flume Sensor 7061…).
+    """
     uuid = controller.config.uuid
 
     # node.protocol is a plain str ("insteon", "zwave", ...); title-case
@@ -187,11 +215,15 @@ def _generate_device_info(controller: Controller, node: Node, host: str) -> Devi
     manufacturer = (
         node.protocol.replace("_", " ").title() if node.protocol else "Unknown"
     )
+    if node.protocol == Protocol.NODE_SERVER and node.primary_address is not None:
+        via_device = (DOMAIN, f"{uuid}_{node.primary_address}")
+    else:
+        via_device = (DOMAIN, uuid)
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"{uuid}_{node.address}")},
         manufacturer=manufacturer,
         name=node.name,
-        via_device=(DOMAIN, uuid),
+        via_device=via_device,
         configuration_url=host,
     )
 
@@ -236,12 +268,26 @@ def _categorize_nodes(
         if ignore_identifier in node.name:
             continue
 
-        if _is_device_root(node):
+        # DeviceInfo population is wider than the root scaffold: plugin
+        # children also get their own device so the eisy-side hierarchy
+        # is preserved in HA.
+        if _has_own_device(node):
             isy_data.devices[node.address] = _generate_device_info(
                 controller, node, host
             )
+
+        if _is_device_root(node):
             isy_data.root_nodes[Platform.BUTTON].append(node)
-            isy_data.aux_properties[Platform.SENSOR].append((node, PROP_COMMS_ERROR))
+            # comms_error (ERR) is an Insteon PLM-side counter; native
+            # Insteon nodes carry it on ``properties``, plugin/Z-Wave/
+            # Zigbee roots don't. Gate on actual presence rather than
+            # protocol so any node that exposes ERR gets the sensor and
+            # node-server controllers don't sprout a perpetual
+            # "Unavailable".
+            if PROP_COMMS_ERROR in node.properties:
+                isy_data.aux_properties[Platform.SENSOR].append(
+                    (node, PROP_COMMS_ERROR)
+                )
             # Per-device enable/disable switch — mirrors hacs-isy994's
             # exposure of the controller-side enabled flag, useful for
             # automations that need to mute a flaky node without removing

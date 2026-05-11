@@ -312,6 +312,116 @@ def test_sensor_identifier_forces_sensor_classification(isy_data, controller):
     assert isy_data.nodes[Platform.LIGHT] == []
 
 
+# --- node-server device hierarchy ------------------------------------
+
+
+def test_node_server_children_get_own_device_info(isy_data, options, controller):
+    """A plugin controller + 2 plugin children should each receive
+    their own :class:`DeviceInfo` rather than the children folding
+    under the controller — matches the eisy UI per-sensor cards and
+    avoids "Current"/"Leak Detected" name collisions when siblings
+    share aux property labels.
+    """
+    from custom_components.udi_iox.const import DOMAIN
+    from tests.builders import (
+        PLUGIN_COVER_FAMILY_ID,
+        PLUGIN_COVER_INSTANCE_ID,
+        PLUGIN_COVER_NODEDEF_ID,
+    )
+
+    controller_record = make_node_record(
+        "n100_controller",
+        "Plugin Hub",
+        nodedef_id=PLUGIN_COVER_NODEDEF_ID,
+        family_id=PLUGIN_COVER_FAMILY_ID,
+        instance_id=PLUGIN_COVER_INSTANCE_ID,
+        type_="",
+    )
+    child_a = make_node_record(
+        "n100_blind1",
+        "Blind A",
+        nodedef_id=PLUGIN_COVER_NODEDEF_ID,
+        family_id=PLUGIN_COVER_FAMILY_ID,
+        instance_id=PLUGIN_COVER_INSTANCE_ID,
+        pnode="n100_controller",
+        type_="",
+    )
+    child_b = make_node_record(
+        "n100_blind2",
+        "Blind B",
+        nodedef_id=PLUGIN_COVER_NODEDEF_ID,
+        family_id=PLUGIN_COVER_FAMILY_ID,
+        instance_id=PLUGIN_COVER_INSTANCE_ID,
+        pnode="n100_controller",
+        type_="",
+    )
+    nodes = {
+        rec.address: make_node(rec, controller)
+        for rec in (controller_record, child_a, child_b)
+    }
+    _categorize_nodes(
+        isy_data, nodes, options, controller=controller, host="https://eisy.local"
+    )
+
+    uuid = controller.config.uuid
+    # All three nodes own their own DeviceInfo.
+    assert set(isy_data.devices) == {"n100_controller", "n100_blind1", "n100_blind2"}
+    assert isy_data.devices["n100_controller"]["identifiers"] == {
+        (DOMAIN, f"{uuid}_n100_controller")
+    }
+    assert isy_data.devices["n100_blind1"]["identifiers"] == {
+        (DOMAIN, f"{uuid}_n100_blind1")
+    }
+    # Children's via_device anchors on the controller node, not the
+    # eisy root — gives HA the hub → child hierarchy.
+    assert isy_data.devices["n100_blind1"]["via_device"] == (
+        DOMAIN,
+        f"{uuid}_n100_controller",
+    )
+    assert isy_data.devices["n100_blind2"]["via_device"] == (
+        DOMAIN,
+        f"{uuid}_n100_controller",
+    )
+    # Controller still anchors on the eisy root.
+    assert isy_data.devices["n100_controller"]["via_device"] == (DOMAIN, uuid)
+
+
+def test_node_server_controller_no_comms_error_sensor(isy_data, options, controller):
+    """A plugin controller node has no ERR property on the wire — the
+    integration must not synthesise a perpetually-Unavailable
+    ``device_communication_errors`` sensor for it.
+    """
+    from tests.builders import (
+        PLUGIN_COVER_FAMILY_ID,
+        PLUGIN_COVER_INSTANCE_ID,
+        PLUGIN_COVER_NODEDEF_ID,
+    )
+
+    record = make_node_record(
+        "n100_controller",
+        "Plugin Hub",
+        nodedef_id=PLUGIN_COVER_NODEDEF_ID,
+        family_id=PLUGIN_COVER_FAMILY_ID,
+        instance_id=PLUGIN_COVER_INSTANCE_ID,
+        type_="",
+    )
+    _categorize(isy_data, make_node(record, controller), options, controller=controller)
+
+    sensor_aux = [c for _n, c in isy_data.aux_properties[Platform.SENSOR]]
+    assert "ERR" not in sensor_aux
+
+
+def test_native_insteon_root_keeps_comms_error_sensor(isy_data, options, controller):
+    """An Insteon root carries ERR on the wire; the diagnostic sensor
+    must still be created (regression guard for the new
+    presence-gated path)."""
+    node = _node(controller, "AA BB CC 1", target="switch")
+    _categorize(isy_data, node, options, controller=controller)
+
+    sensor_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.SENSOR]]
+    assert (node, "ERR") in sensor_aux
+
+
 # --- guard rail -------------------------------------------------------
 
 

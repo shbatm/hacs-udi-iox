@@ -44,15 +44,25 @@ type NodeEventType = NodePropertyValue | NodeLifecycleEvent
 def _resolve_device_info(
     devices: dict[str, DeviceInfo], node: Node
 ) -> DeviceInfo | None:
-    """Return the parent device's DeviceInfo for a node entity.
+    """Return the DeviceInfo this entity should attach to.
 
-    Root nodes have ``primary_address is None`` and their own DeviceInfo
-    stored under ``node.address``. Sub-nodes (KeypadLinc sub-buttons,
-    FanLinc fan side, plugin sub-nodes) have ``primary_address`` pointing
-    at the device root, so we resolve to the parent's DeviceInfo —
-    grouping the entities under one HA device.
+    Lookup order:
+
+    1. ``node.address`` — every node that has its own DeviceInfo (root
+       nodes AND node-server plugin children, per ``_has_own_device``)
+       is keyed here. Plugin children are kept as separate HA devices
+       to match the eisy UI's per-sensor cards instead of folding
+       every Flume sensor's aux into one shared device.
+    2. ``node.primary_address`` — native sub-nodes (KeypadLinc sub-
+       buttons, FanLinc fan-vs-light sides) fall through to their
+       physical primary's DeviceInfo.
     """
-    return devices.get(node.primary_address or node.address)
+    info = devices.get(node.address)
+    if info is not None:
+        return info
+    if node.primary_address is not None:
+        return devices.get(node.primary_address)
+    return None
 
 
 def node_status_int(node: Node) -> int | None:
@@ -229,16 +239,23 @@ class ISYNodeEntity(ISYEntity):
         # the device name automatically; ``_attr_name`` carries the entity's
         # own suffix only, or ``None`` to mean "use the device name as-is").
         #
-        # - Primary entity (PROP_STATUS) on a device root → ``None``.
-        # - Primary entity on a sub-node (e.g. FanLinc motor side sharing
-        #   the FanLinc device) → the sub-node's name with the parent's
-        #   prefix stripped, so the rendered friendly name doesn't
-        #   duplicate the device prefix.
+        # - Primary entity (PROP_STATUS) on a node that owns its DeviceInfo
+        #   (top-level root OR node-server plugin child) → ``None`` so HA
+        #   renders the device name as-is.
+        # - Primary entity on a native sub-node folded under a parent
+        #   device (FanLinc motor side, KeypadLinc sub-buttons) → the
+        #   sub-node's name with the parent's prefix stripped, so the
+        #   rendered friendly name doesn't duplicate the device prefix.
         # - Aux control entity → the property's nodedef label, falling
-        #   back to the IoX command friendly-name table.
+        #   back to the IoX command friendly-name table. For node-server
+        #   children this lives on the child's own device so the label
+        #   doesn't collide with sibling sensors.
         self._node_def = node.nodedef
+        node_owns_device = (
+            node.primary_address is None or node.protocol == "node_server"
+        )
         if control == PROP_STATUS:
-            if node.primary_address is None:
+            if node_owns_device:
                 name: str | None = None
             else:
                 parent = isy_data.root.nodes.get(node.primary_address)
