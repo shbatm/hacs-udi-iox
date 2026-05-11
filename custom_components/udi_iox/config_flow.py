@@ -254,6 +254,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
         self, discovery_info: SsdpServiceInfo
     ) -> config_entries.ConfigFlowResult:
         """Handle a discovered IoX device via SSDP."""
+        # Belt-and-suspenders: the manifest matcher already pins
+        # ``deviceType=X_IoX_Device:1`` (IoX-6+ only — pre-6 firmware
+        # advertises ``X_Insteon_Lighting_Device:1``), but a future
+        # IoX-5.x SKU could in theory reuse the deviceType. Reject any
+        # ``modelVersion`` that isn't 6.x so we never offer this
+        # integration for a controller pyisyox doesn't support.
+        model_version = discovery_info.upnp.get("modelVersion", "")
+        if not model_version.startswith("6."):
+            return self.async_abort(reason="unsupported_firmware")
+
         friendly_name = discovery_info.upnp[ssdp.ATTR_UPNP_FRIENDLY_NAME]
         url = discovery_info.ssdp_location
         assert isinstance(url, str)
