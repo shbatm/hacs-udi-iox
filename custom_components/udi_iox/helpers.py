@@ -38,6 +38,8 @@ from pyisyox import (
     classify,
 )
 from pyisyox.constants import (
+    BACKLIGHT_SUPPORT,
+    CMD_BACKLIGHT,
     PROP_BUSY,
     PROP_COMMS_ERROR,
     PROP_ON_LEVEL,
@@ -61,6 +63,7 @@ from .const import (
     NODE_PARALLEL_PLATFORMS,
     PROGRAM_PLATFORMS,
     UOM_DOUBLE_TEMP,
+    UOM_INDEX,
     UOM_ISYV4_DEGREES,
 )
 from .models import IsyData
@@ -89,6 +92,28 @@ _READING_TO_HA_PLATFORM: dict[ReadingPlatform, Platform] = {
     ReadingPlatform.SENSOR: Platform.SENSOR,
     ReadingPlatform.BINARY_SENSOR: Platform.BINARY_SENSOR,
 }
+
+
+def _add_backlight_if_supported(isy_data: IsyData, node: Node) -> None:
+    """Append a backlight aux entity for nodedefs that support it.
+
+    pyisyox's :data:`BACKLIGHT_SUPPORT` maps a nodedef id to the UOM
+    its backlight editor reports in. The UOM picks the HA platform:
+
+    * ``UOM_INDEX`` (e.g. KeypadDimmer_ADV / KeypadButton_ADV) → SELECT
+      (discrete on/off-level pairs from :data:`BACKLIGHT_INDEX`).
+    * ``UOM_PERCENTAGE`` (e.g. DimmerLampSwitch_ADV) → NUMBER
+      (continuous 0-100 backlight intensity).
+
+    pyisyox doesn't expose an ``is_backlight_supported`` introspection
+    property in v6 — we read the dict directly. Future pyisyox release
+    could promote this to a Node-level property.
+    """
+    uom = BACKLIGHT_SUPPORT.get(node.nodedef_id)
+    if uom is None:
+        return
+    platform = Platform.SELECT if uom == UOM_INDEX else Platform.NUMBER
+    isy_data.aux_properties[platform].append((node, CMD_BACKLIGHT))
 
 
 def _is_device_root(node: Node) -> bool:
@@ -228,6 +253,8 @@ def _categorize_nodes(
                 for control in ROOT_AUX_CONTROLS.intersection(node.properties):
                     platform = NODE_AUX_FILTERS[control]
                     isy_data.aux_properties[platform].append((node, control))
+
+            _add_backlight_if_supported(isy_data, node)
 
         # User-forced sensor classification short-circuits everything
         # else — keep the v3 ergonomics.

@@ -191,6 +191,39 @@ def test_subbutton_non_insteon_not_suppressed(isy_data, options, controller):
 # --- aux property fan-out ---------------------------------------------
 
 
+def test_keypaddimmer_backlight_routes_to_select(isy_data, options, controller):
+    """KeypadDimmer_ADV's backlight editor is UOM_INDEX (discrete on/off
+    pairs) — fan out to SELECT, not NUMBER."""
+    node = _node(controller, "AA BB CC 1", nodedef_id="KeypadDimmer_ADV")
+    _categorize(isy_data, node, options, controller=controller)
+    select_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.SELECT]]
+    number_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.NUMBER]]
+    assert (node, "BL") in select_aux
+    assert (node, "BL") not in number_aux
+
+
+def test_dimmerlampswitch_backlight_routes_to_number(isy_data, options, controller):
+    """DimmerLampSwitch_ADV's backlight editor is UOM_PERCENTAGE
+    (continuous 0-100 intensity) — fan out to NUMBER, not SELECT."""
+    node = _node(controller, "AA BB CC 1", nodedef_id="DimmerLampSwitch_ADV")
+    _categorize(isy_data, node, options, controller=controller)
+    select_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.SELECT]]
+    number_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.NUMBER]]
+    assert (node, "BL") in number_aux
+    assert (node, "BL") not in select_aux
+
+
+def test_unsupported_nodedef_skips_backlight(isy_data, options, controller):
+    """Nodedefs absent from BACKLIGHT_SUPPORT (DoorLock, Thermostat,
+    plugin nodes) don't get a backlight aux entity."""
+    node = _node(controller, "CC CC CC 1", target="lock")
+    _categorize(isy_data, node, options, controller=controller)
+    select_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.SELECT]]
+    number_aux = [(n, c) for n, c in isy_data.aux_properties[Platform.NUMBER]]
+    assert (node, "BL") not in select_aux
+    assert (node, "BL") not in number_aux
+
+
 def test_root_dimmer_fans_aux_props_to_number_select(isy_data, options, controller):
     """Root dimmable nodes spawn NUMBER (on_level) + SELECT
     (ramp_rate) entities for the matching aux properties."""
