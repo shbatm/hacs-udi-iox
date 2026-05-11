@@ -53,6 +53,8 @@ from pyisyox.client import (
 )
 from pyisyox.runtime.events import EventDispatcher
 from pyisyox.schema import Profile
+from pyisyox.schema.nodedef import NodeDef
+from pyisyox.schema.profile import Family, Instance
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 DEFAULT_UUID = "aa:bb:cc:dd:ee:ff"
@@ -347,6 +349,127 @@ NODEDEF_FOR_PLATFORM: dict[str, str] = {
     "subbutton": "RelayLampSwitch_ADV",
     "subdimmer": "DimmerLampSwitch_ADV",
 }
+
+
+# ---------------------------------------------------------------------------
+# Plugin cover nodedef — synthetic, injected on demand.
+#
+# The bundled ``eisy6_profile.json`` is a real anonymized capture from a
+# stock eisy 6.x; it carries no PG3 plugins. To exercise the cover
+# platform path (``pyisyox.classify`` returning ``ControllablePlatform.COVER``
+# when accepts has ``FDUP``/``FDDOWN``/``FDSTOP`` and no ``DON``/``DOF``),
+# the cover snapshot test asks for a profile **derived** from the bundled
+# one with a synthetic plugin family slot grafted in.
+#
+# The plugin slot id (``"100"``) deliberately stays outside the documented
+# native family ids so ``Node.protocol`` returns ``"node_server"`` —
+# which is the consumer's switch case for "defer to the pyisyox classifier"
+# instead of "use native is_dimmable / is_lock / is_fan introspection".
+# ---------------------------------------------------------------------------
+
+PLUGIN_COVER_FAMILY_ID = "100"
+PLUGIN_COVER_INSTANCE_ID = "1"
+PLUGIN_COVER_NODEDEF_ID = "BlindShade"
+
+
+def _build_plugin_cover_nodedef() -> NodeDef:
+    """Construct a PG3-shape cover nodedef.
+
+    Accepts ``FDUP`` / ``FDDOWN`` / ``FDSTOP`` (and ``QUERY``) but not
+    ``DON`` / ``DOF``, so the classifier picks ``ControllablePlatform.COVER``
+    rather than light / switch. One ``ST`` property using the standard
+    on-level editor — enough surface for ``ISYCoverEntity._update_cover_attrs``
+    to read a value off ``node.status``.
+    """
+    return NodeDef.from_json(
+        {
+            "id": PLUGIN_COVER_NODEDEF_ID,
+            "nls": "blind",
+            "properties": [
+                {"id": "ST", "editor": "I_OL", "name": "Status"},
+            ],
+            "cmds": {
+                "sends": [],
+                "accepts": [
+                    {"id": "FDUP", "name": "Open"},
+                    {"id": "FDDOWN", "name": "Close"},
+                    {"id": "FDSTOP", "name": "Stop"},
+                    {"id": "QUERY", "name": "Query"},
+                ],
+            },
+        },
+        family_id=PLUGIN_COVER_FAMILY_ID,
+        instance_id=PLUGIN_COVER_INSTANCE_ID,
+    )
+
+
+def make_profile_with_cover_plugin() -> Profile:
+    """Return a fresh :class:`Profile` (loaded from the bundled eisy6
+    capture) with a synthetic PG3-shape cover nodedef injected under
+    plugin slot ``"100"``.
+
+    Built fresh per call — the LRU-cached :func:`load_profile` returns a
+    shared instance, and we mustn't mutate it.
+    """
+    raw = json.loads((FIXTURE_DIR / "eisy6_profile.json").read_text())
+    profile = Profile.load_from_json(raw)
+
+    nodedef = _build_plugin_cover_nodedef()
+    instance = Instance(id=PLUGIN_COVER_INSTANCE_ID, name="Blind Plugin")
+    instance.nodedefs[nodedef.id] = nodedef
+    family = Family(id=PLUGIN_COVER_FAMILY_ID, name="Blind Plugin")
+    family.instances[PLUGIN_COVER_INSTANCE_ID] = instance
+    profile.families[PLUGIN_COVER_FAMILY_ID] = family
+    profile.nodedef_lookup[nodedef.lookup_key] = nodedef
+    return profile
+
+
+def make_cover_load_result(
+    *,
+    uuid: str = DEFAULT_UUID,
+    version: str = "6.0.0a1",
+    nodes: dict[str, NodeRecord] | None = None,
+) -> LoadResult:
+    """A :class:`LoadResult` carrying the cover-plugin-augmented profile.
+
+    Use with a cover :class:`NodeRecord` built via
+    :func:`make_plugin_cover_node_record` so the classifier resolves the
+    nodedef and routes the node onto ``Platform.COVER``.
+    """
+    return LoadResult(
+        config=ControllerConfig(uuid=uuid, version=version),
+        profile=make_profile_with_cover_plugin(),
+        nodes=nodes or {},
+        groups={},
+        folders={},
+        programs={},
+        triggers=[],
+        variables={"1": {}, "2": {}},
+        network_resources={},
+    )
+
+
+def make_plugin_cover_node_record(
+    address: str = "n100_blind1",
+    name: str = "Living Room Blind",
+    *,
+    status_value: str = "0",
+) -> NodeRecord:
+    """Build a :class:`NodeRecord` shaped like a PG3 cover plugin's
+    blind / shade — family slot ``"100"``, instance ``"1"``, nodedef
+    ``BlindShade`` (matches :func:`_build_plugin_cover_nodedef`).
+    """
+    return make_node_record(
+        address,
+        name,
+        nodedef_id=PLUGIN_COVER_NODEDEF_ID,
+        family_id=PLUGIN_COVER_FAMILY_ID,
+        instance_id=PLUGIN_COVER_INSTANCE_ID,
+        type_="",
+        status_value=status_value,
+        status_uom="100",
+        status_formatted="0%" if status_value == "0" else "Open",
+    )
 
 
 def make_classified_node_record(

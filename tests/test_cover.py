@@ -1,25 +1,55 @@
-"""Snapshot tests for the udi_iox cover platform — currently blocked.
+"""Snapshot tests for the udi_iox cover platform.
 
-The cover platform exercises a pre-existing pyisyox-6 migration gap
-that crashes ``async_setup_entry`` end-to-end:
+Cover classification only fires for **plugin** nodes whose nodedef
+accepts ``FDUP`` / ``FDDOWN`` / ``FDSTOP`` *without* ``DON`` / ``DOF``
+(otherwise pyisyox's classifier picks light or switch). The bundled
+``eisy6_profile.json`` is a real anonymized capture of a stock eisy
+which has no PG3 plugins, so cover-test fixtures inject a synthetic
+plugin slot at runtime via ``tests.builders.make_cover_load_result``.
 
-* No native node attribute classifies a cover; the only path is the
-  pyisyox plugin classifier (``ControllablePlatform.COVER``), which
-  needs a PG3 plugin's nodedef present in the loaded profile. The
-  bundled ``eisy6_profile.json`` only carries the stock Insteon /
-  Z-Wave nodedefs.
-
-Once a PG3 cover plugin fixture lands, drop the ``skip`` and let the
-snapshot harness populate ``tests/snapshots/test_cover.ambr``.
+Pin: ``Platform.COVER`` entity creation flowing through the real
+``pyisyox.classify`` → ``ControllablePlatform.COVER`` →
+``_CONTROLLABLE_TO_HA_PLATFORM`` path.
 """
 
 from __future__ import annotations
 
 import pytest
-
-pytestmark = pytest.mark.skip(
-    reason=(
-        "cover requires plugin classifier + PG3 nodedef in the loaded profile; "
-        "bundled eisy6 profile doesn't carry one yet"
-    )
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    SnapshotAssertion,
+    snapshot_platform,
 )
+
+from tests.builders import (
+    make_controller,
+    make_cover_load_result,
+    make_plugin_cover_node_record,
+)
+
+
+@pytest.fixture
+def platforms() -> list[Platform]:
+    return [Platform.COVER]
+
+
+@pytest.fixture
+def populated_controller():
+    """Override the default fixture with a controller that carries the
+    cover-plugin profile + a single cover node."""
+    cover = make_plugin_cover_node_record()
+    return make_controller(make_cover_load_result(nodes={cover.address: cover}))
+
+
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
+async def test_cover_entities(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Snapshot every cover entity created by the integration."""
+    await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)
