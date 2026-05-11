@@ -163,9 +163,9 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
         status = self._node.status
-        prec = status.prec if status is not None else 0
+        precision = status.precision if status is not None else 0
         return convert_isy_value_to_hass(
-            node_status_int(self._node), self._uom, prec, 1
+            node_status_int(self._node), self._uom, precision, 1
         )
 
     @property
@@ -183,7 +183,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         target = self._node.properties.get(PROP_SETPOINT_COOL)
         if not target:
             return None
-        return convert_isy_value_to_hass(target.value, target.uom, target.prec, 1)
+        return convert_isy_value_to_hass(target.value, target.uom, target.precision, 1)
 
     @property
     def target_temperature_low(self) -> float | None:
@@ -191,7 +191,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         target = self._node.properties.get(PROP_SETPOINT_HEAT)
         if not target:
             return None
-        return convert_isy_value_to_hass(target.value, target.uom, target.prec, 1)
+        return convert_isy_value_to_hass(target.value, target.uom, target.precision, 1)
 
     @property
     def fan_mode(self) -> str:

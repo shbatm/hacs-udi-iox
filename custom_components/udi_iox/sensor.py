@@ -359,7 +359,7 @@ class ISYSensorEntity(ISYNodeEntity, SensorEntity):
             return self.target.formatted
 
         # Handle ISY precision and rounding
-        value = convert_isy_value_to_hass(value, self.target.uom, self.target.prec)
+        value = convert_isy_value_to_hass(value, self.target.uom, self.target.precision)
 
         if value is None:
             return None

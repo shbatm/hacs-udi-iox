@@ -94,7 +94,7 @@ def make_node_record(
     status_value: str = "0",
     status_uom: str = "100",
     status_formatted: str = "Off",
-    status_prec: int = 0,
+    status_precision: int = 0,
 ) -> NodeRecord:
     """Build a minimal :class:`NodeRecord`.
 
@@ -118,7 +118,7 @@ def make_node_record(
                 formatted=status_formatted,
                 uom=status_uom,
                 name="Status",
-                prec=status_prec,
+                precision=status_precision,
             ),
         }
     return NodeRecord(
@@ -194,11 +194,17 @@ def make_variable_record(
     *,
     value: int = 0,
     init: int = 0,
-    prec: int = 0,
+    precision: int = 0,
     ts: str = "",
 ) -> VariableRecord:
     return VariableRecord(
-        type_id=type_id, id=id_, name=name, value=value, init=init, prec=prec, ts=ts
+        type_id=type_id,
+        id=id_,
+        name=name,
+        value=value,
+        init=init,
+        precision=precision,
+        ts=ts,
     )
 
 

@@ -150,7 +150,7 @@ def populated_controller():
                 formatted="68°F",
                 uom="17",
                 name="Heat Setpoint",
-                prec=1,
+                precision=1,
             ),
             "CLISPC": NodePropertyValue(
                 id="CLISPC",
@@ -158,7 +158,7 @@ def populated_controller():
                 formatted="76°F",
                 uom="17",
                 name="Cool Setpoint",
-                prec=1,
+                precision=1,
             ),
         },
     )
@@ -234,7 +234,7 @@ def populated_controller():
     variables = {
         "1": {
             "10": make_variable_record(
-                "1", "10", "Boost Mode", value=5, init=0, prec=0
+                "1", "10", "Boost Mode", value=5, init=0, precision=0
             ),
         },
         "2": {},

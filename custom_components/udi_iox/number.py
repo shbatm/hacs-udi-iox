@@ -80,8 +80,8 @@ async def async_setup_entry(
     ] = []
 
     for node in isy_data.variables[Platform.NUMBER]:
-        step = 10 ** (-1 * node.prec)
-        min_max = ISY_MAX_SIZE / (10**node.prec)
+        step = 10 ** (-1 * node.precision)
+        min_max = ISY_MAX_SIZE / (10**node.precision)
         description = NumberEntityDescription(
             key=node.address,
             name=node.name,
