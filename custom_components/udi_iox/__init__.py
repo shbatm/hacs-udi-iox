@@ -37,9 +37,7 @@ from .const import (
     CONF_ENABLE_PROGRAMS,
     CONF_ENABLE_VARIABLES,
     CONF_NETWORK,
-    CONF_TLS_VER,
     DEFAULT_AUTH_MODE,
-    DEFAULT_TLS_VERSION,
     DOMAIN,
     MANUFACTURER,
     PLATFORMS,
@@ -74,10 +72,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     password = isy_config[CONF_PASSWORD]
     host = isy_config[CONF_HOST]
     auth_mode = isy_config.get(CONF_AUTH_MODE, DEFAULT_AUTH_MODE)
-    tls_version_value = isy_config.get(CONF_TLS_VER, DEFAULT_TLS_VERSION)
-    tls_version = (
-        tls_version_value if tls_version_value != DEFAULT_TLS_VERSION else None
-    )
     verify_ssl = isy_config.get(CONF_VERIFY_SSL, False)
 
     enable_variables = isy_options.get(CONF_ENABLE_VARIABLES, True)
@@ -92,7 +86,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     controller = Controller(
         host,
         auth=auth,
-        tls_version=tls_version,
         verify_ssl=verify_ssl,
     )
 
