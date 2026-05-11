@@ -22,5 +22,11 @@
   "issue_tracker": "https://github.com/shbatm/hacs-udi-iox/issues",
   "loggers": ["pyisyox"],
   "requirements": ["pyisyox==6.0.0a1"],
+  "ssdp": [
+    {
+      "deviceType": "urn:udi-com:device:X_Insteon_Lighting_Device:1",
+      "manufacturer": "Universal Devices Inc."
+    }
+  ],
   "version": "0.1.0"
 }
