@@ -72,10 +72,17 @@ async def test_user_step_form_renders(hass) -> None:
 async def test_user_step_portal_auth_creates_entry(hass) -> None:
     """Submitting valid Portal-auth user input → CREATE_ENTRY."""
     flow = await _start_user_flow(hass)
-    with _patch_validate("portal-uuid"):
+    with (
+        _patch_validate("portal-uuid"),
+        patch(
+            "custom_components.udi_iox.async_setup_entry",
+            AsyncMock(return_value=True),
+        ),
+    ):
         result = await hass.config_entries.flow.async_configure(
             flow["flow_id"], _build_user_input()
         )
+        await hass.async_block_till_done()
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_AUTH_MODE] == AUTH_MODE_PORTAL
     assert result["data"][CONF_USERNAME] == "admin@example.com"
@@ -85,11 +92,18 @@ async def test_user_step_local_auth_creates_entry(hass) -> None:
     """LocalAuth path also creates an entry — auth_mode is the only
     schema knob that branches the validation."""
     flow = await _start_user_flow(hass)
-    with _patch_validate("local-uuid"):
+    with (
+        _patch_validate("local-uuid"),
+        patch(
+            "custom_components.udi_iox.async_setup_entry",
+            AsyncMock(return_value=True),
+        ),
+    ):
         result = await hass.config_entries.flow.async_configure(
             flow["flow_id"],
-            _build_user_input(CONF_AUTH_MODE=AUTH_MODE_LOCAL),
+            _build_user_input(**{CONF_AUTH_MODE: AUTH_MODE_LOCAL}),
         )
+        await hass.async_block_till_done()
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_AUTH_MODE] == AUTH_MODE_LOCAL
 
@@ -97,15 +111,20 @@ async def test_user_step_local_auth_creates_entry(hass) -> None:
 async def test_unique_id_prevents_duplicate_entries(hass) -> None:
     """A second flow with the same controller uuid aborts as
     already_configured."""
+    setup_patch = patch(
+        "custom_components.udi_iox.async_setup_entry",
+        AsyncMock(return_value=True),
+    )
     # First entry succeeds.
     flow1 = await _start_user_flow(hass)
-    with _patch_validate("dup-uuid"):
+    with _patch_validate("dup-uuid"), setup_patch:
         await hass.config_entries.flow.async_configure(
             flow1["flow_id"], _build_user_input()
         )
+        await hass.async_block_till_done()
     # Second flow with the same uuid → abort.
     flow2 = await _start_user_flow(hass)
-    with _patch_validate("dup-uuid"):
+    with _patch_validate("dup-uuid"), setup_patch:
         result = await hass.config_entries.flow.async_configure(
             flow2["flow_id"], _build_user_input()
         )
@@ -196,7 +215,9 @@ async def test_validate_input_picks_portal_auth_for_portal_mode(hass) -> None:
     with (
         patch("custom_components.udi_iox.config_flow.Controller", FakeController),
     ):
-        await validate_input(hass, _build_user_input(CONF_AUTH_MODE=AUTH_MODE_PORTAL))
+        await validate_input(
+            hass, _build_user_input(**{CONF_AUTH_MODE: AUTH_MODE_PORTAL})
+        )
 
     from pyisyox import PortalAuth
 
@@ -220,7 +241,9 @@ async def test_validate_input_picks_local_auth_for_local_mode(hass) -> None:
             pass
 
     with patch("custom_components.udi_iox.config_flow.Controller", FakeController):
-        await validate_input(hass, _build_user_input(CONF_AUTH_MODE=AUTH_MODE_LOCAL))
+        await validate_input(
+            hass, _build_user_input(**{CONF_AUTH_MODE: AUTH_MODE_LOCAL})
+        )
 
     from pyisyox import LocalAuth
 
