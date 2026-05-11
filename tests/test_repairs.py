@@ -3,8 +3,8 @@
 Exercises ``async_create_fix_flow`` directly — pinning that it
 hands back the right :class:`RepairsFlow` for our one issue id, and
 that an unknown id raises. The end-to-end HTTP repair flow is
-covered by HA Core's repair-platform fixtures and is too heavy for
-this fork's test surface.
+covered by HA Core's repair-platform fixtures and is too heavy to
+re-run here.
 """
 
 from __future__ import annotations

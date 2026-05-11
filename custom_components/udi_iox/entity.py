@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 
 # PEP 695 lazy type aliases — the right-hand side is evaluated only when
 # the alias is consumed, so the (TYPE_CHECKING-only) Program / Variable
-# references don't pull models.py at import time. Keeps the import
-# graph acyclic to match the HA Core isy994 layout.
+# references don't pull models.py at import time. Keeps the import graph
+# acyclic.
 type NodeType = Node | Group | Folder | Program | Variable
 type NodeEventType = NodePropertyValue | NodeLifecycleEvent
 

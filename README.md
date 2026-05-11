@@ -30,4 +30,4 @@ This is a HACS Custom Repository:
 
 ## Roadmap
 
-See `hacs-udi-iox_fork_plan.md` (in the parent workspace) for the full implementation plan.
+Open issues and milestones are tracked in [GitHub Issues](https://github.com/shbatm/hacs-udi-iox/issues).

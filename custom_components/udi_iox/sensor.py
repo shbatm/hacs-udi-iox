@@ -259,7 +259,7 @@ async def async_setup_entry(
                 device_class = SensorDeviceClass.ENUM
             elif native_uom is None:
                 # Unknown UOMs cause errors with numeric device classes;
-                # use ISY formatted value. Only for UoMs not yet in PyISYOX.
+                # fall back to the formatted display value instead.
                 device_class = None
 
             # QUIRK: ISY does not differentiate real, apparent, or reactive power:

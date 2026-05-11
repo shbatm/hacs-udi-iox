@@ -37,8 +37,8 @@ if TYPE_CHECKING:
 
 # Suffix for the unique-id of the EventEntity each button-emitting node
 # spawns. Imported back into models.py (which derives unique-ids during
-# stale-entity cleanup) — the HA Core isy994 PR keeps this constant
-# next to the EventEntity that owns the format.
+# stale-entity cleanup); keep this constant next to the EventEntity that
+# owns the format so both sides stay in sync.
 EVENT_BUTTON_UNIQUE_ID_SUFFIX = "_button"
 
 CONTROL_TO_EVENT_TYPE: Final[dict[str, str]] = {

@@ -14,11 +14,12 @@ import types
 
 # Compatibility shims for older Home Assistant versions installed alongside
 # ``pytest_homeassistant_custom_component``. ``service_info.{dhcp,ssdp}`` were
-# carved out of ``homeassistant.components.{dhcp,ssdp}`` in mid-2025; the host
-# venv still ships HA 2025.1 which doesn't expose those submodules. Stub them
-# only when missing so the devcontainer (newer HA) keeps using real classes.
-# Must run before any ``custom_components.udi_iox`` import below, since the
-# integration's ``config_flow.py`` imports the real modules at top level.
+# carved out of ``homeassistant.components.{dhcp,ssdp}`` in mid-2025; HA
+# releases that predate the split don't expose those submodules. Stub them
+# only when missing so installs that already ship the real modules keep
+# using them. Must run before any ``custom_components.udi_iox`` import below,
+# since the integration's ``config_flow.py`` imports the real modules at
+# top level.
 for _module_name, _attr in (
     ("homeassistant.helpers.service_info.dhcp", "DhcpServiceInfo"),
     ("homeassistant.helpers.service_info.ssdp", "SsdpServiceInfo"),
