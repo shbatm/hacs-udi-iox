@@ -15,7 +15,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from pyisyox import Node, NodeCommandError, Program
-from pyisyox.constants import CMD_OFF, CMD_ON
+from pyisyox.constants import CMD_OFF, CMD_ON, PROP_ON_LEVEL
 
 from .const import UOM_8_BIT_RANGE
 from .entity import (
@@ -104,7 +104,12 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Move the cover to a specific position."""
         position = kwargs[ATTR_POSITION]
-        if self._node.status is not None and self._node.status.uom == UOM_8_BIT_RANGE:
+        # HA gives 0-100 position; scale to whatever the OL editor on
+        # this node accepts. Editor max > 100 → raw byte editor (classic
+        # Insteon shade/relay), scale to 1-255. Editor max ≤ 100 (or
+        # unresolvable) → pass the percentage through.
+        editor_max = self._editor_max_for(PROP_ON_LEVEL)
+        if editor_max is not None and editor_max > 100:
             position = round(position * 255.0 / 100.0)
         try:
             await self._node.set_on_level(position)

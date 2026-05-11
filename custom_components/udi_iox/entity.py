@@ -337,6 +337,33 @@ class ISYNodeEntity(ISYEntity):
         """
         await self._node.rename(name)
 
+    def _editor_max_for(self, control: str) -> float | None:
+        """Return the write-side editor's max for ``control`` on this node.
+
+        Editor resolution is determined by the **control's** ``editor_id``
+        (looked up via the property on this node's nodedef, then resolved
+        against the profile scoped to ``(family_id, instance_id)``). The
+        nodedef is just the bag holding the property definitions; the
+        editor reference is on the property itself, and the same control
+        id can resolve to different editors on different nodedefs:
+        KeypadDimmer_ADV's ``I_OL`` accepts ``max=100`` (percentage)
+        while a classic DimmerSwitch_ADV's ``I_OL`` accepts ``max=255``
+        (raw byte).
+
+        Returns ``None`` when the editor can't be resolved — callers
+        should not scale and let pyisyox's codec surface any range error.
+        """
+        if (nodedef := self._node.nodedef) is None:
+            return None
+        if (prop := nodedef.properties.get(control)) is None:
+            return None
+        editor = self._isy_data.root.profile.find_editor(
+            prop.editor_id, self._node.family_id, self._node.instance_id
+        )
+        if editor is None or not editor.ranges:
+            return None
+        return editor.ranges[0].max
+
 
 class ISYProgramEntity(ISYEntity):
     """Representation of an IoX program base.

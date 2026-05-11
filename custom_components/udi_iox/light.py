@@ -11,7 +11,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from pyisyox import Node, NodeCommandError
-from pyisyox.constants import CMD_OFF, CMD_ON
+from pyisyox.constants import CMD_OFF, CMD_ON, PROP_ON_LEVEL
 
 from .const import _LOGGER, CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
 from .entity import (
@@ -111,13 +111,15 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         """Send the turn on command to the light device."""
         if self._restore_light_state and brightness is None and self._last_brightness:
             brightness = self._last_brightness
-        # Z-Wave dimmers report uom as percent (0-100); convert from
-        # HA's 0-255 brightness range before handing the value to
-        # the editor-validated set_on_level wrapper.
-        if brightness is not None and (
-            self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE
-        ):
-            brightness = round(brightness * 100.0 / 255.0)
+        if brightness is not None:
+            # HA gives brightness in 0-255; scale it to whatever the OL
+            # editor on this node accepts. Editor max ≤ 100 means the
+            # device wants percentage (Z-Wave, KeypadDimmer_ADV); > 100
+            # means raw byte (classic Insteon SwitchLinc). Unresolvable
+            # → pass through and let pyisyox's codec surface the error.
+            editor_max = self._editor_max_for(PROP_ON_LEVEL)
+            if editor_max is not None and editor_max <= 100:
+                brightness = round(brightness * 100.0 / 255.0)
         try:
             if brightness is None:
                 await self._node.send_command(CMD_ON)
