@@ -31,6 +31,7 @@ from pyisyox import (
     NodeLifecycleAction,
     NodeLifecycleEvent,
     ProgramStatusEvent,
+    SystemEventControl,
 )
 
 from .const import _LOGGER, DOMAIN, EVENT_UDI_IOX_CONTROL
@@ -49,10 +50,12 @@ VariableEventCallback = Callable[[int | None, int | None], None]
 #: the matching ``ProgramRecord`` has been mutated in place.
 ProgramEventCallback = Callable[[ProgramStatusEvent], None]
 
-# IoX system control codes for variables and programs. The action code
-# disambiguates: ``"6"`` = current value change, ``"7"`` = init change,
-# ``"0"``/``"3"`` = program-related.
-_VAR_OR_PROG_CONTROL = "_1"
+# Action codes carried inside a ``SystemEventControl.TRIGGER`` (``_1``)
+# frame. pyisyox 6.0.0a2 keeps these private to the dispatcher — we
+# duplicate them here only to disambiguate the variable / program
+# branches of the system-event stream that the consumer also processes
+# (`"6"` = variable value change, `"7"` = variable init change,
+# `"0"` = program status).
 _VAR_VALUE_ACTION = "6"
 _VAR_INIT_ACTION = "7"
 
@@ -250,16 +253,22 @@ class IsyControllerEvents:
            ``(address, None)``.
         """
         if not event.node_address:
-            # System events. Variable + program changes ride here on
-            # control "_1" with the payload in event_info; everything
-            # else just gets a debug log.
-            if event.control == _VAR_OR_PROG_CONTROL and event.action in (
+            # System events. Variable + program changes ride here on the
+            # ``SystemEventControl.TRIGGER`` frame with the payload in
+            # event_info; everything else just gets a debug log with the
+            # friendly enum label (e.g. ``system_status`` instead of
+            # ``_5``) so devcontainer / `verbose:` traces stay readable.
+            if event.control == SystemEventControl.TRIGGER and event.action in (
                 _VAR_VALUE_ACTION,
                 _VAR_INIT_ACTION,
             ):
                 self._dispatch_variable_event(event)
                 return
-            _LOGGER.debug("IoX system event: %s = %s", event.control, event.action)
+            _LOGGER.debug(
+                "IoX system event: %s = %s",
+                SystemEventControl.label(event.control),
+                event.action,
+            )
             return
 
         address = event.node_address
