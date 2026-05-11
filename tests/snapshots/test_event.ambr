@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_event_entities[event.eisy_local-entry]
+# name: test_event_entities[event.fanlinc_lamp-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -21,141 +21,7 @@
     'disabled_by': None,
     'domain': 'event',
     'entity_category': None,
-    'entity_id': 'event.eisy_local',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'options': dict({
-    }),
-    'original_device_class': <EventDeviceClass.BUTTON: 'button'>,
-    'original_icon': None,
-    'original_name': None,
-    'platform': 'udi_iox',
-    'previous_unique_id': None,
-    'supported_features': 0,
-    'translation_key': 'button',
-    'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 1_button',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_event_entities[event.eisy_local-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'button',
-      'event_type': None,
-      'event_types': list([
-        'on',
-        'off',
-        'fast_on',
-        'fast_off',
-        'fade_up',
-        'fade_down',
-        'fade_stop',
-      ]),
-      'friendly_name': 'eisy.local',
-    }),
-    'context': <ANY>,
-    'entity_id': 'event.eisy_local',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_event_entities[event.eisy_local_2-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'event_types': list([
-        'on',
-        'off',
-        'fast_on',
-        'fast_off',
-        'fade_up',
-        'fade_down',
-        'fade_stop',
-      ]),
-    }),
-    'config_entry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'event',
-    'entity_category': None,
-    'entity_id': 'event.eisy_local_2',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'options': dict({
-    }),
-    'original_device_class': <EventDeviceClass.BUTTON: 'button'>,
-    'original_icon': None,
-    'original_name': None,
-    'platform': 'udi_iox',
-    'previous_unique_id': None,
-    'supported_features': 0,
-    'translation_key': 'button',
-    'unique_id': 'aa:bb:cc:dd:ee:ff_BB BB BB 1_button',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_event_entities[event.eisy_local_2-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'device_class': 'button',
-      'event_type': None,
-      'event_types': list([
-        'on',
-        'off',
-        'fast_on',
-        'fast_off',
-        'fade_up',
-        'fade_down',
-        'fade_stop',
-      ]),
-      'friendly_name': 'eisy.local',
-    }),
-    'context': <ANY>,
-    'entity_id': 'event.eisy_local_2',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_event_entities[event.eisy_local_3-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': dict({
-      'event_types': list([
-        'on',
-        'off',
-        'fast_on',
-        'fast_off',
-        'fade_up',
-        'fade_down',
-        'fade_stop',
-      ]),
-    }),
-    'config_entry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'event',
-    'entity_category': None,
-    'entity_id': 'event.eisy_local_3',
+    'entity_id': 'event.fanlinc_lamp',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -176,7 +42,7 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_event_entities[event.eisy_local_3-state]
+# name: test_event_entities[event.fanlinc_lamp-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'device_class': 'button',
@@ -190,10 +56,144 @@
         'fade_down',
         'fade_stop',
       ]),
-      'friendly_name': 'eisy.local',
+      'friendly_name': 'FanLinc Lamp',
     }),
     'context': <ANY>,
-    'entity_id': 'event.eisy_local_3',
+    'entity_id': 'event.fanlinc_lamp',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_event_entities[event.garage_outlet-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'event_types': list([
+        'on',
+        'off',
+        'fast_on',
+        'fast_off',
+        'fade_up',
+        'fade_down',
+        'fade_stop',
+      ]),
+    }),
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'event',
+    'entity_category': None,
+    'entity_id': 'event.garage_outlet',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': <EventDeviceClass.BUTTON: 'button'>,
+    'original_icon': None,
+    'original_name': None,
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': 'button',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_BB BB BB 1_button',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_event_entities[event.garage_outlet-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'button',
+      'event_type': None,
+      'event_types': list([
+        'on',
+        'off',
+        'fast_on',
+        'fast_off',
+        'fade_up',
+        'fade_down',
+        'fade_stop',
+      ]),
+      'friendly_name': 'Garage Outlet',
+    }),
+    'context': <ANY>,
+    'entity_id': 'event.garage_outlet',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_event_entities[event.hallway_light-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': dict({
+      'event_types': list([
+        'on',
+        'off',
+        'fast_on',
+        'fast_off',
+        'fade_up',
+        'fade_down',
+        'fade_stop',
+      ]),
+    }),
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'event',
+    'entity_category': None,
+    'entity_id': 'event.hallway_light',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': <EventDeviceClass.BUTTON: 'button'>,
+    'original_icon': None,
+    'original_name': None,
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': 'button',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 1_button',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_event_entities[event.hallway_light-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'button',
+      'event_type': None,
+      'event_types': list([
+        'on',
+        'off',
+        'fast_on',
+        'fast_off',
+        'fade_up',
+        'fade_down',
+        'fade_stop',
+      ]),
+      'friendly_name': 'Hallway Light',
+    }),
+    'context': <ANY>,
+    'entity_id': 'event.hallway_light',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

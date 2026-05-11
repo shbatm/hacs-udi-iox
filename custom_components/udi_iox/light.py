@@ -11,10 +11,15 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from pyisyox import Node, NodeCommandError
-from pyisyox.constants import CMD_OFF, CMD_ON
+from pyisyox.constants import CMD_OFF, CMD_ON, PROP_ON_LEVEL
 
 from .const import _LOGGER, CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
-from .entity import ISYNodeEntity, NodeEventType, node_status_int
+from .entity import (
+    ISYNodeEntity,
+    NodeEventType,
+    _resolve_device_info,
+    node_status_int,
+)
 from .models import IsyConfigEntry, IsyData
 
 ATTR_LAST_BRIGHTNESS = "last_brightness"
@@ -35,7 +40,7 @@ async def async_setup_entry(
     for node in isy_data.nodes[Platform.LIGHT]:
         entities.append(
             ISYLightEntity(
-                isy_data, node, restore_light_state, devices.get(node.primary_node)
+                isy_data, node, restore_light_state, _resolve_device_info(devices, node)
             )
         )
 
@@ -106,13 +111,17 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         """Send the turn on command to the light device."""
         if self._restore_light_state and brightness is None and self._last_brightness:
             brightness = self._last_brightness
-        # Z-Wave dimmers report uom as percent (0-100); convert from
-        # HA's 0-255 brightness range before handing the value to
-        # the editor-validated set_on_level wrapper.
-        if brightness is not None and (
-            self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE
-        ):
-            brightness = round(brightness * 100.0 / 255.0)
+        if brightness is not None:
+            # HA gives brightness in 0-255. Scale down to 0-100 when the
+            # editor expects percent (uom 51) or a byte-capped 0-100
+            # subset (uom 100, max ≤ 100 — KeypadDimmer_ADV). Classic
+            # Insteon SwitchLinc keeps the full 0-255 range so we pass
+            # through. Unresolvable → pass through, codec surfaces error.
+            rng = self._editor_range_for(PROP_ON_LEVEL)
+            if rng is not None and (
+                rng.uom == UOM_PERCENTAGE or (rng.max is not None and rng.max <= 100)
+            ):
+                brightness = round(brightness * 100.0 / 255.0)
         try:
             if brightness is None:
                 await self._node.send_command(CMD_ON)

@@ -94,7 +94,7 @@ def make_node_record(
     status_value: str = "0",
     status_uom: str = "100",
     status_formatted: str = "Off",
-    status_prec: int = 0,
+    status_precision: int = 0,
 ) -> NodeRecord:
     """Build a minimal :class:`NodeRecord`.
 
@@ -102,11 +102,13 @@ def make_node_record(
     property. Override ``properties`` to take full control (e.g. plugin
     nodes that don't carry a status, or thermostat setpoint properties).
 
-    ``pnode`` defaults to the **node's own address** when neither
-    ``pnode`` nor ``parent_address`` is supplied — that's the wire
-    convention for Insteon device roots (the primary node is the
-    device itself). For sub-nodes, ``parent_address`` flows through
-    automatically.
+    ``pnode`` defaults to the **node's own address** when not supplied —
+    that's the wire convention for Insteon device roots (the primary is
+    the device itself). For sub-buttons of multi-button physicals
+    (KeypadLinc, RemoteLinc, FanLinc), pass ``pnode=<primary_address>``
+    explicitly. ``parent_address`` is the tree-hierarchy parent (folder
+    containing the node) and is independent — leave it ``None`` unless
+    you're specifically testing folder/tree behavior.
     """
     if properties is None:
         properties = {
@@ -116,9 +118,25 @@ def make_node_record(
                 formatted=status_formatted,
                 uom=status_uom,
                 name="Status",
-                prec=status_prec,
+                precision=status_precision,
             ),
         }
+    # Native Insteon nodes carry an ERR (comms-error counter) property on
+    # the wire — the integration surfaces it as the diagnostic
+    # ``device_communication_errors`` ("…responding") sensor. Seed it for
+    # any family-1 record (default ST-only AND callers that supply
+    # ``properties=``) so the diagnostic appears on every Insteon
+    # fixture. Z-Wave (family "4") / plugin (family "100"+) nodes don't
+    # carry ERR and intentionally skip this.
+    if family_id == "1" and "ERR" not in properties:
+        properties["ERR"] = NodePropertyValue(
+            id="ERR",
+            value="0",
+            formatted="0",
+            uom="0",
+            name="Responding",
+            precision=0,
+        )
     return NodeRecord(
         address=address,
         name=name,
@@ -127,7 +145,7 @@ def make_node_record(
         instance_id=instance_id,
         type=type_,
         parent_address=parent_address,
-        pnode=pnode or parent_address or address,
+        pnode=pnode or address,
         enabled=enabled,
         properties=properties,
     )
@@ -192,11 +210,17 @@ def make_variable_record(
     *,
     value: int = 0,
     init: int = 0,
-    prec: int = 0,
+    precision: int = 0,
     ts: str = "",
 ) -> VariableRecord:
     return VariableRecord(
-        type_id=type_id, id=id_, name=name, value=value, init=init, prec=prec, ts=ts
+        type_id=type_id,
+        id=id_,
+        name=name,
+        value=value,
+        init=init,
+        precision=precision,
+        ts=ts,
     )
 
 
@@ -477,7 +501,7 @@ def make_classified_node_record(
     name: str,
     *,
     target: str,
-    parent_address: str | None = None,
+    pnode: str | None = None,
     family_id: str = "1",
     properties: dict[str, NodePropertyValue] | None = None,
     **status_kwargs,
@@ -488,6 +512,9 @@ def make_classified_node_record(
     ``target`` is one of the keys in :data:`NODEDEF_FOR_PLATFORM`. Lock
     uses ``family_id="4"`` (Z-Wave) by default; everything else is
     Insteon family ``"1"``. Override via the ``family_id`` kwarg.
+
+    Pass ``pnode=<primary_address>`` for sub-buttons of multi-button
+    devices (KeypadLinc, RemoteLinc, FanLinc).
     """
     if target == "lock":
         family_id = "4"
@@ -496,7 +523,7 @@ def make_classified_node_record(
         name,
         nodedef_id=NODEDEF_FOR_PLATFORM[target],
         family_id=family_id,
-        parent_address=parent_address,
+        pnode=pnode,
         properties=properties,
         **status_kwargs,
     )

@@ -42,12 +42,10 @@ from .const import (
     CONF_IGNORE_STRING,
     CONF_RESTORE_LIGHT_STATE,
     CONF_SENSOR_STRING,
-    CONF_TLS_VER,
     DEFAULT_AUTH_MODE,
     DEFAULT_IGNORE_STRING,
     DEFAULT_RESTORE_LIGHT_STATE,
     DEFAULT_SENSOR_STRING,
-    DEFAULT_TLS_VERSION,
     DOMAIN,
     HTTP_PORT,
     HTTPS_PORT,
@@ -61,7 +59,6 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 AUTH_MODE_OPTIONS = [AUTH_MODE_PORTAL, AUTH_MODE_LOCAL]
-TLS_VERSION_OPTIONS = [DEFAULT_TLS_VERSION, 1.2, 1.3]
 
 
 def _data_schema(schema_input: dict[str, Any]) -> vol.Schema:
@@ -75,10 +72,6 @@ def _data_schema(schema_input: dict[str, Any]) -> vol.Schema:
             ): vol.In(AUTH_MODE_OPTIONS),
             vol.Required(CONF_USERNAME): str,
             vol.Required(CONF_PASSWORD): str,
-            vol.Optional(
-                CONF_TLS_VER,
-                default=schema_input.get(CONF_TLS_VER, DEFAULT_TLS_VERSION),
-            ): vol.In(TLS_VERSION_OPTIONS),
             vol.Optional(
                 CONF_VERIFY_SSL,
                 default=schema_input.get(CONF_VERIFY_SSL, False),
@@ -103,7 +96,6 @@ async def validate_input(
     password = data[CONF_PASSWORD]
     host = data[CONF_HOST]
     parsed_host = urlparse(host)
-    tls_version = data.get(CONF_TLS_VER, DEFAULT_TLS_VERSION)
     verify_ssl = data.get(CONF_VERIFY_SSL, False)
     auth_mode = data.get(CONF_AUTH_MODE, DEFAULT_AUTH_MODE)
 
@@ -115,7 +107,6 @@ async def validate_input(
     controller = Controller(
         host,
         auth=auth,
-        tls_version=tls_version if tls_version != DEFAULT_TLS_VERSION else None,
         verify_ssl=verify_ssl,
     )
 

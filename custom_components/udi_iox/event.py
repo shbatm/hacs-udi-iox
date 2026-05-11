@@ -30,7 +30,7 @@ from pyisyox.constants import (
     CMD_ON_FAST,
 )
 
-from .entity import ISYNodeEntity
+from .entity import ISYNodeEntity, _resolve_device_info
 
 if TYPE_CHECKING:
     from .models import IsyConfigEntry, IsyData
@@ -59,23 +59,6 @@ BUTTON_DESCRIPTION: Final[EventEntityDescription] = EventEntityDescription(
 )
 
 
-def _sub_button_name(node: Node, parent: Node | None) -> str:
-    """Return the sub-button label with the parent device prefix stripped.
-
-    ISY users commonly label KeypadLinc sub-buttons as ``"<device> <suffix>"``
-    (e.g. ``"Hallway Keypad B"``). With ``has_entity_name=True``, Home
-    Assistant prepends the device name to the entity name when rendering the
-    friendly name, so we strip the prefix here to avoid duplication.
-    """
-    name: str = node.name
-    if parent is None:
-        return name
-    parent_name: str = parent.name
-    if name.startswith(parent_name):
-        return name[len(parent_name) :].lstrip(" -_:.") or name
-    return name
-
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: IsyConfigEntry,
@@ -85,7 +68,7 @@ async def async_setup_entry(
     isy_data = entry.runtime_data
     device_info = isy_data.devices
     async_add_entities(
-        ISYButtonEvent(isy_data, node, device_info.get(node.primary_node))
+        ISYButtonEvent(isy_data, node, _resolve_device_info(device_info, node))
         for node in isy_data.nodes[Platform.EVENT]
     )
 
@@ -104,20 +87,15 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
     ) -> None:
         """Initialize the IoX button event entity."""
         super().__init__(isy_data, node, device_info=device_info)
-        # Re-assert has_entity_name after super(): ISYNodeEntity instance-writes
-        # False for sub-button (non-device-root) nodes, which would otherwise
-        # override the class-level True and break friendly names.
-        self._attr_has_entity_name = True
         self._attr_unique_id = (
             f"{isy_data.uuid}_{node.address}{EVENT_BUTTON_UNIQUE_ID_SUFFIX}"
         )
-        if node.parent_address is None:
-            self._attr_name = None
-        else:
-            parent = isy_data.root.nodes.get(node.parent_address)
-            self._attr_name = _sub_button_name(node, parent)
-            # Disabled by default — a typical KeypadLinc exposes 6-8
-            # sub-buttons and most users only automate a few.
+        # ISYNodeEntity already computes ``_attr_name``: ``None`` for
+        # device-root nodes, stripped sub-name for sub-buttons. Just
+        # disable-by-default the sub-button case so a KeypadLinc's 6–8
+        # accessory buttons don't clutter the entity registry until
+        # users explicitly opt them in.
+        if node.primary_address is not None:
             self._attr_entity_registry_enabled_default = False
 
     async def async_added_to_hass(self) -> None:

@@ -38,11 +38,14 @@ from pyisyox import (
     classify,
 )
 from pyisyox.constants import (
+    BACKLIGHT_SUPPORT,
+    CMD_BACKLIGHT,
     PROP_BUSY,
     PROP_COMMS_ERROR,
     PROP_ON_LEVEL,
     PROP_RAMP_RATE,
     PROP_STATUS,
+    TAG_ENABLED,
     Protocol,
 )
 
@@ -60,6 +63,7 @@ from .const import (
     NODE_PARALLEL_PLATFORMS,
     PROGRAM_PLATFORMS,
     UOM_DOUBLE_TEMP,
+    UOM_INDEX,
     UOM_ISYV4_DEGREES,
 )
 from .models import IsyData
@@ -90,13 +94,58 @@ _READING_TO_HA_PLATFORM: dict[ReadingPlatform, Platform] = {
 }
 
 
-def _is_device_root(node: Node) -> bool:
-    """A node without a parent_address is a physical device root.
+def _add_backlight_if_supported(isy_data: IsyData, node: Node) -> None:
+    """Append a backlight aux entity for nodedefs that support it.
 
-    pyisyox 6 dropped the explicit ``is_device_root`` flag; subnodes
-    expose ``parent_address`` pointing at the root.
+    pyisyox's :data:`BACKLIGHT_SUPPORT` maps a nodedef id to the UOM
+    its backlight editor reports in. The UOM picks the HA platform:
+
+    * ``UOM_INDEX`` (e.g. KeypadDimmer_ADV / KeypadButton_ADV) → SELECT
+      (discrete on/off-level pairs from :data:`BACKLIGHT_INDEX`).
+    * ``UOM_PERCENTAGE`` (e.g. DimmerLampSwitch_ADV) → NUMBER
+      (continuous 0-100 backlight intensity).
+
+    pyisyox doesn't expose an ``is_backlight_supported`` introspection
+    property in v6 — we read the dict directly. Future pyisyox release
+    could promote this to a Node-level property.
     """
-    return node.parent_address is None
+    uom = BACKLIGHT_SUPPORT.get(node.nodedef_id)
+    if uom is None:
+        return
+    platform = Platform.SELECT if uom == UOM_INDEX else Platform.NUMBER
+    isy_data.aux_properties[platform].append((node, CMD_BACKLIGHT))
+
+
+def _is_device_root(node: Node) -> bool:
+    """A node without a primary_address is a physical device root.
+
+    Sub-nodes of multi-button devices (KeypadLinc, RemoteLinc, FanLinc
+    sides) expose ``primary_address`` pointing at the device primary;
+    primaries themselves return ``None``.
+
+    Used to gate the root-only scaffold (BUTTON entity, comms_error
+    sensor, enable switch) — those only make sense on a physical
+    device's primary node, not on plugin-side logical children.
+    """
+    return node.primary_address is None
+
+
+def _has_own_device(node: Node) -> bool:
+    """Whether this node should have its own HA :class:`DeviceInfo`.
+
+    True for top-level roots AND for node-server plugin children: each
+    plugin node is a distinct logical device on the upstream service
+    (e.g. each Flume sensor / hub under a Flume controller node), so
+    we mirror the eisy UI by giving each its own HA device card rather
+    than folding every child's aux properties under the controller —
+    which produces duplicate "Current" / "Leak Detected" entities the
+    user can't tell apart.
+
+    False for Insteon / Z-Wave physical sub-nodes (KeypadLinc buttons,
+    FanLinc fan-vs-light sides): those are sub-parts of one physical
+    device and stay folded under the primary.
+    """
+    return node.primary_address is None or node.protocol == Protocol.NODE_SERVER
 
 
 def _primary_platform_for_native(node: Node) -> Platform:
@@ -152,7 +201,13 @@ def _fan_out_native_aux(isy_data: IsyData, node: Node) -> None:
 
 
 def _generate_device_info(controller: Controller, node: Node, host: str) -> DeviceInfo:
-    """Generate the device info for a root node device."""
+    """Generate the device info for a node that gets its own HA device.
+
+    For node-server plugin children (``primary_address`` set + protocol
+    is ``NODE_SERVER``), anchor ``via_device`` on the controller node
+    instead of the eisy root so HA renders the hub→sensor hierarchy
+    (eisy → FlumeWater controller → Flume Sensor 7061…).
+    """
     uuid = controller.config.uuid
 
     # node.protocol is a plain str ("insteon", "zwave", ...); title-case
@@ -160,11 +215,15 @@ def _generate_device_info(controller: Controller, node: Node, host: str) -> Devi
     manufacturer = (
         node.protocol.replace("_", " ").title() if node.protocol else "Unknown"
     )
+    if node.protocol == Protocol.NODE_SERVER and node.primary_address is not None:
+        via_device = (DOMAIN, f"{uuid}_{node.primary_address}")
+    else:
+        via_device = (DOMAIN, uuid)
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"{uuid}_{node.address}")},
         manufacturer=manufacturer,
         name=node.name,
-        via_device=(DOMAIN, uuid),
+        via_device=via_device,
         configuration_url=host,
     )
 
@@ -209,17 +268,39 @@ def _categorize_nodes(
         if ignore_identifier in node.name:
             continue
 
-        if _is_device_root(node):
+        # DeviceInfo population is wider than the root scaffold: plugin
+        # children also get their own device so the eisy-side hierarchy
+        # is preserved in HA.
+        if _has_own_device(node):
             isy_data.devices[node.address] = _generate_device_info(
                 controller, node, host
             )
+
+        if _is_device_root(node):
             isy_data.root_nodes[Platform.BUTTON].append(node)
-            isy_data.aux_properties[Platform.SENSOR].append((node, PROP_COMMS_ERROR))
+            # comms_error (ERR) is an Insteon PLM-side counter; native
+            # Insteon nodes carry it on ``properties``, plugin/Z-Wave/
+            # Zigbee roots don't. Gate on actual presence rather than
+            # protocol so any node that exposes ERR gets the sensor and
+            # node-server controllers don't sprout a perpetual
+            # "Unavailable".
+            if PROP_COMMS_ERROR in node.properties:
+                isy_data.aux_properties[Platform.SENSOR].append(
+                    (node, PROP_COMMS_ERROR)
+                )
+            # Per-device enable/disable switch — mirrors hacs-isy994's
+            # exposure of the controller-side enabled flag, useful for
+            # automations that need to mute a flaky node without removing
+            # it from the controller.
+            if hasattr(node, TAG_ENABLED):
+                isy_data.aux_properties[Platform.SWITCH].append((node, TAG_ENABLED))
 
             if node.is_dimmable:
                 for control in ROOT_AUX_CONTROLS.intersection(node.properties):
                     platform = NODE_AUX_FILTERS[control]
                     isy_data.aux_properties[platform].append((node, control))
+
+            _add_backlight_if_supported(isy_data, node)
 
         # User-forced sensor classification short-circuits everything
         # else — keep the v3 ergonomics.
@@ -258,7 +339,7 @@ def _categorize_nodes(
         # control a load — only their own LED. Surface them as EVENT
         # only, drop the would-be switch entity entirely.
         is_subnode_button = (
-            node.parent_address is not None
+            node.primary_address is not None
             and primary == Platform.SWITCH
             and node.protocol == Protocol.INSTEON
         )
@@ -335,7 +416,7 @@ def _categorize_variables(
 
 
 def convert_isy_value_to_hass(
-    value: float | None,
+    value: float | str | None,
     uom: str | list | None,
     precision: int | str,
     fallback_precision: int | None = None,
@@ -345,13 +426,23 @@ def convert_isy_value_to_hass(
     IoX provides float values as an integer + precision component;
     shift the decimal place left by precision. Insteon thermostats
     report temperature in 0.5°-precision as 2x the temp.
+
+    ``NodePropertyValue.value`` arrives as a string from both wire shapes
+    (``/api/nodes`` JSON and ``/rest/status`` XML), so coerce to ``float``
+    once at entry. Returns ``None`` when the string isn't numeric (which
+    plugin nodes can legitimately do for non-numeric readings — those
+    should be surfaced via ``target.formatted`` upstream).
     """
-    if value is None:
+    if value is None or value == "":
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
         return None
     if uom in (UOM_DOUBLE_TEMP, UOM_ISYV4_DEGREES):
-        return round(float(value) / 2.0, 1)
+        return round(numeric / 2.0, 1)
     if precision not in ("0", 0):
-        return cast(float, round(float(value) / 10 ** int(precision), int(precision)))
+        return cast(float, round(numeric / 10 ** int(precision), int(precision)))
     if fallback_precision:
-        return round(float(value), fallback_precision)
-    return value
+        return round(numeric, fallback_precision)
+    return numeric

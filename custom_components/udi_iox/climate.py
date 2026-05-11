@@ -50,7 +50,7 @@ from .const import (
     UOM_ISYV4_NONE,
     UOM_TO_STATES,
 )
-from .entity import ISYNodeEntity, node_status_int
+from .entity import ISYNodeEntity, _resolve_device_info, node_status_int
 from .helpers import convert_isy_value_to_hass
 from .models import IsyConfigEntry, IsyData
 
@@ -67,7 +67,7 @@ async def async_setup_entry(
     devices: dict[str, DeviceInfo] = isy_data.devices
     for node in isy_data.nodes[Platform.CLIMATE]:
         entities.append(
-            ISYThermostatEntity(isy_data, node, devices.get(node.primary_node))
+            ISYThermostatEntity(isy_data, node, _resolve_device_info(devices, node))
         )
 
     async_add_entities(entities)
@@ -163,9 +163,9 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
         status = self._node.status
-        prec = status.prec if status is not None else 0
+        precision = status.precision if status is not None else 0
         return convert_isy_value_to_hass(
-            node_status_int(self._node), self._uom, prec, 1
+            node_status_int(self._node), self._uom, precision, 1
         )
 
     @property
@@ -183,7 +183,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         target = self._node.properties.get(PROP_SETPOINT_COOL)
         if not target:
             return None
-        return convert_isy_value_to_hass(target.value, target.uom, target.prec, 1)
+        return convert_isy_value_to_hass(target.value, target.uom, target.precision, 1)
 
     @property
     def target_temperature_low(self) -> float | None:
@@ -191,7 +191,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         target = self._node.properties.get(PROP_SETPOINT_HEAT)
         if not target:
             return None
-        return convert_isy_value_to_hass(target.value, target.uom, target.prec, 1)
+        return convert_isy_value_to_hass(target.value, target.uom, target.precision, 1)
 
     @property
     def fan_mode(self) -> str:

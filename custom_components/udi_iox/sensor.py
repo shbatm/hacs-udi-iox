@@ -43,7 +43,7 @@ from .const import (
     UOM_TO_STATES,
     UnitOfApparentPower,
 )
-from .entity import ISYNodeEntity
+from .entity import ISYNodeEntity, _resolve_device_info
 from .helpers import convert_isy_value_to_hass
 from .models import IsyConfigEntry, IsyData
 
@@ -296,7 +296,7 @@ async def async_setup_entry(
             unique_id=f"{isy_data.uid_base(node)}_{control}"
             if control != PROP_STATUS
             else None,
-            device_info=devices.get(node.primary_node),
+            device_info=_resolve_device_info(devices, node),
             options_dict=options_dict,
         )
         entities.append(entity)
@@ -359,7 +359,7 @@ class ISYSensorEntity(ISYNodeEntity, SensorEntity):
             return self.target.formatted
 
         # Handle ISY precision and rounding
-        value = convert_isy_value_to_hass(value, self.target.uom, self.target.prec)
+        value = convert_isy_value_to_hass(value, self.target.uom, self.target.precision)
 
         if value is None:
             return None

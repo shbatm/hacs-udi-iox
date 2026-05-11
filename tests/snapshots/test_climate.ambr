@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_climate_entities[climate.eisy_local_temperature-entry]
+# name: test_climate_entities[climate.living_thermostat-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -27,7 +27,7 @@
     'disabled_by': None,
     'domain': 'climate',
     'entity_category': None,
-    'entity_id': 'climate.eisy_local_temperature',
+    'entity_id': 'climate.living_thermostat',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -39,7 +39,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Temperature',
+    'original_name': None,
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': <ClimateEntityFeature: 395>,
@@ -48,7 +48,7 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_climate_entities[climate.eisy_local_temperature-state]
+# name: test_climate_entities[climate.living_thermostat-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'current_temperature': 68.0,
@@ -57,7 +57,7 @@
         'auto',
         'on',
       ]),
-      'friendly_name': 'eisy.local Temperature',
+      'friendly_name': 'Living Thermostat',
       'hvac_modes': list([
         <HVACMode.OFF: 'off'>,
         <HVACMode.HEAT: 'heat'>,
@@ -75,7 +75,7 @@
       'temperature': None,
     }),
     'context': <ANY>,
-    'entity_id': 'climate.eisy_local_temperature',
+    'entity_id': 'climate.living_thermostat',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

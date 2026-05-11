@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_select_entities[select.eisy_local_ramp_rate-entry]
+# name: test_select_entities[select.hallway_light_ramp_rate-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -46,7 +46,7 @@
     'disabled_by': None,
     'domain': 'select',
     'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'select.eisy_local_ramp_rate',
+    'entity_id': 'select.hallway_light_ramp_rate',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -67,10 +67,10 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_select_entities[select.eisy_local_ramp_rate-state]
+# name: test_select_entities[select.hallway_light_ramp_rate-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'eisy.local Ramp Rate',
+      'friendly_name': 'Hallway Light Ramp Rate',
       'options': list([
         '9.0 min',
         '8.0 min',
@@ -107,7 +107,7 @@
       ]),
     }),
     'context': <ANY>,
-    'entity_id': 'select.eisy_local_ramp_rate',
+    'entity_id': 'select.hallway_light_ramp_rate',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

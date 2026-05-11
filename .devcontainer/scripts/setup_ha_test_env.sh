@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Minimal devcontainer setup script — assumes the image provides a working, writable venv at /opt/venv
 VENV="/opt/venv"
-WORKSPACE_DIR="/workspaces/hacs-isy994"
+WORKSPACE_DIR="/workspaces/hacs-udi-iox"
 PYISYOX_DIR="/workspaces/pyisyox"
 WHEEL_DIR="${WORKSPACE_DIR}/.wheels"
 PIP_CACHE_DIR="${WORKSPACE_DIR}/.cache/pip"
@@ -35,17 +35,25 @@ else
     ${VENV_PYTHON} -m pip install --pre --prefer-binary "homeassistant[tests]"
 fi
 
-# Install PyISYoX from local workspace if available
+# Install pyisyox from local workspace if available
 if [ -d "${PYISYOX_DIR}" ] && [ -f "${PYISYOX_DIR}/pyproject.toml" ]; then
-    echo "Installing PyISYoX from local workspace in editable mode..."
+    echo "Installing pyisyox from local workspace in editable mode..."
     ${VENV_PYTHON} -m pip install -e "${PYISYOX_DIR}"
+
+    # Pyisyox carries the project-wide dev tooling pins (ruff, mypy, pylint,
+    # pre-commit, codespell). Installing them here keeps /opt/venv in sync
+    # with the host venv that pre-commit / VS Code's Ruff extension expect.
+    if [ -f "${PYISYOX_DIR}/requirements-dev.txt" ]; then
+        echo "Installing pyisyox dev tooling (ruff, mypy, pylint, pre-commit, ...)..."
+        ${VENV_PYTHON} -m pip install -r "${PYISYOX_DIR}/requirements-dev.txt"
+    fi
 else
-    echo "PyISYoX directory not found at ${PYISYOX_DIR}, will use version from requirements"
+    echo "pyisyox directory not found at ${PYISYOX_DIR}, will use version from requirements"
 fi
 
 echo "Installing integration requirements from manifest..."
 if command -v jq >/dev/null 2>&1; then
-    for req in $(jq -c -r '.requirements | .[]' "${WORKSPACE_DIR}/custom_components/isy994/manifest.json"); do
+    for req in $(jq -c -r '.requirements | .[]' "${WORKSPACE_DIR}/custom_components/udi_iox/manifest.json"); do
         # Skip pyisyox if we already installed it from local workspace
         if [ -d "${PYISYOX_DIR}" ] && [[ "$req" == pyisyox* ]]; then
             echo "Skipping $req (already installed from local workspace)"

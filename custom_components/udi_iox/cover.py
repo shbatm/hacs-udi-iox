@@ -15,10 +15,16 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from pyisyox import Node, NodeCommandError, Program
-from pyisyox.constants import CMD_OFF, CMD_ON
+from pyisyox.constants import CMD_OFF, CMD_ON, PROP_ON_LEVEL
 
 from .const import UOM_8_BIT_RANGE
-from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
+from .entity import (
+    ISYNodeEntity,
+    ISYProgramEntity,
+    NodeEventType,
+    _resolve_device_info,
+    node_status_int,
+)
 from .models import IsyConfigEntry
 
 
@@ -34,7 +40,7 @@ async def async_setup_entry(
     for node in isy_data.nodes[Platform.COVER]:
         entities.append(
             ISYCoverEntity(
-                isy_data, node=node, device_info=devices.get(node.primary_node)
+                isy_data, node=node, device_info=_resolve_device_info(devices, node)
             )
         )
 
@@ -98,7 +104,17 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Move the cover to a specific position."""
         position = kwargs[ATTR_POSITION]
-        if self._node.status is not None and self._node.status.uom == UOM_8_BIT_RANGE:
+        # HA gives 0-100 position. Scale up to 0-255 only when the editor
+        # is a raw-byte range using the full 0-255 (classic Insteon).
+        # Percent editors and byte-capped 0-100 ranges accept the user's
+        # 0-100 as-is. Unresolvable → pass through.
+        rng = self._editor_range_for(PROP_ON_LEVEL)
+        if (
+            rng is not None
+            and rng.uom == UOM_8_BIT_RANGE
+            and rng.max is not None
+            and rng.max > 100
+        ):
             position = round(position * 255.0 / 100.0)
         try:
             await self._node.set_on_level(position)

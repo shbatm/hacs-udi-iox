@@ -23,6 +23,7 @@ from .entity import (
     ISYNodeEntity,
     ISYProgramEntity,
     NodeEventType,
+    _resolve_device_info,
     node_status_int,
 )
 from .models import IsyConfigEntry, IsyData
@@ -56,7 +57,7 @@ async def async_setup_entry(
             ISYSwitchEntity(
                 isy_data,
                 node=node,
-                device_info=device_info.get(node.primary_node),
+                device_info=_resolve_device_info(device_info, node),
             )
         )
 
@@ -68,7 +69,7 @@ async def async_setup_entry(
             primary_addr = group.controller_addresses[0]
             controller_node = isy_data.root.nodes.get(primary_addr)
             if controller_node is not None:
-                device = device_info.get(controller_node.primary_node)
+                device = _resolve_device_info(device_info, controller_node)
         entities.append(ISYGroupSwitchEntity(isy_data, node=group, device_info=device))
 
     for name, status, actions in isy_data.programs[Platform.SWITCH]:
@@ -90,7 +91,7 @@ async def async_setup_entry(
                 control=control,
                 unique_id=f"{isy_data.uid_base(node)}_{control}",
                 description=description,
-                device_info=device_info.get(node.primary_node),
+                device_info=_resolve_device_info(device_info, node),
             )
         )
     async_add_entities(entities)

@@ -32,7 +32,7 @@ from pyisyox.constants import (
 )
 
 from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, UOM_INDEX
-from .entity import ISYNodeEntity
+from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
 
@@ -62,7 +62,10 @@ async def async_setup_entry(
 
     for node, control in isy_data.aux_properties[Platform.SELECT]:
         name = COMMAND_FRIENDLY_NAME.get(control, control).replace("_", " ").title()
-        if node.address != node.primary_node:
+        # Sub-nodes prepend their own name so the aux entity disambiguates
+        # from the parent's same-control entity. Root nodes (primary_address
+        # is None) skip this since the device label is already the node's.
+        if node.primary_address is not None:
             name = f"{node.name} {name}"
 
         options = []
@@ -87,7 +90,7 @@ async def async_setup_entry(
             "control": control,
             "unique_id": f"{isy_data.uid_base(node)}_{control}",
             "description": description,
-            "device_info": device_info.get(node.primary_node),
+            "device_info": _resolve_device_info(device_info, node),
         }
 
         if control == PROP_RAMP_RATE:

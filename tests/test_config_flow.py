@@ -23,8 +23,6 @@ from custom_components.udi_iox.const import (
     AUTH_MODE_LOCAL,
     AUTH_MODE_PORTAL,
     CONF_AUTH_MODE,
-    CONF_TLS_VER,
-    DEFAULT_TLS_VERSION,
     DOMAIN,
 )
 
@@ -43,7 +41,6 @@ def _build_user_input(**overrides) -> dict:
         CONF_USERNAME: "admin@example.com",
         CONF_PASSWORD: "swordfish",
         CONF_AUTH_MODE: AUTH_MODE_PORTAL,
-        CONF_TLS_VER: DEFAULT_TLS_VERSION,
         CONF_VERIFY_SSL: False,
     }
     base.update(overrides)

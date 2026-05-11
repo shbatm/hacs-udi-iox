@@ -42,7 +42,7 @@ from pyisyox.constants import (
 )
 
 from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
-from .entity import ISYNodeEntity
+from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
 ISY_MAX_SIZE = (2**32) / 2
@@ -80,8 +80,8 @@ async def async_setup_entry(
     ] = []
 
     for node in isy_data.variables[Platform.NUMBER]:
-        step = 10 ** (-1 * node.prec)
-        min_max = ISY_MAX_SIZE / (10**node.prec)
+        step = 10 ** (-1 * node.precision)
+        min_max = ISY_MAX_SIZE / (10**node.precision)
         description = NumberEntityDescription(
             key=node.address,
             name=node.name,
@@ -125,7 +125,7 @@ async def async_setup_entry(
             "control": control,
             "unique_id": f"{isy_data.uid_base(node)}_{control}",
             "description": CONTROL_DESC[control],
-            "device_info": device_info.get(node.primary_node),
+            "device_info": _resolve_device_info(device_info, node),
         }
         if control == CMD_BACKLIGHT:
             entities.append(ISYBacklightNumberEntity(**entity_init_info))
@@ -135,7 +135,25 @@ async def async_setup_entry(
 
 
 class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
-    """Representation of a ISY/IoX Aux Control Number entity."""
+    """Representation of a ISY/IoX Aux Control Number entity.
+
+    HA shows the entity as a 0-100 percentage slider regardless of the
+    underlying device's encoding. Read and write use **different**
+    signals — the same control can report values in one unit while
+    accepting commands in another:
+
+    * **Read** — ``node_prop.uom`` describes how the value is encoded
+      on this wire frame. When it's ``UOM_8_BIT_RANGE`` (raw 0-255 byte,
+      classic Insteon), we scale to percent for HA. Anything else
+      (UOM 51 / 100 percentage, etc.) is displayed verbatim.
+    * **Write** — the editor backing this control decides what range
+      the controller accepts. KeypadDimmer_ADV and Z-Wave dimmers
+      use an editor with ``max=100`` (percentage); classic Insteon
+      dimmers use one with ``max=255`` (raw byte). Scaling driven by
+      the editor's max is the only correct write path because the
+      command-side encoding can disagree with the wire-side reading
+      (e.g. controller reports raw 147 but accepts percent input).
+    """
 
     _attr_mode = NumberMode.SLIDER
 
@@ -143,26 +161,39 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
     def native_value(self) -> float | int | None:
         """Return the state of the variable."""
         node_prop: NodePropertyValue = self._node.properties[self._control]
-        if node_prop.value is None:
+        if not node_prop.value:
+            return None
+
+        try:
+            raw = int(float(node_prop.value))
+        except (TypeError, ValueError):
             return None
 
         if (
             self.entity_description.native_unit_of_measurement == PERCENTAGE
-            and node_prop.uom == UOM_8_BIT_RANGE  # Insteon 0-255
+            and node_prop.uom == UOM_8_BIT_RANGE
         ):
-            return ranged_value_to_percentage(ON_RANGE, node_prop.value)
-        return int(node_prop.value)
+            return ranged_value_to_percentage(ON_RANGE, raw)
+        return raw
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        node_prop: NodePropertyValue = self._node.properties[self._control]
-
         if self.entity_description.native_unit_of_measurement == PERCENTAGE:
-            value = (
-                percentage_to_ranged_value(ON_RANGE, round(value))
-                if node_prop.uom == UOM_8_BIT_RANGE
-                else value
-            )
+            # HA passes 0-100. Scale into whatever the editor accepts:
+            # only the raw-byte-with-full-byte-range case needs the
+            # percent → (1, 255) conversion. Percentage editors (uom 51)
+            # and byte-but-capped editors (uom 100, max ≤ 100 as on
+            # KeypadDimmer_ADV) accept the user's percent value as-is.
+            # If the editor can't be resolved, pass through and let the
+            # codec surface any range error.
+            rng = self._editor_range_for(self._control)
+            if (
+                rng is not None
+                and rng.uom == UOM_8_BIT_RANGE
+                and rng.max is not None
+                and rng.max > 100
+            ):
+                value = percentage_to_ranged_value(ON_RANGE, round(value))
         if self._control == PROP_ON_LEVEL:
             await self._node.set_on_level(int(value))
             return
