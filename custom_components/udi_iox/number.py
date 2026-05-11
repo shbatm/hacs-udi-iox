@@ -42,7 +42,7 @@ from pyisyox.constants import (
 )
 
 from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
-from .entity import ISYNodeEntity
+from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
 ISY_MAX_SIZE = (2**32) / 2
@@ -125,7 +125,7 @@ async def async_setup_entry(
             "control": control,
             "unique_id": f"{isy_data.uid_base(node)}_{control}",
             "description": CONTROL_DESC[control],
-            "device_info": device_info.get(node.primary_node),
+            "device_info": _resolve_device_info(device_info, node),
         }
         if control == CMD_BACKLIGHT:
             entities.append(ISYBacklightNumberEntity(**entity_init_info))
@@ -143,15 +143,20 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
     def native_value(self) -> float | int | None:
         """Return the state of the variable."""
         node_prop: NodePropertyValue = self._node.properties[self._control]
-        if node_prop.value is None:
+        if not node_prop.value:
+            return None
+
+        try:
+            raw = int(float(node_prop.value))
+        except (TypeError, ValueError):
             return None
 
         if (
             self.entity_description.native_unit_of_measurement == PERCENTAGE
             and node_prop.uom == UOM_8_BIT_RANGE  # Insteon 0-255
         ):
-            return ranged_value_to_percentage(ON_RANGE, node_prop.value)
-        return int(node_prop.value)
+            return ranged_value_to_percentage(ON_RANGE, raw)
+        return raw
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

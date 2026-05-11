@@ -18,7 +18,13 @@ from homeassistant.util.percentage import (
 from pyisyox import Node, Program
 from pyisyox.constants import CMD_OFF, Protocol
 
-from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
+from .entity import (
+    ISYNodeEntity,
+    ISYProgramEntity,
+    NodeEventType,
+    _resolve_device_info,
+    node_status_int,
+)
 from .models import IsyConfigEntry, IsyData
 
 SPEED_RANGE = (1, 255)  # off is not included
@@ -37,7 +43,7 @@ async def async_setup_entry(
     for node in isy_data.nodes[Platform.FAN]:
         entities.append(
             ISYFanEntity(
-                isy_data, node=node, device_info=devices.get(node.primary_node)
+                isy_data, node=node, device_info=_resolve_device_info(devices, node)
             )
         )
 

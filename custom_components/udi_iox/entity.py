@@ -40,6 +40,20 @@ type NodeType = Node | Group | Folder | Program | Variable
 type NodeEventType = NodePropertyValue | NodeLifecycleEvent
 
 
+def _resolve_device_info(
+    devices: dict[str, DeviceInfo], node: Node
+) -> DeviceInfo | None:
+    """Return the parent device's DeviceInfo for a node entity.
+
+    Root nodes have ``primary_address is None`` and their own DeviceInfo
+    stored under ``node.address``. Sub-nodes (KeypadLinc sub-buttons,
+    FanLinc fan side, plugin sub-nodes) have ``primary_address`` pointing
+    at the device root, so we resolve to the parent's DeviceInfo —
+    grouping the entities under one HA device.
+    """
+    return devices.get(node.primary_address or node.address)
+
+
 def node_status_int(node: Node) -> int | None:
     """Read ``node.status`` as a scalar int (or ``None`` when unknown).
 
@@ -59,10 +73,27 @@ def node_status_int(node: Node) -> int | None:
         return None
 
 
+def _strip_parent_prefix(name: str, parent_name: str | None) -> str:
+    """Strip a parent device's name from the front of a sub-node label.
+
+    ISY users commonly label sub-nodes as ``"<device> <suffix>"`` (e.g.
+    ``"Hallway Keypad B"`` under ``"Hallway Keypad"``). With
+    ``has_entity_name=True`` Home Assistant prepends the device name
+    when rendering the friendly name, so the entity name itself only
+    needs to carry the suffix — otherwise the device name appears
+    twice (``"Hallway Keypad Hallway Keypad B"``). When the sub-node
+    name doesn't start with the parent's name, returns it unchanged so
+    the user's intent is preserved.
+    """
+    if parent_name and name.startswith(parent_name):
+        return name[len(parent_name) :].lstrip(" -_:.") or name
+    return name
+
+
 class ISYEntity(Entity):
     """Base class for IoX entities backed by a runtime Node."""
 
-    _attr_has_entity_name = False
+    _attr_has_entity_name = True
     _attr_should_poll = False
     _node: NodeType
     _isy_data: IsyData
@@ -148,6 +179,12 @@ class ISYEntity(Entity):
 class ISYGroupEntity(ISYEntity):
     """Representation of a ISY Group entity."""
 
+    # Scenes carry full descriptive names from the controller ("Living
+    # Room Scene"). Opt out of has_entity_name so the friendly name
+    # stays the scene name as-is, regardless of which device the entity
+    # attaches to (controller hub for multi-controller scenes, or a
+    # specific node device for single-controller scenes).
+    _attr_has_entity_name = False
     _node: Group
 
     @property
@@ -187,23 +224,38 @@ class ISYNodeEntity(ISYEntity):
         if description is not None:
             self.entity_description = description
 
-        # Determine the entity or device name to use. v6 NodeDef stores
-        # property labels per-property at nodedef.properties[id].name;
-        # the legacy status_names dict is gone.
-        name: str | None = None
+        # Name composition (has_entity_name=True throughout — HA prepends
+        # the device name automatically; ``_attr_name`` carries the entity's
+        # own suffix only, or ``None`` to mean "use the device name as-is").
+        #
+        # - Primary entity (PROP_STATUS) on a device root → ``None``.
+        # - Primary entity on a sub-node (e.g. FanLinc motor side sharing
+        #   the FanLinc device) → the sub-node's name with the parent's
+        #   prefix stripped, so the rendered friendly name doesn't
+        #   duplicate the device prefix.
+        # - Aux control entity → the property's nodedef label, falling
+        #   back to the IoX command friendly-name table.
         self._node_def = node.nodedef
-        if self._node_def is not None and (
-            prop := self._node_def.properties.get(control)
-        ):
-            name = prop.name or None
-        if name is None and control != PROP_STATUS:
-            name = COMMAND_FRIENDLY_NAME.get(control, control).replace("_", " ").title()
-
-        if node.parent_address is not None:
-            name = f"{node.name} {name}" if name else node.name
-            self._attr_has_entity_name = False
+        if control == PROP_STATUS:
+            if node.primary_address is None:
+                name: str | None = None
+            else:
+                parent = isy_data.root.nodes.get(node.primary_address)
+                parent_name = parent.name if parent is not None else None
+                name = _strip_parent_prefix(node.name, parent_name)
         else:
-            self._attr_has_entity_name = True
+            label: str | None = None
+            if self._node_def is not None and (
+                prop := self._node_def.properties.get(control)
+            ):
+                label = prop.name or None
+            if label is None:
+                label = (
+                    COMMAND_FRIENDLY_NAME.get(control, control)
+                    .replace("_", " ")
+                    .title()
+                )
+            name = label
 
         self._attr_name = name
         self._attr_available = node.enabled
@@ -296,6 +348,11 @@ class ISYProgramEntity(ISYEntity):
     that path.
     """
 
+    # Programs are device-less in HA's model (they attach to the
+    # controller hub stub). Their friendly name IS the program's
+    # name — opt out of has_entity_name so HA doesn't prepend the
+    # controller name (would yield "eisy.local Movie Mode").
+    _attr_has_entity_name = False
     _node: Program
     _actions: Program | None
 

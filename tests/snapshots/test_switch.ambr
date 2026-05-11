@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_switch_entities[switch.eisy_local_status-entry]
+# name: test_switch_entities[switch.garage_outlet-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -11,7 +11,7 @@
     'disabled_by': None,
     'domain': 'switch',
     'entity_category': None,
-    'entity_id': 'switch.eisy_local_status',
+    'entity_id': 'switch.garage_outlet',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -23,7 +23,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Status',
+    'original_name': None,
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
@@ -32,13 +32,13 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_switch_entities[switch.eisy_local_status-state]
+# name: test_switch_entities[switch.garage_outlet-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'eisy.local Status',
+      'friendly_name': 'Garage Outlet',
     }),
     'context': <ANY>,
-    'entity_id': 'switch.eisy_local_status',
+    'entity_id': 'switch.garage_outlet',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

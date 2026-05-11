@@ -136,11 +136,9 @@ def test_default_native_classifies_as_switch(isy_data, options, controller):
 def test_subbutton_with_parent_suppresses_switch_keeps_event(
     isy_data, options, controller
 ):
-    """KeypadLinc-style sub-button: parent_address set, classifies
+    """KeypadLinc-style sub-button: primary_address set, classifies
     as SWITCH, Insteon — must end up EVENT-only."""
-    node = _node(
-        controller, "AA BB CC 2", target="subbutton", parent_address="AA BB CC 1"
-    )
+    node = _node(controller, "AA BB CC 2", target="subbutton", pnode="AA BB CC 1")
     _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.SWITCH] == []
@@ -152,9 +150,7 @@ def test_subbutton_dimmer_paddle_keeps_light_classification(
 ):
     """A dimmable sub-node (BRT/DIM accept commands) is a real load
     surface, not a button — keep primary=LIGHT + parallel=EVENT."""
-    node = _node(
-        controller, "AA BB CC 2", target="subdimmer", parent_address="AA BB CC 1"
-    )
+    node = _node(controller, "AA BB CC 2", target="subdimmer", pnode="AA BB CC 1")
     _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.LIGHT] == [node]
@@ -182,7 +178,7 @@ def test_subbutton_non_insteon_not_suppressed(isy_data, options, controller):
         "ZW 2",
         target="switch",
         family_id="4",
-        parent_address="ZW 1",
+        pnode="ZW 1",
     )
     _categorize(isy_data, node, options, controller=controller)
 

@@ -50,7 +50,7 @@ from .const import (
     UOM_ISYV4_NONE,
     UOM_TO_STATES,
 )
-from .entity import ISYNodeEntity, node_status_int
+from .entity import ISYNodeEntity, _resolve_device_info, node_status_int
 from .helpers import convert_isy_value_to_hass
 from .models import IsyConfigEntry, IsyData
 
@@ -67,7 +67,7 @@ async def async_setup_entry(
     devices: dict[str, DeviceInfo] = isy_data.devices
     for node in isy_data.nodes[Platform.CLIMATE]:
         entities.append(
-            ISYThermostatEntity(isy_data, node, devices.get(node.primary_node))
+            ISYThermostatEntity(isy_data, node, _resolve_device_info(devices, node))
         )
 
     async_add_entities(entities)

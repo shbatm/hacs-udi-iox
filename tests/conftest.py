@@ -115,7 +115,7 @@ def populated_controller():
         # ``_categorize_nodes`` then suppresses it as a KeypadLinc-style
         # sub-button and routes it to EVENT instead.
         nodedef_id="RelayLampSwitch_ADV",
-        parent_address=light_root.address,
+        pnode=light_root.address,
     )
     switch_root = make_node_record(
         "BB BB BB 1",
@@ -173,7 +173,7 @@ def populated_controller():
         "FanLinc Motor",
         nodedef_id="FanLincMotor",
         type_="1.46.0.0",
-        parent_address=fanlinc_root.address,
+        pnode=fanlinc_root.address,
         status_uom="25",
     )
     nodes = {

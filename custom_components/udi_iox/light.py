@@ -14,7 +14,12 @@ from pyisyox import Node, NodeCommandError
 from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import _LOGGER, CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
-from .entity import ISYNodeEntity, NodeEventType, node_status_int
+from .entity import (
+    ISYNodeEntity,
+    NodeEventType,
+    _resolve_device_info,
+    node_status_int,
+)
 from .models import IsyConfigEntry, IsyData
 
 ATTR_LAST_BRIGHTNESS = "last_brightness"
@@ -35,7 +40,7 @@ async def async_setup_entry(
     for node in isy_data.nodes[Platform.LIGHT]:
         entities.append(
             ISYLightEntity(
-                isy_data, node, restore_light_state, devices.get(node.primary_node)
+                isy_data, node, restore_light_state, _resolve_device_info(devices, node)
             )
         )
 

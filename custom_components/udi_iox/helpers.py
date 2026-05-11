@@ -91,12 +91,13 @@ _READING_TO_HA_PLATFORM: dict[ReadingPlatform, Platform] = {
 
 
 def _is_device_root(node: Node) -> bool:
-    """A node without a parent_address is a physical device root.
+    """A node without a primary_address is a physical device root.
 
-    pyisyox 6 dropped the explicit ``is_device_root`` flag; subnodes
-    expose ``parent_address`` pointing at the root.
+    Sub-nodes of multi-button devices (KeypadLinc, RemoteLinc, FanLinc
+    sides) expose ``primary_address`` pointing at the device primary;
+    primaries themselves return ``None``.
     """
-    return node.parent_address is None
+    return node.primary_address is None
 
 
 def _primary_platform_for_native(node: Node) -> Platform:
@@ -258,7 +259,7 @@ def _categorize_nodes(
         # control a load — only their own LED. Surface them as EVENT
         # only, drop the would-be switch entity entirely.
         is_subnode_button = (
-            node.parent_address is not None
+            node.primary_address is not None
             and primary == Platform.SWITCH
             and node.protocol == Protocol.INSTEON
         )
@@ -335,7 +336,7 @@ def _categorize_variables(
 
 
 def convert_isy_value_to_hass(
-    value: float | None,
+    value: float | str | None,
     uom: str | list | None,
     precision: int | str,
     fallback_precision: int | None = None,
@@ -345,13 +346,23 @@ def convert_isy_value_to_hass(
     IoX provides float values as an integer + precision component;
     shift the decimal place left by precision. Insteon thermostats
     report temperature in 0.5°-precision as 2x the temp.
+
+    ``NodePropertyValue.value`` arrives as a string from both wire shapes
+    (``/api/nodes`` JSON and ``/rest/status`` XML), so coerce to ``float``
+    once at entry. Returns ``None`` when the string isn't numeric (which
+    plugin nodes can legitimately do for non-numeric readings — those
+    should be surfaced via ``target.formatted`` upstream).
     """
-    if value is None:
+    if value is None or value == "":
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
         return None
     if uom in (UOM_DOUBLE_TEMP, UOM_ISYV4_DEGREES):
-        return round(float(value) / 2.0, 1)
+        return round(numeric / 2.0, 1)
     if precision not in ("0", 0):
-        return cast(float, round(float(value) / 10 ** int(precision), int(precision)))
+        return cast(float, round(numeric / 10 ** int(precision), int(precision)))
     if fallback_precision:
-        return round(float(value), fallback_precision)
-    return value
+        return round(numeric, fallback_precision)
+    return numeric

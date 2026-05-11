@@ -102,11 +102,13 @@ def make_node_record(
     property. Override ``properties`` to take full control (e.g. plugin
     nodes that don't carry a status, or thermostat setpoint properties).
 
-    ``pnode`` defaults to the **node's own address** when neither
-    ``pnode`` nor ``parent_address`` is supplied — that's the wire
-    convention for Insteon device roots (the primary node is the
-    device itself). For sub-nodes, ``parent_address`` flows through
-    automatically.
+    ``pnode`` defaults to the **node's own address** when not supplied —
+    that's the wire convention for Insteon device roots (the primary is
+    the device itself). For sub-buttons of multi-button physicals
+    (KeypadLinc, RemoteLinc, FanLinc), pass ``pnode=<primary_address>``
+    explicitly. ``parent_address`` is the tree-hierarchy parent (folder
+    containing the node) and is independent — leave it ``None`` unless
+    you're specifically testing folder/tree behavior.
     """
     if properties is None:
         properties = {
@@ -127,7 +129,7 @@ def make_node_record(
         instance_id=instance_id,
         type=type_,
         parent_address=parent_address,
-        pnode=pnode or parent_address or address,
+        pnode=pnode or address,
         enabled=enabled,
         properties=properties,
     )
@@ -477,7 +479,7 @@ def make_classified_node_record(
     name: str,
     *,
     target: str,
-    parent_address: str | None = None,
+    pnode: str | None = None,
     family_id: str = "1",
     properties: dict[str, NodePropertyValue] | None = None,
     **status_kwargs,
@@ -488,6 +490,9 @@ def make_classified_node_record(
     ``target`` is one of the keys in :data:`NODEDEF_FOR_PLATFORM`. Lock
     uses ``family_id="4"`` (Z-Wave) by default; everything else is
     Insteon family ``"1"``. Override via the ``family_id`` kwarg.
+
+    Pass ``pnode=<primary_address>`` for sub-buttons of multi-button
+    devices (KeypadLinc, RemoteLinc, FanLinc).
     """
     if target == "lock":
         family_id = "4"
@@ -496,7 +501,7 @@ def make_classified_node_record(
         name,
         nodedef_id=NODEDEF_FOR_PLATFORM[target],
         family_id=family_id,
-        parent_address=parent_address,
+        pnode=pnode,
         properties=properties,
         **status_kwargs,
     )

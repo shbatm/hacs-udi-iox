@@ -41,7 +41,13 @@ from .const import (
     TYPE_CATEGORY_CLIMATE,
     TYPE_INSTEON_MOTION,
 )
-from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
+from .entity import (
+    ISYNodeEntity,
+    ISYProgramEntity,
+    NodeEventType,
+    _resolve_device_info,
+    node_status_int,
+)
 from .models import IsyConfigEntry, IsyData
 
 DEVICE_PARENT_REQUIRED = [
@@ -84,10 +90,10 @@ async def async_setup_entry(
     devices: dict[str, DeviceInfo] = isy_data.devices
     for node in isy_data.nodes[Platform.BINARY_SENSOR]:
         assert isinstance(node, Node)
-        device_info = devices.get(node.primary_node)
+        device_info = _resolve_device_info(devices, node)
         device_class, device_type = _detect_device_type_and_class(node)
         if node.protocol == Protocol.INSTEON:
-            if node.parent_address is not None:
+            if node.primary_address is not None:
                 # We'll process the Insteon child nodes last, to ensure all parent
                 # nodes have been processed
                 child_nodes.append((node, device_class, device_type, device_info))
@@ -129,12 +135,12 @@ async def async_setup_entry(
             continue
 
         if device_class in DEVICE_PARENT_REQUIRED:
-            parent_entity = entities_by_address.get(node.parent_address)
+            parent_entity = entities_by_address.get(node.primary_address)
             if not parent_entity:
                 _LOGGER.error(
                     "Node %s has parent %s but no device was created for it",
                     node.address,
-                    node.parent_address,
+                    node.primary_address,
                 )
                 continue
 
@@ -216,7 +222,8 @@ async def async_setup_entry(
                 isy_data,
                 node=node,
                 control=control,
-                device_info=devices.get(node.primary_node),
+                unique_id=f"{isy_data.uid_base(node)}_{control}",
+                device_info=_resolve_device_info(devices, node),
             )
         )
     async_add_entities(entities)
@@ -257,9 +264,16 @@ class ISYBinarySensorEntity(ISYNodeEntity, BinarySensorEntity):
         device_class: BinarySensorDeviceClass | None = None,
         unknown_state: bool | None = None,
         device_info: DeviceInfo | None = None,
+        unique_id: str | None = None,
     ) -> None:
         """Initialize the IoX binary sensor device."""
-        super().__init__(isy_data, node, device_info=device_info)
+        super().__init__(
+            isy_data,
+            node,
+            control=control,
+            unique_id=unique_id,
+            device_info=device_info,
+        )
         self._attr_device_class = device_class
 
     @property
