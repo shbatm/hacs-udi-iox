@@ -72,7 +72,7 @@ def _sub_button_name(node: Node, parent: Node | None) -> str:
         return name
     parent_name: str = parent.name
     if name.startswith(parent_name):
-        return name[len(parent_name):].lstrip(" -_:.") or name
+        return name[len(parent_name) :].lstrip(" -_:.") or name
     return name
 
 

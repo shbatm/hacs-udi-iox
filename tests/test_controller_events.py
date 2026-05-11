@@ -16,7 +16,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from homeassistant.helpers import issue_registry as ir
 
 from custom_components.udi_iox.const import DOMAIN
@@ -252,9 +251,7 @@ def test_subscribe_variable_no_op_when_event_info_empty(
     events.subscribe_variable(1, 1, lambda v, i: received.append((v, i)))
 
     fake_controller.fire_event(
-        fake_event_factory(
-            node_address="", control="_1", action="6", event_info=""
-        )
+        fake_event_factory(node_address="", control="_1", action="6", event_info="")
     )
     assert received == []
 
@@ -291,7 +288,7 @@ def test_subscribe_variable_skips_program_actions_on_underscore_one(
             node_address="",
             control="_1",
             action="0",
-            event_info='<id>3</id>',
+            event_info="<id>3</id>",
         )
     )
     assert received == []

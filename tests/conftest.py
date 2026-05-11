@@ -158,9 +158,7 @@ def populated_controller() -> FakeController:
     controller.nodes[light_root.address] = light_root
 
     # KeypadLinc-style sub-button: insteon, parent set, non-dimmable → event only.
-    sub_button = _node(
-        "AA AA AA 2", "Hallway Button B", parent=light_root.address
-    )
+    sub_button = _node("AA AA AA 2", "Hallway Button B", parent=light_root.address)
     controller.nodes[sub_button.address] = sub_button
 
     # Insteon non-dimmable root → switch + event + sensor(comms_error)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from typing import Any
 
@@ -27,8 +28,6 @@ from homeassistant.util.percentage import (
     percentage_to_ranged_value,
     ranged_value_to_percentage,
 )
-from collections.abc import Callable
-
 from pyisyox import (
     Event,
     Node,
@@ -307,7 +306,7 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
             description=description,
             device_info=device_info,
         )
-        self._attr_native_value = 0
+        self._attr_native_value: float | int | None = 0
 
     async def async_added_to_hass(self) -> None:
         """Restore last value + subscribe to memory-write echoes."""
@@ -333,9 +332,9 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
         memory = getattr(event, "memory", None)
         cmd1 = getattr(event, "cmd1", None)
         raw_value = getattr(event, "value", None)
-        if memory != BACKLIGHT_MEMORY_FILTER.get("memory") or cmd1 != BACKLIGHT_MEMORY_FILTER.get(
-            "cmd1"
-        ):
+        if memory != BACKLIGHT_MEMORY_FILTER.get(
+            "memory"
+        ) or cmd1 != BACKLIGHT_MEMORY_FILTER.get("cmd1"):
             return
         if raw_value is None:
             return

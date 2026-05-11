@@ -26,6 +26,4 @@ async def test_fan_entities(
     snapshot: SnapshotAssertion,
 ) -> None:
     """Snapshot every fan entity created by the integration."""
-    await snapshot_platform(
-        hass, entity_registry, snapshot, init_integration.entry_id
-    )
+    await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)

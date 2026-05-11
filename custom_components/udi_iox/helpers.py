@@ -132,9 +132,7 @@ def _classify_plugin_node(
     )
 
 
-def _fan_out_readings(
-    isy_data: IsyData, node: Node, readings: list[Reading]
-) -> None:
+def _fan_out_readings(isy_data: IsyData, node: Node, readings: list[Reading]) -> None:
     """Append each plugin-classified reading as an aux-property entity."""
     for reading in readings:
         ha_platform = _READING_TO_HA_PLATFORM[reading.platform]
@@ -227,9 +225,7 @@ def _categorize_nodes(
         if sensor_identifier in node.name:
             platform = (
                 Platform.BINARY_SENSOR
-                if any(
-                    prop.uom in BINARY_UOMS for prop in node.properties.values()
-                )
+                if any(prop.uom in BINARY_UOMS for prop in node.properties.values())
                 else Platform.SENSOR
             )
             isy_data.nodes[platform].append(node)
@@ -283,9 +279,7 @@ def _categorize_nodes(
             isy_data.nodes[Platform.EVENT].append(node)
 
 
-def _categorize_programs(
-    isy_data: IsyData, programs: dict[str, Program]
-) -> None:
+def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> None:
     """Categorize the controller's programs onto HA platforms.
 
     Walks the legacy ``HA.<platform>/<name>/<status|actions>`` folder
@@ -330,9 +324,7 @@ def _categorize_programs(
             )
 
 
-def _categorize_variables(
-    isy_data: IsyData, variables: dict[str, list[dict]]
-) -> None:
+def _categorize_variables(isy_data: IsyData, variables: dict[str, list[dict]]) -> None:
     """Add controller variables as Number platform entities."""
     numbers = isy_data.variables[Platform.NUMBER]
     for type_id, entries in variables.items():
@@ -354,7 +346,7 @@ def convert_isy_value_to_hass(
 
     IoX provides float values as an integer + precision component;
     shift the decimal place left by precision. Insteon thermostats
-    report temperature in 0.5°-precision as 2× the temp.
+    report temperature in 0.5°-precision as 2x the temp.
     """
     if value is None:
         return None

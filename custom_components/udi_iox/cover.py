@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.components.cover import (
     ATTR_POSITION,
@@ -14,13 +14,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Node, NodeCommandError
+from pyisyox import Node, NodeCommandError, Program
 from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from pyisyox import Program
-
 from .models import IsyConfigEntry
 
 
@@ -57,19 +55,16 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
     _node: Node
 
     def _update_cover_attrs(self) -> None:
-        if node_status_int(self._node) is None:
+        status = node_status_int(self._node)
+        if status is None:
             self._attr_current_cover_position = None
             self._attr_is_closed = None
             return
-        if (self._node.status is not None and self._node.status.uom == UOM_8_BIT_RANGE):
-            self._attr_current_cover_position = round(
-                cast(float, node_status_int(self._node)) * 100.0 / 255.0
-            )
+        if self._node.status is not None and self._node.status.uom == UOM_8_BIT_RANGE:
+            self._attr_current_cover_position = round(status * 100.0 / 255.0)
         else:
-            self._attr_current_cover_position = int(
-                sorted((0, node_status_int(self._node), 100))[1]
-            )
-        self._attr_is_closed = bool(node_status_int(self._node) == 0)
+            self._attr_current_cover_position = int(sorted((0, status, 100))[1])
+        self._attr_is_closed = status == 0
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to events and set initial state."""
@@ -103,7 +98,7 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Move the cover to a specific position."""
         position = kwargs[ATTR_POSITION]
-        if (self._node.status is not None and self._node.status.uom == UOM_8_BIT_RANGE):
+        if self._node.status is not None and self._node.status.uom == UOM_8_BIT_RANGE:
             position = round(position * 255.0 / 100.0)
         try:
             await self._node.set_on_level(position)

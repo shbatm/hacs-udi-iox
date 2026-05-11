@@ -51,16 +51,12 @@ def _categorize(
 def test_thermostat_classifies_as_climate(
     isy_data, options, fake_node_factory, fake_controller
 ):
-    node = fake_node_factory(
-        address="A 1", is_thermostat=True, parent_address=None
-    )
+    node = fake_node_factory(address="A 1", is_thermostat=True, parent_address=None)
     _categorize(isy_data, node, options, controller=fake_controller)
     assert isy_data.nodes[Platform.CLIMATE] == [node]
 
 
-def test_lock_classifies_as_lock(
-    isy_data, options, fake_node_factory, fake_controller
-):
+def test_lock_classifies_as_lock(isy_data, options, fake_node_factory, fake_controller):
     node = fake_node_factory(address="A 1", is_lock=True, parent_address=None)
     _categorize(isy_data, node, options, controller=fake_controller)
     assert isy_data.nodes[Platform.LOCK] == [node]
@@ -69,16 +65,12 @@ def test_lock_classifies_as_lock(
 def test_dimmable_classifies_as_light(
     isy_data, options, fake_node_factory, fake_controller
 ):
-    node = fake_node_factory(
-        address="A 1", is_dimmable=True, parent_address=None
-    )
+    node = fake_node_factory(address="A 1", is_dimmable=True, parent_address=None)
     _categorize(isy_data, node, options, controller=fake_controller)
     assert isy_data.nodes[Platform.LIGHT] == [node]
 
 
-def test_fan_classifies_as_fan(
-    isy_data, options, fake_node_factory, fake_controller
-):
+def test_fan_classifies_as_fan(isy_data, options, fake_node_factory, fake_controller):
     """FanLincMotor surfaces as ``Platform.FAN`` rather than falling
     through to SWITCH (its current behaviour without ``is_fan``)."""
     node = fake_node_factory(address="A 2", is_fan=True, parent_address=None)
@@ -280,9 +272,7 @@ def test_sensor_identifier_forces_sensor_classification(
 # --- guard rail -------------------------------------------------------
 
 
-def test_categorize_no_op_when_controller_is_none(
-    isy_data, options, fake_node_factory
-):
+def test_categorize_no_op_when_controller_is_none(isy_data, options, fake_node_factory):
     """Defensive default — older test fixtures invoke
     _categorize_nodes without a controller; the function returns
     cleanly so the test isn't forced to mock the full surface."""
@@ -341,7 +331,9 @@ def test_categorize_programs_ignores_paths_outside_HA_namespace(isy_data):
     HA entity construction — the user uses them server-side only."""
     from tests._fakes import FakeProgram
 
-    other = FakeProgram(address="0030", name="My Routine", path="My Programs/My Routine")
+    other = FakeProgram(
+        address="0030", name="My Routine", path="My Programs/My Routine"
+    )
 
     _categorize_programs(isy_data, {"0030": other})
 

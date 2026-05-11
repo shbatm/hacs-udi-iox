@@ -15,6 +15,12 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from pyisyox import (
+    Event,
+    Node,
+    NodeCommandError,
+    NodePropertyValue,
+)
 from pyisyox.constants import (
     BACKLIGHT_INDEX,
     CMD_BACKLIGHT,
@@ -23,12 +29,6 @@ from pyisyox.constants import (
     PROP_RAMP_RATE,
     UOM_TO_STATES,
     NodeChangeAction,
-)
-from pyisyox import (
-    Event,
-    Node,
-    NodeCommandError,
-    NodePropertyValue,
 )
 
 from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, UOM_INDEX
@@ -172,7 +172,7 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
             description=description,
             device_info=device_info,
         )
-        self._attr_current_option = None
+        self._attr_current_option: str | None = None
 
     async def async_added_to_hass(self) -> None:
         """Load the last known state and watch for memory-write echoes."""
@@ -188,7 +188,9 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
         # rare enough that the cost is irrelevant.
         self._unsubscribers.append(
             self._isy_data.controller_events.subscribe_node(
-                self._node.address, NodeChangeAction.DEVICE_MEMORY, self._on_memory_write
+                self._node.address,
+                NodeChangeAction.DEVICE_MEMORY,
+                self._on_memory_write,
             )
         )
 
@@ -201,9 +203,9 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
         memory = getattr(event, "memory", None)
         cmd1 = getattr(event, "cmd1", None)
         value = getattr(event, "value", None)
-        if memory != BACKLIGHT_MEMORY_FILTER.get("memory") or cmd1 != BACKLIGHT_MEMORY_FILTER.get(
-            "cmd1"
-        ):
+        if memory != BACKLIGHT_MEMORY_FILTER.get(
+            "memory"
+        ) or cmd1 != BACKLIGHT_MEMORY_FILTER.get("cmd1"):
             return
         if value is None:
             return

@@ -21,7 +21,9 @@ from custom_components.udi_iox.models import IsyData
 from custom_components.udi_iox.system_health import system_health_info
 
 
-async def _wire_entry_with_controller(hass, controller, *, host: str = "http://eisy.local") -> None:
+async def _wire_entry_with_controller(
+    hass, controller, *, host: str = "http://eisy.local"
+) -> None:
     """Patch the entries lookup so system_health_info finds our stub."""
     isy_data = IsyData()
     isy_data.root = controller

@@ -211,8 +211,13 @@ async def async_setup_entry(
 
     for node, control in isy_data.aux_properties[Platform.BINARY_SENSOR]:
         _LOGGER.debug("Loading %s %s", node.name, COMMAND_FRIENDLY_NAME.get(control))
-        entity = ISYBinarySensorEntity(
-            node=node, control=control, device_info=devices.get(node.primary_node)
+        entities.append(
+            ISYBinarySensorEntity(
+                isy_data,
+                node=node,
+                control=control,
+                device_info=devices.get(node.primary_node),
+            )
         )
     async_add_entities(entities)
 
@@ -347,10 +352,11 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
         # in use for this device. Next we need to check to see if the
         # negative and positive nodes disagree on the state (both ON or
         # both OFF).
-        if (
-            node_status_int(self._negative_node) != ISY_VALUE_UNKNOWN
-            and node_status_int(self._negative_node) == node_status_int(self._node)
-        ):
+        if node_status_int(
+            self._negative_node
+        ) != ISY_VALUE_UNKNOWN and node_status_int(
+            self._negative_node
+        ) == node_status_int(self._node):
             # The states disagree, therefore we cannot determine the state
             # of the sensor until we receive our first ON event.
             self._computed_state = None

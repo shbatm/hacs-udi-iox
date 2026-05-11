@@ -19,6 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.udi_iox.const import DOMAIN
+from custom_components.udi_iox.models import IsyData
 from custom_components.udi_iox.services import (
     SERVICE_RENAME_NODE,
     SERVICE_RUN_NETWORK_RESOURCE,
@@ -28,7 +29,6 @@ from custom_components.udi_iox.services import (
     SERVICE_SYSTEM_QUERY,
     async_setup_services,
 )
-from custom_components.udi_iox.models import IsyData
 
 
 async def _wire_services_with_entry(hass: HomeAssistant, fake_controller) -> None:
@@ -51,9 +51,7 @@ async def _wire_services_with_entry(hass: HomeAssistant, fake_controller) -> Non
 # --- system_query -----------------------------------------------------
 
 
-async def test_system_query_calls_controller_refresh(
-    hass, fake_controller
-) -> None:
+async def test_system_query_calls_controller_refresh(hass, fake_controller) -> None:
     await _wire_services_with_entry(hass, fake_controller)
 
     await hass.services.async_call(DOMAIN, SERVICE_SYSTEM_QUERY, {}, blocking=True)
@@ -61,9 +59,7 @@ async def test_system_query_calls_controller_refresh(
     assert fake_controller.refresh_calls == 1
 
 
-async def test_system_query_targets_controller_by_uuid(
-    hass, fake_controller
-) -> None:
+async def test_system_query_targets_controller_by_uuid(hass, fake_controller) -> None:
     """Passing isy=<uuid> targets only the matching controller."""
     await _wire_services_with_entry(hass, fake_controller)
 
@@ -73,9 +69,7 @@ async def test_system_query_targets_controller_by_uuid(
     assert fake_controller.refresh_calls == 1
 
 
-async def test_system_query_with_unmatched_isy_raises(
-    hass, fake_controller
-) -> None:
+async def test_system_query_with_unmatched_isy_raises(hass, fake_controller) -> None:
     await _wire_services_with_entry(hass, fake_controller)
 
     with pytest.raises(HomeAssistantError):
@@ -103,9 +97,7 @@ async def test_set_variable_value_writes_through_controller(
     assert fake_controller.set_variable_init_calls == []
 
 
-async def test_set_variable_init_routes_to_init_method(
-    hass, fake_controller
-) -> None:
+async def test_set_variable_init_routes_to_init_method(hass, fake_controller) -> None:
     """init=True routes to set_variable_init instead of set_variable_value."""
     await _wire_services_with_entry(hass, fake_controller)
 
@@ -164,14 +156,10 @@ async def test_send_program_command_by_name_resolves_then_dispatches(
     assert program.run_else_calls == [None]
 
 
-async def test_send_program_command_unknown_id_raises(
-    hass, fake_controller
-) -> None:
+async def test_send_program_command_unknown_id_raises(hass, fake_controller) -> None:
     await _wire_services_with_entry(hass, fake_controller)
 
-    with pytest.raises(
-        HomeAssistantError, match="No program or folder with id"
-    ):
+    with pytest.raises(HomeAssistantError, match="No program or folder with id"):
         await hass.services.async_call(
             DOMAIN,
             SERVICE_SEND_PROGRAM_COMMAND,
@@ -180,14 +168,10 @@ async def test_send_program_command_unknown_id_raises(
         )
 
 
-async def test_send_program_command_unknown_name_raises(
-    hass, fake_controller
-) -> None:
+async def test_send_program_command_unknown_name_raises(hass, fake_controller) -> None:
     await _wire_services_with_entry(hass, fake_controller)
 
-    with pytest.raises(
-        HomeAssistantError, match="No program or folder named"
-    ):
+    with pytest.raises(HomeAssistantError, match="No program or folder named"):
         await hass.services.async_call(
             DOMAIN,
             SERVICE_SEND_PROGRAM_COMMAND,
@@ -259,9 +243,7 @@ async def test_run_network_resource_by_name_resolves_then_fires(
     assert fake_controller.run_network_resource_calls == []
 
 
-async def test_run_network_resource_unknown_id_raises(
-    hass, fake_controller
-) -> None:
+async def test_run_network_resource_unknown_id_raises(hass, fake_controller) -> None:
     await _wire_services_with_entry(hass, fake_controller)
 
     with pytest.raises(HomeAssistantError, match="No network resource with id"):
@@ -270,9 +252,7 @@ async def test_run_network_resource_unknown_id_raises(
         )
 
 
-async def test_run_network_resource_unknown_name_raises(
-    hass, fake_controller
-) -> None:
+async def test_run_network_resource_unknown_name_raises(hass, fake_controller) -> None:
     await _wire_services_with_entry(hass, fake_controller)
 
     with pytest.raises(HomeAssistantError, match="No network resource named"):

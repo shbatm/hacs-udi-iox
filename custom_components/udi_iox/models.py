@@ -72,7 +72,12 @@ class IsyData:
 
     def uid_base(
         self,
-        node: Node | Group | NetworkResource | NodePropertyValue | VariableRecord | Program,
+        node: Node
+        | Group
+        | NetworkResource
+        | NodePropertyValue
+        | VariableRecord
+        | Program,
     ) -> str:
         """Return the unique id base string for a given node."""
         address = node["address"] if isinstance(node, dict) else node.address
@@ -154,4 +159,4 @@ class IsyData:
         return current_unique_ids
 
 
-IsyConfigEntry = ConfigEntry[IsyData]
+type IsyConfigEntry = ConfigEntry[IsyData]

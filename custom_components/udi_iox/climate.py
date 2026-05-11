@@ -164,7 +164,9 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         """Return the current temperature."""
         status = self._node.status
         prec = status.prec if status is not None else 0
-        return convert_isy_value_to_hass(node_status_int(self._node), self._uom, prec, 1)
+        return convert_isy_value_to_hass(
+            node_status_int(self._node), self._uom, prec, 1
+        )
 
     @property
     def target_temperature(self) -> float | None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.components.light import ColorMode, LightEntity
 from homeassistant.const import Platform
@@ -64,19 +64,21 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
     @property
     def is_on(self) -> bool:
         """Get whether the ISY light is on."""
-        if node_status_int(self._node) is None:
+        status = node_status_int(self._node)
+        if status is None:
             return False
-        return int(node_status_int(self._node)) != 0
+        return status != 0
 
     @property
     def brightness(self) -> int | None:
         """Get the brightness of the ISY light."""
-        if node_status_int(self._node) is None:
+        status = node_status_int(self._node)
+        if status is None:
             return None
         # Special Case for ISY Z-Wave Devices using % instead of 0-255:
-        if (self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE):
-            return round(cast(float, node_status_int(self._node)) * 255.0 / 100.0)
-        return int(node_status_int(self._node))
+        if self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE:
+            return round(status * 255.0 / 100.0)
+        return status
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Send the turn off command to the light device."""
@@ -89,12 +91,15 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:
         """Save brightness in the update event from the ISY Node."""
-        if node_status_int(self._node):  # Not 0 or None
-            self._last_brightness = node_status_int(self._node)
-            if (self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE):
-                self._last_brightness = round(node_status_int(self._node) * 255.0 / 100.0)
+        status = node_status_int(self._node)
+        if status:  # Not 0 or None
+            if (
+                self._node.status is not None
+                and self._node.status.uom == UOM_PERCENTAGE
+            ):
+                self._last_brightness = round(status * 255.0 / 100.0)
             else:
-                self._last_brightness = node_status_int(self._node)
+                self._last_brightness = status
         super().async_on_update(event, key)
 
     async def async_turn_on(self, brightness: int | None = None, **kwargs: Any) -> None:
@@ -104,7 +109,9 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         # Z-Wave dimmers report uom as percent (0-100); convert from
         # HA's 0-255 brightness range before handing the value to
         # the editor-validated set_on_level wrapper.
-        if brightness is not None and (self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE):
+        if brightness is not None and (
+            self._node.status is not None and self._node.status.uom == UOM_PERCENTAGE
+        ):
             brightness = round(brightness * 100.0 / 255.0)
         try:
             if brightness is None:

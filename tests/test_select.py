@@ -26,6 +26,4 @@ async def test_select_entities(
     snapshot: SnapshotAssertion,
 ) -> None:
     """Snapshot every select entity created by the integration."""
-    await snapshot_platform(
-        hass, entity_registry, snapshot, init_integration.entry_id
-    )
+    await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)

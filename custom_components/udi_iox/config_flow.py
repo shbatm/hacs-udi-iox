@@ -98,7 +98,7 @@ def _build_auth(mode: str, username: str, password: str) -> PortalAuth | LocalAu
 async def validate_input(
     hass: core.HomeAssistant, data: dict[str, Any]
 ) -> dict[str, str]:
-    """Open a short-lived connection to confirm credentials and return entry metadata."""
+    """Open a short-lived connection to confirm creds and return entry metadata."""
     user = data[CONF_USERNAME]
     password = data[CONF_PASSWORD]
     host = data[CONF_HOST]
@@ -142,7 +142,7 @@ async def validate_input(
     }
 
 
-class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """Handle a config flow for Universal Devices IoX."""
 
     VERSION = 1

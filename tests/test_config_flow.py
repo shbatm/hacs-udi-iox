@@ -194,9 +194,7 @@ async def test_validate_input_picks_portal_auth_for_portal_mode(hass) -> None:
             pass
 
     with (
-        patch(
-            "custom_components.udi_iox.config_flow.Controller", FakeController
-        ),
+        patch("custom_components.udi_iox.config_flow.Controller", FakeController),
     ):
         await validate_input(hass, _build_user_input(CONF_AUTH_MODE=AUTH_MODE_PORTAL))
 
@@ -234,6 +232,4 @@ async def test_validate_input_rejects_non_http_scheme(hass) -> None:
     from custom_components.udi_iox.config_flow import InvalidHost, validate_input
 
     with pytest.raises(InvalidHost):
-        await validate_input(
-            hass, _build_user_input(**{CONF_HOST: "eisy.local:443"})
-        )
+        await validate_input(hass, _build_user_input(**{CONF_HOST: "eisy.local:443"}))

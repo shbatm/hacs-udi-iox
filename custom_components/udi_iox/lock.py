@@ -10,11 +10,9 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Node, NodeCommandError
+from pyisyox import Node, NodeCommandError, Program
 
 from .entity import ISYNodeEntity, ISYProgramEntity, NodeEventType, node_status_int
-from pyisyox import Program
-
 from .models import IsyConfigEntry
 from .services import async_setup_lock_services
 
@@ -86,15 +84,11 @@ class ISYLockEntity(ISYNodeEntity, LockEntity):
 
     async def async_set_zwave_lock_user_code(self, user_num: int, code: int) -> None:
         """Set a user lock code for a Z-Wave Lock — not supported."""
-        raise HomeAssistantError(
-            "Z-Wave lock user-code services are not supported"
-        )
+        raise HomeAssistantError("Z-Wave lock user-code services are not supported")
 
     async def async_delete_zwave_lock_user_code(self, user_num: int) -> None:
         """Delete a user lock code for a Z-Wave Lock — not supported."""
-        raise HomeAssistantError(
-            "Z-Wave lock user-code services are not supported"
-        )
+        raise HomeAssistantError("Z-Wave lock user-code services are not supported")
 
 
 class ISYLockProgramEntity(ISYProgramEntity, LockEntity):

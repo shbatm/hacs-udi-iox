@@ -19,6 +19,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from pyisyox import Node, NodePropertyValue
 from pyisyox.constants import (
     COMMAND_FRIENDLY_NAME,
     PROP_BATTERY_LEVEL,
@@ -31,7 +32,6 @@ from pyisyox.constants import (
     PROP_STATUS,
     PROP_TEMPERATURE,
 )
-from pyisyox import Node, NodePropertyValue
 
 from .const import (
     _LOGGER,

@@ -26,6 +26,4 @@ async def test_lock_entities(
     snapshot: SnapshotAssertion,
 ) -> None:
     """Snapshot every lock entity created by the integration."""
-    await snapshot_platform(
-        hass, entity_registry, snapshot, init_integration.entry_id
-    )
+    await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)

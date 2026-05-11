@@ -99,10 +99,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     try:
         async with asyncio.timeout(60):
             await controller.connect()
-    except asyncio.TimeoutError as err:
+    except TimeoutError as err:
         raise ConfigEntryNotReady(
-            "Timed out connecting to the IoX controller; trying again later:"
-            f" {err}"
+            f"Timed out connecting to the IoX controller; trying again later: {err}"
         ) from err
     except ISYInvalidAuthError as err:
         raise ConfigEntryAuthFailed(

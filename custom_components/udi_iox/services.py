@@ -163,9 +163,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         isy_name = call.data.get(CONF_ISY)
         targeted = list(_select_isy_data(hass, isy_name))
         if not targeted:
-            raise HomeAssistantError(
-                f"No IoX controller matched isy={isy_name!r}"
-            )
+            raise HomeAssistantError(f"No IoX controller matched isy={isy_name!r}")
         for _, isy_data in targeted:
             await isy_data.root.refresh()
 
@@ -186,9 +184,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
         targeted = list(_select_isy_data(hass, isy_name))
         if not targeted:
-            raise HomeAssistantError(
-                f"No IoX controller matched isy={isy_name!r}"
-            )
+            raise HomeAssistantError(f"No IoX controller matched isy={isy_name!r}")
         for _, isy_data in targeted:
             controller = isy_data.root
             if init:
@@ -221,9 +217,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
         targeted = list(_select_isy_data(hass, isy_name))
         if not targeted:
-            raise HomeAssistantError(
-                f"No IoX controller matched isy={isy_name!r}"
-            )
+            raise HomeAssistantError(f"No IoX controller matched isy={isy_name!r}")
 
         for _, isy_data in targeted:
             controller = isy_data.root
@@ -274,9 +268,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
         targeted = list(_select_isy_data(hass, isy_name))
         if not targeted:
-            raise HomeAssistantError(
-                f"No IoX controller matched isy={isy_name!r}"
-            )
+            raise HomeAssistantError(f"No IoX controller matched isy={isy_name!r}")
 
         # The schema enforces "at least one of name/address" — if
         # address is given, target it directly (cheaper than resolving
@@ -295,9 +287,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 await controller.run_network_resource(resource_id)
                 continue
             # Resolve by name — first match wins.
-            match = next(
-                (r for r in resources.values() if r.name == name), None
-            )
+            match = next((r for r in resources.values() if r.name == name), None)
             if match is None:
                 raise HomeAssistantError(
                     f"No network resource named {name!r} on this controller"

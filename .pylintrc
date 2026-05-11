@@ -20,4 +20,17 @@ disable=
     too-many-arguments,
     duplicate-code,
     too-many-return-statements,
-    too-many-positional-arguments
+    too-many-positional-arguments,
+    too-many-locals,
+    # ``ToggleEntity``/etc. abstract sync methods are overridden by their
+    # async counterparts (the canonical HA pattern); pylint can't see this.
+    abstract-method,
+    # E1120/E1123 mis-fire on the v6 entity mixin hierarchy + dataclass
+    # ``EntityDescription`` kwargs; mypy is authoritative for those.
+    no-value-for-parameter,
+    unexpected-keyword-arg,
+    # ``service_info.{dhcp,ssdp}`` was added to HA in mid-2025; older HA
+    # versions on developer machines don't expose the submodules even
+    # though they exist at consumer-runtime.
+    import-error,
+    no-name-in-module

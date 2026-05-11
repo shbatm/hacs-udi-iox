@@ -180,9 +180,7 @@ class ISYNodeEntity(ISYEntity):
         device_info: DeviceInfo | None = None,
     ) -> None:
         """Initialize the IoX node entity."""
-        super().__init__(
-            isy_data, node, device_info=device_info, unique_id=unique_id
-        )
+        super().__init__(isy_data, node, device_info=device_info, unique_id=unique_id)
         self._control = control
         if description is not None:
             self.entity_description = description
@@ -218,9 +216,7 @@ class ISYNodeEntity(ISYEntity):
                 self._node.address, self._control, self._on_node_event
             )
         )
-        self._unsubscribers.append(
-            events.subscribe_lifecycle(self._on_lifecycle)
-        )
+        self._unsubscribers.append(events.subscribe_lifecycle(self._on_lifecycle))
 
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:
@@ -246,8 +242,6 @@ class ISYNodeEntity(ISYEntity):
         unifies on Node.send_command — translate friendly names to the
         canonical IoX command id and let the editor codec validate.
         """
-        from pyisyox.constants import COMMAND_FRIENDLY_NAME
-
         # Reverse the friendly-name → IoX-id map.
         friendly_to_id = {v: k for k, v in COMMAND_FRIENDLY_NAME.items()}
         cmd_id = friendly_to_id.get(command, command)
@@ -271,17 +265,13 @@ class ISYNodeEntity(ISYEntity):
 
     async def async_get_zwave_parameter(self, parameter: int) -> None:
         """Z-Wave parameter read — not supported."""
-        raise HomeAssistantError(
-            "Z-Wave parameter services are not supported"
-        )
+        raise HomeAssistantError("Z-Wave parameter services are not supported")
 
     async def async_set_zwave_parameter(
         self, parameter: int, value: int, size: int
     ) -> None:
         """Z-Wave parameter write — not supported."""
-        raise HomeAssistantError(
-            "Z-Wave parameter services are not supported"
-        )
+        raise HomeAssistantError("Z-Wave parameter services are not supported")
 
     async def async_rename_node(self, name: str) -> None:
         """Rename the underlying node on the controller.
@@ -304,7 +294,7 @@ class ISYProgramEntity(ISYEntity):
     that path.
     """
 
-    _node: Program  # noqa: F821 — Program is imported above
+    _node: Program
     _actions: Program | None
 
     def __init__(

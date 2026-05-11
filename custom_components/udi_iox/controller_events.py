@@ -83,9 +83,7 @@ class IsyControllerEvents:
         # Per-(address, control) registry. control == None matches every
         # control for that address (used when an entity wants every
         # update, e.g. binary sensors that re-evaluate on any change).
-        self._node_listeners: dict[
-            tuple[str, str | None], list[NodeEventCallback]
-        ] = {}
+        self._node_listeners: dict[tuple[str, str | None], list[NodeEventCallback]] = {}
         # All-lifecycle listeners; consumers filter by address inside
         # the callback (cheap — lifecycle events are rare).
         self._lifecycle_listeners: list[LifecycleCallback] = []
@@ -145,9 +143,7 @@ class IsyControllerEvents:
         return _unsubscribe
 
     @callback
-    def subscribe_lifecycle(
-        self, listener: LifecycleCallback
-    ) -> Callable[[], None]:
+    def subscribe_lifecycle(self, listener: LifecycleCallback) -> Callable[[], None]:
         """Register a callback for every NodeLifecycleEvent."""
         self._lifecycle_listeners.append(listener)
 
@@ -274,7 +270,11 @@ class IsyControllerEvents:
             if platform
             else None
         )
-        payload = asdict(event) if is_dataclass(event) else {"event": repr(event)}
+        payload = (
+            asdict(event)
+            if is_dataclass(event) and not isinstance(event, type)
+            else {"event": repr(event)}
+        )
         self.hass.bus.async_fire(
             EVENT_UDI_IOX_CONTROL, {"entity_id": entity_id, **payload}
         )
@@ -292,9 +292,7 @@ class IsyControllerEvents:
             try:
                 listener(event)
             except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception(
-                    "IoX wildcard listener for %s raised", address
-                )
+                _LOGGER.exception("IoX wildcard listener for %s raised", address)
 
     @callback
     def _dispatch_variable_event(self, event: Event) -> None:
@@ -309,7 +307,7 @@ class IsyControllerEvents:
             root = ET.fromstring(f"<wrap>{event_info}</wrap>")  # noqa: S314
         except ET.ParseError:
             _LOGGER.debug(
-                "IoX variable event_info unparseable; dropping (control=%s action=%s)",
+                "IoX variable event_info unparsable; dropping (control=%s action=%s)",
                 event.control,
                 event.action,
             )
@@ -342,9 +340,7 @@ class IsyControllerEvents:
         if value is None and init is None:
             return
 
-        for listener in tuple(
-            self._variable_listeners.get((var_type, var_id), ())
-        ):
+        for listener in tuple(self._variable_listeners.get((var_type, var_id), ())):
             try:
                 listener(value, init)
             except Exception:  # pylint: disable=broad-except
@@ -391,14 +387,10 @@ class IsyControllerEvents:
             try:
                 listener(event)
             except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception(
-                    "IoX program listener for %s raised", event.address
-                )
+                _LOGGER.exception("IoX program listener for %s raised", event.address)
 
     @callback
-    def _raise_reload_repair(
-        self, event: NodeLifecycleEvent, verb: str
-    ) -> None:
+    def _raise_reload_repair(self, event: NodeLifecycleEvent, verb: str) -> None:
         """Create or refresh the lifecycle-reload Repair issue.
 
         Coalesces by entry_id: subsequent reload-required events while

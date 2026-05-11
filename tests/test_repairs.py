@@ -53,9 +53,7 @@ async def test_create_fix_flow_rejects_unknown_issue_id(hass: HomeAssistant) -> 
 async def test_create_fix_flow_rejects_missing_entry_data(hass: HomeAssistant) -> None:
     """No data → can't resolve entry → don't pretend we have a flow."""
     with pytest.raises(ValueError):
-        await async_create_fix_flow(
-            hass, "lifecycle_reload_required.abc-entry", None
-        )
+        await async_create_fix_flow(hass, "lifecycle_reload_required.abc-entry", None)
 
 
 async def test_confirm_step_reloads_entry(hass: HomeAssistant, fake_entry) -> None:

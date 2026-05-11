@@ -202,9 +202,7 @@ class FakeController:
 
         return _unsub
 
-    def add_node_lifecycle_listener(
-        self, callback: Callable
-    ) -> Callable[[], None]:
+    def add_node_lifecycle_listener(self, callback: Callable) -> Callable[[], None]:
         self._lifecycle_listeners.append(callback)
 
         def _unsub() -> None:
@@ -215,9 +213,7 @@ class FakeController:
 
         return _unsub
 
-    def add_program_status_listener(
-        self, callback: Callable
-    ) -> Callable[[], None]:
+    def add_program_status_listener(self, callback: Callable) -> Callable[[], None]:
         self._program_status_listeners.append(callback)
 
         def _unsub() -> None:
