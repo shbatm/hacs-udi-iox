@@ -179,13 +179,20 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
         if self.entity_description.native_unit_of_measurement == PERCENTAGE:
-            # HA passes 0-100; scale to whatever the editor accepts.
-            # Editor max > 100 → raw byte editor (Insteon classic), scale
-            # 0-100 → 1-255. Editor max ≤ 100 (or unresolvable) → pass
-            # the percentage through; pyisyox's codec validates either
-            # way and surfaces the error if we got it wrong.
-            editor_max = self._editor_max_for(self._control)
-            if editor_max is not None and editor_max > 100:
+            # HA passes 0-100. Scale into whatever the editor accepts:
+            # only the raw-byte-with-full-byte-range case needs the
+            # percent → (1, 255) conversion. Percentage editors (uom 51)
+            # and byte-but-capped editors (uom 100, max ≤ 100 as on
+            # KeypadDimmer_ADV) accept the user's percent value as-is.
+            # If the editor can't be resolved, pass through and let the
+            # codec surface any range error.
+            rng = self._editor_range_for(self._control)
+            if (
+                rng is not None
+                and rng.uom == UOM_8_BIT_RANGE
+                and rng.max is not None
+                and rng.max > 100
+            ):
                 value = percentage_to_ranged_value(ON_RANGE, round(value))
         if self._control == PROP_ON_LEVEL:
             await self._node.set_on_level(int(value))

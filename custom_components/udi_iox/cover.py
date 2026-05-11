@@ -104,12 +104,17 @@ class ISYCoverEntity(ISYNodeEntity, CoverEntity):
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Move the cover to a specific position."""
         position = kwargs[ATTR_POSITION]
-        # HA gives 0-100 position; scale to whatever the OL editor on
-        # this node accepts. Editor max > 100 → raw byte editor (classic
-        # Insteon shade/relay), scale to 1-255. Editor max ≤ 100 (or
-        # unresolvable) → pass the percentage through.
-        editor_max = self._editor_max_for(PROP_ON_LEVEL)
-        if editor_max is not None and editor_max > 100:
+        # HA gives 0-100 position. Scale up to 0-255 only when the editor
+        # is a raw-byte range using the full 0-255 (classic Insteon).
+        # Percent editors and byte-capped 0-100 ranges accept the user's
+        # 0-100 as-is. Unresolvable → pass through.
+        rng = self._editor_range_for(PROP_ON_LEVEL)
+        if (
+            rng is not None
+            and rng.uom == UOM_8_BIT_RANGE
+            and rng.max is not None
+            and rng.max > 100
+        ):
             position = round(position * 255.0 / 100.0)
         try:
             await self._node.set_on_level(position)

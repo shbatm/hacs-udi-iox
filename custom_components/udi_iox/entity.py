@@ -23,6 +23,7 @@ from pyisyox.constants import (
     ISY_VALUE_UNKNOWN,
     PROP_STATUS,
 )
+from pyisyox.schema.editor import EditorRange
 from pyisyox.schema.nodedef import NodeDef
 
 from .const import DOMAIN
@@ -337,21 +338,32 @@ class ISYNodeEntity(ISYEntity):
         """
         await self._node.rename(name)
 
-    def _editor_max_for(self, control: str) -> float | None:
-        """Return the write-side editor's max for ``control`` on this node.
+    def _editor_range_for(self, control: str) -> EditorRange | None:
+        """Return the write-side editor range for ``control`` on this node.
 
         Editor resolution is determined by the **control's** ``editor_id``
         (looked up via the property on this node's nodedef, then resolved
         against the profile scoped to ``(family_id, instance_id)``). The
         nodedef is just the bag holding the property definitions; the
-        editor reference is on the property itself, and the same control
-        id can resolve to different editors on different nodedefs:
-        KeypadDimmer_ADV's ``I_OL`` accepts ``max=100`` (percentage)
-        while a classic DimmerSwitch_ADV's ``I_OL`` accepts ``max=255``
-        (raw byte).
+        editor reference is on the property itself, so the same control
+        id can resolve to different editors — and different ranges —
+        on different nodedefs.
 
-        Returns ``None`` when the editor can't be resolved — callers
-        should not scale and let pyisyox's codec surface any range error.
+        Callers should inspect both ``uom`` and ``max``:
+
+        * ``uom == UOM_PERCENTAGE`` (51) → editor accepts 0-100 percent.
+        * ``uom == UOM_8_BIT_RANGE`` (100) → editor accepts raw bytes;
+          ``max`` tells you whether the device uses the full 0-255
+          range (classic Insteon SwitchLinc) or a constrained subset
+          like 0-100 (KeypadDimmer_ADV — byte-semantically but only the
+          lower portion is valid).
+        * ``names`` non-empty → enum / discrete values; the entity
+          probably should be a SELECT rather than a NUMBER. The
+          classifier currently maps controls to platforms statically
+          (see helpers.NODE_AUX_FILTERS) and ignores this; the editor
+          shape should drive that decision in a future refactor.
+
+        Returns ``None`` when the editor can't be resolved.
         """
         if (nodedef := self._node.nodedef) is None:
             return None
@@ -362,7 +374,7 @@ class ISYNodeEntity(ISYEntity):
         )
         if editor is None or not editor.ranges:
             return None
-        return editor.ranges[0].max
+        return editor.ranges[0]
 
 
 class ISYProgramEntity(ISYEntity):

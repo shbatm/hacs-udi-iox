@@ -112,13 +112,15 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         if self._restore_light_state and brightness is None and self._last_brightness:
             brightness = self._last_brightness
         if brightness is not None:
-            # HA gives brightness in 0-255; scale it to whatever the OL
-            # editor on this node accepts. Editor max ≤ 100 means the
-            # device wants percentage (Z-Wave, KeypadDimmer_ADV); > 100
-            # means raw byte (classic Insteon SwitchLinc). Unresolvable
-            # → pass through and let pyisyox's codec surface the error.
-            editor_max = self._editor_max_for(PROP_ON_LEVEL)
-            if editor_max is not None and editor_max <= 100:
+            # HA gives brightness in 0-255. Scale down to 0-100 when the
+            # editor expects percent (uom 51) or a byte-capped 0-100
+            # subset (uom 100, max ≤ 100 — KeypadDimmer_ADV). Classic
+            # Insteon SwitchLinc keeps the full 0-255 range so we pass
+            # through. Unresolvable → pass through, codec surfaces error.
+            rng = self._editor_range_for(PROP_ON_LEVEL)
+            if rng is not None and (
+                rng.uom == UOM_PERCENTAGE or (rng.max is not None and rng.max <= 100)
+            ):
                 brightness = round(brightness * 100.0 / 255.0)
         try:
             if brightness is None:
