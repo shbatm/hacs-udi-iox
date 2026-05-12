@@ -27,3 +27,59 @@ async def test_fan_entities(
 ) -> None:
     """Snapshot every fan entity created by the integration."""
     await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)
+
+
+async def test_fanlinc_speed_driven_by_st_editor() -> None:
+    """``FanLincMotor``'s ``ST`` editor (``I_FLM_LVL``) enumerates
+    ``0/25/75/100`` ⇒ Off/Low/Medium/High. The fan exposes 3 ordered
+    speeds, reads back the percentage matching the reported step, and a
+    set command is sent as one of the on-list values (never an off-list
+    value the controller's editor would reject) via ``DON``."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.util.percentage import ordered_list_item_to_percentage
+    from pyisyox import NodePropertyValue
+    from pyisyox.constants import CMD_OFF, CMD_ON
+
+    from custom_components.udi_iox.fan import ISYFanEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    record = make_node_record(
+        "EE EE EE 2",
+        "FanLinc Motor",
+        nodedef_id="FanLincMotor",
+        type_="1.46.0.0",
+        properties={
+            "ST": NodePropertyValue(
+                id="ST", value="75", formatted="Medium", uom="51", name="Status"
+            )
+        },
+    )
+    node = make_node(record, controller)
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYFanEntity(isy_data, node=node, device_info=None)
+
+    assert entity.speed_count == 3
+    entity._update_fan_attrs()  # no hass to drive it
+    assert entity.is_on is True
+    assert entity.percentage == ordered_list_item_to_percentage([25, 75, 100], 75)
+
+    send = AsyncMock()
+    with patch.object(type(node), "send_command", send):
+        await entity.async_set_percentage(100)  # High
+        await entity.async_set_percentage(1)  # smallest non-zero -> Low (25)
+        await entity.async_set_percentage(0)  # Off
+
+    assert [c.args for c in send.await_args_list] == [
+        (CMD_ON, 100),
+        (CMD_ON, 25),
+        (CMD_OFF,),
+    ]
