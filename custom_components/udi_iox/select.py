@@ -16,6 +16,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from pyisyox import (
+    DeviceWriteAction,
     Event,
     Node,
     NodeCommandError,
@@ -30,7 +31,7 @@ from pyisyox.constants import (
     UOM_TO_STATES,
 )
 
-from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, CONTROL_DEVICE_MEMORY, UOM_INDEX
+from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, UOM_INDEX
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
@@ -185,13 +186,13 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
             self._attr_current_option = last_state.state
 
         # The Insteon backlight memory write echoes back as a control
-        # event with the wire code "_7M" (CONTROL_DEVICE_MEMORY).
+        # event with the wire code "_7M" (DeviceWriteAction.MEMORY).
         # Subscribe to that control on this node and filter inside the
         # callback — rare enough that the cost is irrelevant.
         self._unsubscribers.append(
             self._isy_data.controller_events.subscribe_node(
                 self._node.address,
-                CONTROL_DEVICE_MEMORY,
+                DeviceWriteAction.MEMORY,
                 self._on_memory_write,
             )
         )

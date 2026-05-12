@@ -29,6 +29,7 @@ from homeassistant.util.percentage import (
     ranged_value_to_percentage,
 )
 from pyisyox import (
+    DeviceWriteAction,
     Event,
     Node,
     NodeCommandError,
@@ -40,7 +41,7 @@ from pyisyox.constants import (
     PROP_ON_LEVEL,
 )
 
-from .const import BACKLIGHT_MEMORY_FILTER, CONTROL_DEVICE_MEMORY, UOM_8_BIT_RANGE
+from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
@@ -348,7 +349,7 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
         self._unsubscribers.append(
             self._isy_data.controller_events.subscribe_node(
                 self._node.address,
-                CONTROL_DEVICE_MEMORY,
+                DeviceWriteAction.MEMORY,
                 self._on_memory_write,
             )
         )

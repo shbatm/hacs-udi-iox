@@ -584,12 +584,4 @@ HTTP_PORT = 80
 SCHEME_HTTPS = "https"
 HTTPS_PORT = 443
 
-#: Control id of the raw-Insteon memory-write echo (PyISY 3.x surfaced
-#: this as ``NodeChangeAction.DEVICE_MEMORY``; pyisyox 6.x dropped the
-#: enum — the wire code is stable). The event carries
-#: ``memory``/``cmd1``/``cmd2``/``value`` in its eventInfo; backlight
-#: number/select entities subscribe to it and filter on
-#: :data:`BACKLIGHT_MEMORY_FILTER`.
-CONTROL_DEVICE_MEMORY = "_7M"
-
 BACKLIGHT_MEMORY_FILTER = {"memory": DEV_BL_ADDR, "cmd1": DEV_CMD_MEMORY_WRITE}
