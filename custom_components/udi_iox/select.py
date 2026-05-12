@@ -25,7 +25,6 @@ from pyisyox import (
     NodePropertyValue,
 )
 from pyisyox.constants import (
-    BACKLIGHT_INDEX,
     CMD_BACKLIGHT,
     INSTEON_RAMP_RATES,
     PROP_RAMP_RATE,
@@ -54,15 +53,14 @@ def _select_options(isy_data: IsyData, node: Node, control: str) -> list[str]:
     The control's *editor* is the source of truth: ``names`` (narrowed
     by ``subset`` — only the listed raw ints are valid, including combo
     specs like ``0-2,6,7``) gives the option strings in raw-int order.
-    ``UOM_TO_STATES`` is the fallback for the few index UOMs that lean
-    on the global table rather than per-editor names (slated to be
-    retired once everything resolves from editors); RAMP_RATE and
-    BACKLIGHT keep their bespoke tables.
+    That covers the keypad backlight too (``I_BL_KP`` carries the full
+    0-127 "On N / Off M" ``names`` table). ``UOM_TO_STATES`` is the
+    fallback for the few index UOMs that lean on the global table rather
+    than per-editor names (slated to be retired once everything resolves
+    from editors); RAMP_RATE keeps its bespoke table.
     """
     if control == PROP_RAMP_RATE:
         return RAMP_RATE_OPTIONS
-    if control == CMD_BACKLIGHT:
-        return list(BACKLIGHT_INDEX)
     rng = range_for_control(isy_data.root, node, control)
     if rng is not None and rng.names:
         keys = sorted(rng.subset) if rng.subset else sorted(rng.names)
@@ -284,7 +282,12 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
             return
         if value is None:
             return
-        option = BACKLIGHT_INDEX[value]
+        rng = self._editor_range_for(self._control)
+        try:
+            raw = int(value)
+            option = rng.names[raw] if rng is not None and rng.names else str(raw)
+        except (KeyError, TypeError, ValueError):
+            return
         if option == self._attr_current_option:
             return
         self._attr_current_option = option
