@@ -27,6 +27,12 @@ from .models import IsyConfigEntry, IsyData
 #: occasionally reuse the verb.
 _IDENTIFY_COMMANDS = frozenset({"BEEP"})
 
+#: Accept-command buttons created disabled by default — low-traffic
+#: maintenance verbs (``WDU`` "Write Changes" commits queued config to
+#: an Insteon device's EEPROM) that most users never press. They stay
+#: discoverable in the entity registry for those who want them.
+_DISABLED_BY_DEFAULT_COMMANDS = frozenset({"WDU"})
+
 
 def _command_label(node: Node, command_id: str) -> str:
     """Friendly label for a plugin accept command, from the nodedef."""
@@ -245,6 +251,8 @@ class ISYNodeCommandButtonEntity(ISYNodeButtonEntity):
         self._command_id = command_id
         if command_id in _IDENTIFY_COMMANDS:
             self._attr_device_class = ButtonDeviceClass.IDENTIFY
+        if command_id in _DISABLED_BY_DEFAULT_COMMANDS:
+            self._attr_entity_registry_enabled_default = False
 
     async def async_press(self) -> None:
         """Press the button — send the verb with no arguments."""
