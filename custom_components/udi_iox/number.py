@@ -38,10 +38,9 @@ from pyisyox import (
 from pyisyox.constants import (
     CMD_BACKLIGHT,
     PROP_ON_LEVEL,
-    NodeChangeAction,
 )
 
-from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
+from .const import BACKLIGHT_MEMORY_FILTER, CONTROL_DEVICE_MEMORY, UOM_8_BIT_RANGE
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
@@ -349,7 +348,7 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
         self._unsubscribers.append(
             self._isy_data.controller_events.subscribe_node(
                 self._node.address,
-                NodeChangeAction.DEVICE_MEMORY,
+                CONTROL_DEVICE_MEMORY,
                 self._on_memory_write,
             )
         )

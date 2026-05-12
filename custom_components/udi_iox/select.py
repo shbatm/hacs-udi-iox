@@ -28,10 +28,9 @@ from pyisyox.constants import (
     INSTEON_RAMP_RATES,
     PROP_RAMP_RATE,
     UOM_TO_STATES,
-    NodeChangeAction,
 )
 
-from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, UOM_INDEX
+from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, CONTROL_DEVICE_MEMORY, UOM_INDEX
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
@@ -186,13 +185,13 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
             self._attr_current_option = last_state.state
 
         # The Insteon backlight memory write echoes back as a control
-        # event with DEVICE_MEMORY's wire code ("_7M"). Subscribe to
-        # all events on this node and filter inside the callback —
-        # rare enough that the cost is irrelevant.
+        # event with the wire code "_7M" (CONTROL_DEVICE_MEMORY).
+        # Subscribe to that control on this node and filter inside the
+        # callback — rare enough that the cost is irrelevant.
         self._unsubscribers.append(
             self._isy_data.controller_events.subscribe_node(
                 self._node.address,
-                NodeChangeAction.DEVICE_MEMORY,
+                CONTROL_DEVICE_MEMORY,
                 self._on_memory_write,
             )
         )
