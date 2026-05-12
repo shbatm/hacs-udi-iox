@@ -138,55 +138,25 @@ PLATFORMS = {
     *VARIABLE_PLATFORMS,
 }
 
-SUPPORTED_BIN_SENS_CLASSES = ["moisture", "opening", "motion", "climate"]
-
-# ISY Scenes are more like Switches than Home Assistant Scenes
-# (they can turn off, and report their state)
-ISY_GROUP_PLATFORM = Platform.SWITCH
-
 ISY_CONF_UUID = "uuid"
-ISY_CONF_NAME = "name"
-ISY_CONF_MODEL = "model"
-ISY_CONF_FIRMWARE = "firmware"
-
-ISY_CONN_PORT = "port"
-ISY_CONN_ADDRESS = "addr"
-ISY_CONN_TLS = "tls"
 
 # Special Subnodes for some Insteon Devices
 SUBNODE_CLIMATE_COOL = 2
 SUBNODE_CLIMATE_HEAT = 3
 SUBNODE_DUSK_DAWN = 2
-SUBNODE_EZIO2X4_SENSORS = [9, 10, 11, 12]
-SUBNODE_FANLINC_LIGHT = 1
 SUBNODE_HEARTBEAT = 4
-SUBNODE_IOLINC_RELAY = 2
 SUBNODE_LOW_BATTERY = 3
 SUBNODE_MOTION_DISABLED = (13, 19)  # Int->13 or Hex->0xD depending on firmware
 SUBNODE_NEGATIVE = 2
 SUBNODE_TAMPER = (10, 16)  # Int->10 or Hex->0xA depending on firmware
 
 # Generic Insteon Type Categories for Filters
-TYPE_CATEGORY_CONTROLLERS = "0."
-TYPE_CATEGORY_DIMMABLE = "1."
-TYPE_CATEGORY_SWITCHED = "2."
-TYPE_CATEGORY_IRRIGATION = "4."
 TYPE_CATEGORY_CLIMATE = "5."
-TYPE_CATEGORY_POOL_CTL = "6."
-TYPE_CATEGORY_SENSOR_ACTUATORS = "7."
-TYPE_CATEGORY_ENERGY_MGMT = "9."
-TYPE_CATEGORY_COVER = "14."
-TYPE_CATEGORY_LOCK = "15."
-TYPE_CATEGORY_SAFETY = "16."
-TYPE_CATEGORY_X10 = "113."
-
-TYPE_EZIO2X4 = "7.3.255."
 TYPE_INSTEON_MOTION = ("16.1.", "16.22.")
 
 # Used for discovery
 UDN_UUID_PREFIX = "uuid:"
 ISY_URL_POSTFIX = "/desc"
-EVENTS_SUFFIX = "_ISYSUB"
 
 # Special Units of Measure
 UOM_ISYV4_DEGREES = "degrees"
