@@ -216,11 +216,25 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
         return bool(self._node.enabled)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Send the turn off command to the ISY switch."""
-        if not await self._node.disable():
-            raise HomeAssistantError(f"Unable to disable device {self._node.address}")
+        """Disable the node on the controller."""
+        await self._async_set_enabled(False)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Send the turn on command to the ISY switch."""
-        if not await self._node.enable():
-            raise HomeAssistantError(f"Unable to enable device {self._node.address}")
+        """Re-enable the node on the controller."""
+        await self._async_set_enabled(True)
+
+    async def _async_set_enabled(self, enabled: bool) -> None:
+        """Toggle the node's controller-side enabled flag.
+
+        ``Node.set_enabled`` updates the node record optimistically on
+        success, so ``is_on`` reflects the change immediately; the
+        controller also pushes a lifecycle ``EN`` event.
+        """
+        try:
+            await self._node.set_enabled(enabled)
+        except Exception as err:  # pylint: disable=broad-except
+            verb = "enable" if enabled else "disable"
+            raise HomeAssistantError(
+                f"Unable to {verb} device {self._node.address}: {err}"
+            ) from err
+        self.async_write_ha_state()
