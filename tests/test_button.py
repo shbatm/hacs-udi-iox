@@ -30,8 +30,10 @@ async def test_button_entities(
 
 
 def test_command_button_disabled_by_default_for_maintenance_verbs() -> None:
-    """``WDU`` ("Write Changes") buttons are created disabled by default —
-    a low-traffic maintenance verb — while everyday verbs are enabled."""
+    """``WDU`` ("Write Changes") plus the Insteon "fast on/off" and
+    momentary paddle verbs (``DFON``/``DFOF``/``BRT``/``DIM``/``FDUP``/
+    ``FDDOWN``/``FDSTOP``) are created disabled by default, while
+    everyday verbs are enabled."""
     from custom_components.udi_iox.button import ISYNodeCommandButtonEntity
     from custom_components.udi_iox.models import IsyData
     from tests.builders import (
@@ -55,5 +57,7 @@ def test_command_button_disabled_by_default_for_maintenance_verbs() -> None:
             device_info=None,  # type: ignore[arg-type]
         )
 
-    assert _button("WDU").entity_registry_enabled_default is False
+    for verb in ("WDU", "DFON", "DFOF", "BRT", "DIM", "FDUP", "FDDOWN", "FDSTOP"):
+        assert _button(verb).entity_registry_enabled_default is False, verb
     assert _button("DISCOVER").entity_registry_enabled_default is True
+    assert _button("BEEP").entity_registry_enabled_default is True
