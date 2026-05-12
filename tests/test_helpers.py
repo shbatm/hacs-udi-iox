@@ -158,12 +158,27 @@ def test_subbutton_dimmer_paddle_keeps_light_classification(
 
 
 def test_root_load_keeps_switch_classification(isy_data, options, controller):
-    """Root SWITCH-shape Insteon node → SWITCH + EVENT, NOT suppressed."""
-    node = _node(controller, "AA BB CC 1", target="switch")
+    """Root SWITCH-shape Insteon node whose nodedef declares sent verbs
+    → SWITCH + EVENT, NOT suppressed. ``KeypadRelay`` sends the seven
+    press/fast/fade verbs."""
+    node = _node(controller, "AA BB CC 1", nodedef_id="KeypadRelay")
     _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.SWITCH] == [node]
     assert isy_data.nodes[Platform.EVENT] == [node]
+    assert isy_data.node_triggers["AA BB CC 1"]
+
+
+def test_load_without_sent_verbs_skips_event(isy_data, options, controller):
+    """A node whose nodedef declares no ``cmds.sends`` (e.g. the
+    ``RelayLampOnly`` load node) gets its primary entity but no EVENT
+    entity — there's nothing for it to fire."""
+    node = _node(controller, "AA BB CC 1", target="switch")
+    _categorize(isy_data, node, options, controller=controller)
+
+    assert isy_data.nodes[Platform.SWITCH] == [node]
+    assert isy_data.nodes[Platform.EVENT] == []
+    assert "AA BB CC 1" not in isy_data.node_triggers
 
 
 def test_subbutton_non_insteon_not_suppressed(isy_data, options, controller):

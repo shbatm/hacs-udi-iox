@@ -47,6 +47,11 @@ class IsyData:
     net_resources: list[NetworkResource]
     devices: dict[str, DeviceInfo]
     aux_properties: dict[Platform, list[tuple[Node, str]]]
+    # Per-EVENT-node trigger vocabulary: node address -> the wire command
+    # ids the node emits (native Insteon press/fast/fade verbs, or a PG3
+    # plugin's ``cmds.sends`` verbs). Consumed by ``event.py`` to derive
+    # each entity's ``event_types``.
+    node_triggers: dict[str, list[str]]
     controller_events: IsyControllerEvents
 
     def __init__(self) -> None:
@@ -59,6 +64,7 @@ class IsyData:
         self.variables = {p: [] for p in VARIABLE_PLATFORMS}
         self.net_resources = []
         self.devices = {}
+        self.node_triggers = {}
 
     @property
     def uuid(self) -> str:

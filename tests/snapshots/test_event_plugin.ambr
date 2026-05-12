@@ -1,18 +1,13 @@
 # serializer version: 1
-# name: test_event_entities[event.hallway_light_hallway_button_b-entry]
+# name: test_event_plugin_entities[event.front_doorbell-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
     'area_id': None,
     'capabilities': dict({
       'event_types': list([
-        'on',
-        'off',
-        'fast_off',
-        'fast_on',
-        'fade_up',
-        'fade_down',
-        'fade_stop',
+        'doorbell_press',
+        'motion_on',
       ]),
     }),
     'config_entry_id': <ANY>,
@@ -21,7 +16,7 @@
     'disabled_by': None,
     'domain': 'event',
     'entity_category': None,
-    'entity_id': 'event.hallway_light_hallway_button_b',
+    'entity_id': 'event.front_doorbell',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -31,35 +26,29 @@
     'name': None,
     'options': dict({
     }),
-    'original_device_class': <EventDeviceClass.BUTTON: 'button'>,
+    'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Hallway Button B',
+    'original_name': None,
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
     'translation_key': 'button',
-    'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 2_button',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_n102_bell_button',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_event_entities[event.hallway_light_hallway_button_b-state]
+# name: test_event_plugin_entities[event.front_doorbell-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'button',
       'event_type': None,
       'event_types': list([
-        'on',
-        'off',
-        'fast_off',
-        'fast_on',
-        'fade_up',
-        'fade_down',
-        'fade_stop',
+        'doorbell_press',
+        'motion_on',
       ]),
-      'friendly_name': 'Hallway Light Hallway Button B',
+      'friendly_name': 'Front Doorbell',
     }),
     'context': <ANY>,
-    'entity_id': 'event.hallway_light_hallway_button_b',
+    'entity_id': 'event.front_doorbell',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
