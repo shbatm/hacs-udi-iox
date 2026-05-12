@@ -1,7 +1,11 @@
 """IoX services.
 
 * ``send_node_command`` — friendly-named entity command, dispatched
-  through :meth:`ISYNodeEntity.async_send_node_command`.
+  through :meth:`ISYNodeEntity.async_send_node_command`. The command id
+  is validated against the node's nodedef accept set before it's sent.
+* ``get_node_commands`` — response-only entity service returning the
+  node's accepted-command vocabulary (wire ids + friendly names), read
+  just-in-time from the nodedef.
 * ``set_variable`` — writes through
   :meth:`pyisyox.Controller.set_variable_value` /
   :meth:`set_variable_init`.
@@ -23,8 +27,15 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_TYPE,
 )
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.service import entity_service_call
 from pyisyox import ProgramCommand
@@ -47,6 +58,7 @@ INTEGRATION_SERVICES = [
 
 # Entity-targeting services (light, switch, climate, fan, cover, lock, etc.)
 SERVICE_SEND_NODE_COMMAND = "send_node_command"
+SERVICE_GET_NODE_COMMANDS = "get_node_commands"
 SERVICE_RENAME_NODE = "rename_node"
 
 CONF_VALUE = "value"
@@ -130,6 +142,19 @@ SERVICE_RUN_NETWORK_RESOURCE_SCHEMA = vol.All(
         }
     ),
 )
+
+
+def async_get_entities(hass: HomeAssistant) -> dict[str, Entity]:
+    """Collect every udi_iox entity across all platforms, keyed by entity_id.
+
+    ``entity_service_call`` wants a ``dict[str, Entity]`` (or a callable
+    returning one); handing it the raw platform list it used to accept
+    now raises ``AttributeError: 'list' object has no attribute 'get'``.
+    """
+    entities: dict[str, Entity] = {}
+    for platform in async_get_platforms(hass, DOMAIN):
+        entities.update(platform.entities)
+    return entities
 
 
 def _select_isy_data(hass: HomeAssistant, isy_name: str | None):
@@ -303,7 +328,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def _async_send_node_command(call: ServiceCall) -> None:
         await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_send_node_command", call
+            hass, async_get_entities(hass), "async_send_node_command", call
         )
 
     hass.services.async_register(
@@ -313,9 +338,22 @@ def async_setup_services(hass: HomeAssistant) -> None:
         service_func=_async_send_node_command,
     )
 
+    async def _async_get_node_commands(call: ServiceCall) -> ServiceResponse:
+        return await entity_service_call(
+            hass, async_get_entities(hass), "async_get_node_commands", call
+        )
+
+    hass.services.async_register(
+        domain=DOMAIN,
+        service=SERVICE_GET_NODE_COMMANDS,
+        schema=cv.make_entity_service_schema({}),
+        service_func=_async_get_node_commands,
+        supports_response=SupportsResponse.ONLY,
+    )
+
     async def _async_rename_node(call: ServiceCall) -> None:
         await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_rename_node", call
+            hass, async_get_entities(hass), "async_rename_node", call
         )
 
     hass.services.async_register(

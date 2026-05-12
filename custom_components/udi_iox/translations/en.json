@@ -93,6 +93,10 @@
         }
       }
     },
+    "get_node_commands": {
+      "name": "Get node commands",
+      "description": "Return the IoX commands a node accepts. The response's 'accepted_commands' maps each canonical wire id (e.g. DON, OL, BEEP — what 'Send raw node command' expects) to its human-readable name."
+    },
     "rename_node": {
       "name": "Rename node",
       "description": "Rename the underlying IoX node or scene. The controller emits a lifecycle event afterwards; the integration's Repair card will prompt you to reload so HA's caches catch up.",
