@@ -35,6 +35,7 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.service import entity_service_call
 from pyisyox import ProgramCommand
@@ -141,6 +142,19 @@ SERVICE_RUN_NETWORK_RESOURCE_SCHEMA = vol.All(
         }
     ),
 )
+
+
+def async_get_entities(hass: HomeAssistant) -> dict[str, Entity]:
+    """Collect every udi_iox entity across all platforms, keyed by entity_id.
+
+    ``entity_service_call`` wants a ``dict[str, Entity]`` (or a callable
+    returning one); handing it the raw platform list it used to accept
+    now raises ``AttributeError: 'list' object has no attribute 'get'``.
+    """
+    entities: dict[str, Entity] = {}
+    for platform in async_get_platforms(hass, DOMAIN):
+        entities.update(platform.entities)
+    return entities
 
 
 def _select_isy_data(hass: HomeAssistant, isy_name: str | None):
@@ -314,7 +328,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def _async_send_node_command(call: ServiceCall) -> None:
         await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_send_node_command", call
+            hass, async_get_entities(hass), "async_send_node_command", call
         )
 
     hass.services.async_register(
@@ -326,7 +340,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def _async_get_node_commands(call: ServiceCall) -> ServiceResponse:
         return await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_get_node_commands", call
+            hass, async_get_entities(hass), "async_get_node_commands", call
         )
 
     hass.services.async_register(
@@ -339,7 +353,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def _async_rename_node(call: ServiceCall) -> None:
         await entity_service_call(
-            hass, async_get_platforms(hass, DOMAIN), "async_rename_node", call
+            hass, async_get_entities(hass), "async_rename_node", call
         )
 
     hass.services.async_register(

@@ -34,6 +34,7 @@ from custom_components.udi_iox.services import (
     SERVICE_SEND_PROGRAM_COMMAND,
     SERVICE_SET_VARIABLE,
     SERVICE_SYSTEM_QUERY,
+    async_get_entities,
     async_setup_services,
 )
 from tests.builders import (
@@ -325,6 +326,14 @@ async def test_rename_node_service_is_registered(hass, service_controller) -> No
     assert hass.services.has_service(DOMAIN, SERVICE_RENAME_NODE)
     assert hass.services.has_service(DOMAIN, SERVICE_SEND_NODE_COMMAND)
     assert hass.services.has_service(DOMAIN, SERVICE_GET_NODE_COMMANDS)
+
+
+async def test_async_get_entities_returns_mapping(hass, service_controller) -> None:
+    """``entity_service_call`` needs a ``dict[str, Entity]`` — passing the
+    raw platform list (the pre-fix behavior) raises ``AttributeError`` at
+    dispatch. Pin that the helper hands back a mapping."""
+    await _wire_services_with_entry(hass, service_controller)
+    assert isinstance(async_get_entities(hass), dict)
 
 
 # --- accepted-command surface (get_node_commands + JIT validation) ---
