@@ -4,14 +4,10 @@
     "step": {
       "user": {
         "data": {
-          "auth_mode": "Authentication mode",
           "username": "Username",
           "host": "URL",
           "password": "Password",
           "verify_ssl": "Verify SSL certificate (leave off for the default self-signed certificate)."
-        },
-        "data_description": {
-          "auth_mode": "Portal uses the my.isy.io account (JWT, recommended). Local uses the controller's local admin account (HTTP basic, feature-degraded — no triggers AST or variable names)."
         },
         "description": "The host entry must be the full URL, e.g., {sample_ip}",
         "title": "Connect to your eisy / Polisy"

@@ -27,14 +27,10 @@ from pyisyox import (
     ISYConnectionError,
     ISYInvalidAuthError,
     ISYResponseParseError,
-    LocalAuth,
     PortalAuth,
 )
 
 from .const import (
-    AUTH_MODE_LOCAL,
-    AUTH_MODE_PORTAL,
-    CONF_AUTH_MODE,
     CONF_ENABLE_NETWORKING,
     CONF_ENABLE_NODESERVERS,
     CONF_ENABLE_PROGRAMS,
@@ -42,7 +38,6 @@ from .const import (
     CONF_IGNORE_STRING,
     CONF_RESTORE_LIGHT_STATE,
     CONF_SENSOR_STRING,
-    DEFAULT_AUTH_MODE,
     DEFAULT_IGNORE_STRING,
     DEFAULT_RESTORE_LIGHT_STATE,
     DEFAULT_SENSOR_STRING,
@@ -58,18 +53,12 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-AUTH_MODE_OPTIONS = [AUTH_MODE_PORTAL, AUTH_MODE_LOCAL]
-
 
 def _data_schema(schema_input: dict[str, Any]) -> vol.Schema:
     """Generate user-step schema with defaults preserved across attempts."""
     return vol.Schema(
         {
             vol.Required(CONF_HOST, default=schema_input.get(CONF_HOST, "")): str,
-            vol.Required(
-                CONF_AUTH_MODE,
-                default=schema_input.get(CONF_AUTH_MODE, DEFAULT_AUTH_MODE),
-            ): vol.In(AUTH_MODE_OPTIONS),
             vol.Required(CONF_USERNAME): str,
             vol.Required(CONF_PASSWORD): str,
             vol.Optional(
@@ -81,13 +70,6 @@ def _data_schema(schema_input: dict[str, Any]) -> vol.Schema:
     )
 
 
-def _build_auth(mode: str, username: str, password: str) -> PortalAuth | LocalAuth:
-    """Construct the auth strategy for the requested mode."""
-    if mode == AUTH_MODE_LOCAL:
-        return LocalAuth(username, password)
-    return PortalAuth(username, password)
-
-
 async def validate_input(
     hass: core.HomeAssistant, data: dict[str, Any]
 ) -> dict[str, str]:
@@ -97,16 +79,14 @@ async def validate_input(
     host = data[CONF_HOST]
     parsed_host = urlparse(host)
     verify_ssl = data.get(CONF_VERIFY_SSL, False)
-    auth_mode = data.get(CONF_AUTH_MODE, DEFAULT_AUTH_MODE)
 
     if parsed_host.scheme not in (SCHEME_HTTP, SCHEME_HTTPS):
         _LOGGER.error("Host value must include http:// or https://")
         raise InvalidHost
 
-    auth = _build_auth(auth_mode, user, password)
     controller = Controller(
         host,
-        auth=auth,
+        auth=PortalAuth(user, password),
         verify_ssl=verify_ssl,
     )
 
@@ -128,7 +108,7 @@ async def validate_input(
 
     title_host = parsed_host.hostname or host
     return {
-        "title": f"{title_host} ({auth_mode})",
+        "title": title_host,
         ISY_CONF_UUID: uuid,
     }
 
@@ -224,8 +204,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
     ) -> config_entries.ConfigFlowResult:
         """Handle a discovered IoX device via DHCP."""
         friendly_name = discovery_info.hostname
-        # eisy / Polisy default to https on :443 (portal) — the user
-        # can change to :8443 if they want LocalAuth.
+        # eisy / Polisy serve the IoX API over HTTPS on :443.
         url = f"https://{discovery_info.ip}:{HTTPS_PORT}"
         mac = discovery_info.macaddress
         isy_mac = (

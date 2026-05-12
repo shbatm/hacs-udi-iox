@@ -1,9 +1,10 @@
 """Tests for the udi_iox config flow.
 
-Pins the auth-mode picker logic, the auth-error → ConfigEntryAuthFailed
-mapping, and the connection-error → ConfigEntryNotReady mapping. The
-classifier and entity wiring don't run — validate_input opens a
-short-lived controller, reads ``config.uuid``, and tears down.
+Pins the auth-error → ConfigEntryAuthFailed mapping, the
+connection-error → ConfigEntryNotReady mapping, and that the flow wires
+up ``PortalAuth``. The classifier and entity wiring don't run —
+validate_input opens a short-lived controller, reads ``config.uuid``,
+and tears down.
 """
 
 from __future__ import annotations
@@ -19,12 +20,7 @@ from homeassistant.const import (
     CONF_VERIFY_SSL,
 )
 
-from custom_components.udi_iox.const import (
-    AUTH_MODE_LOCAL,
-    AUTH_MODE_PORTAL,
-    CONF_AUTH_MODE,
-    DOMAIN,
-)
+from custom_components.udi_iox.const import DOMAIN
 
 
 async def _start_user_flow(hass) -> dict:
@@ -40,7 +36,6 @@ def _build_user_input(**overrides) -> dict:
         CONF_HOST: "https://eisy.local:443",
         CONF_USERNAME: "admin@example.com",
         CONF_PASSWORD: "swordfish",
-        CONF_AUTH_MODE: AUTH_MODE_PORTAL,
         CONF_VERIFY_SSL: False,
     }
     base.update(overrides)
@@ -66,8 +61,8 @@ async def test_user_step_form_renders(hass) -> None:
     assert result["errors"] == {}
 
 
-async def test_user_step_portal_auth_creates_entry(hass) -> None:
-    """Submitting valid Portal-auth user input → CREATE_ENTRY."""
+async def test_user_step_creates_entry(hass) -> None:
+    """Submitting valid user input → CREATE_ENTRY."""
     flow = await _start_user_flow(hass)
     with (
         _patch_validate("portal-uuid"),
@@ -81,28 +76,7 @@ async def test_user_step_portal_auth_creates_entry(hass) -> None:
         )
         await hass.async_block_till_done()
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
-    assert result["data"][CONF_AUTH_MODE] == AUTH_MODE_PORTAL
     assert result["data"][CONF_USERNAME] == "admin@example.com"
-
-
-async def test_user_step_local_auth_creates_entry(hass) -> None:
-    """LocalAuth path also creates an entry — auth_mode is the only
-    schema knob that branches the validation."""
-    flow = await _start_user_flow(hass)
-    with (
-        _patch_validate("local-uuid"),
-        patch(
-            "custom_components.udi_iox.async_setup_entry",
-            AsyncMock(return_value=True),
-        ),
-    ):
-        result = await hass.config_entries.flow.async_configure(
-            flow["flow_id"],
-            _build_user_input(**{CONF_AUTH_MODE: AUTH_MODE_LOCAL}),
-        )
-        await hass.async_block_till_done()
-    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
-    assert result["data"][CONF_AUTH_MODE] == AUTH_MODE_LOCAL
 
 
 async def test_unique_id_prevents_duplicate_entries(hass) -> None:
@@ -192,36 +166,8 @@ async def test_unknown_exception_surfaces_unknown_error(hass) -> None:
 # --- validate_input ---------------------------------------------------
 
 
-async def test_validate_input_picks_portal_auth_for_portal_mode(hass) -> None:
-    """Auth-mode = portal → PortalAuth, not LocalAuth."""
-    from custom_components.udi_iox.config_flow import validate_input
-
-    captured: dict = {}
-
-    class FakeController:
-        def __init__(self, *args, auth=None, **kwargs):
-            captured["auth"] = auth
-            self.config = type("C", (), {"uuid": "u"})()
-
-        async def connect(self, *, start_websocket=True):
-            pass
-
-        async def stop(self):
-            pass
-
-    with (
-        patch("custom_components.udi_iox.config_flow.Controller", FakeController),
-    ):
-        await validate_input(
-            hass, _build_user_input(**{CONF_AUTH_MODE: AUTH_MODE_PORTAL})
-        )
-
-    from pyisyox import PortalAuth
-
-    assert isinstance(captured["auth"], PortalAuth)
-
-
-async def test_validate_input_picks_local_auth_for_local_mode(hass) -> None:
+async def test_validate_input_uses_portal_auth(hass) -> None:
+    """``validate_input`` wires the controller up with ``PortalAuth``."""
     from custom_components.udi_iox.config_flow import validate_input
 
     captured: dict = {}
@@ -238,13 +184,11 @@ async def test_validate_input_picks_local_auth_for_local_mode(hass) -> None:
             pass
 
     with patch("custom_components.udi_iox.config_flow.Controller", FakeController):
-        await validate_input(
-            hass, _build_user_input(**{CONF_AUTH_MODE: AUTH_MODE_LOCAL})
-        )
+        await validate_input(hass, _build_user_input())
 
-    from pyisyox import LocalAuth
+    from pyisyox import PortalAuth
 
-    assert isinstance(captured["auth"], LocalAuth)
+    assert isinstance(captured["auth"], PortalAuth)
 
 
 async def test_validate_input_rejects_non_http_scheme(hass) -> None:
