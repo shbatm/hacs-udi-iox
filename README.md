@@ -6,7 +6,7 @@ Home Assistant custom component for **Universal Devices eisy / Polisy** controll
 
 ## Status
 
-Pre-alpha. Tracks `pyisyox` 6.0.0a1.
+Alpha. Tracks `pyisyox` 6.x. Feature-equivalent to `hacs-isy994` for IoX-6+ hardware (authentication, classifier-driven entities, services, variables, SSDP discovery, Repair-card lifecycle UX). Targets the Bronze [integration quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/) tier — see [`custom_components/udi_iox/quality_scale.yaml`](custom_components/udi_iox/quality_scale.yaml).
 
 ## Scope
 
@@ -27,6 +27,11 @@ This is a HACS Custom Repository:
 1. HACS → Integrations → ⋮ → Custom repositories
 2. Add `https://github.com/shbatm/hacs-udi-iox`, category Integration
 3. Install, restart HA, then add the integration via Settings → Devices & Services.
+
+## Removal
+
+1. Settings → Devices & Services → Universal Devices IoX → ⋮ → Delete (removes the config entry, its devices, and its entities).
+2. Optionally remove the repository in HACS (Integrations → Universal Devices IoX → ⋮ → Remove) and restart HA.
 
 ## Roadmap
 
