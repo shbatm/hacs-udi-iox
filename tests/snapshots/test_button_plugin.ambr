@@ -1,0 +1,186 @@
+# serializer version: 1
+# name: test_plugin_command_buttons[button.eisy_local_query-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'button.eisy_local_query',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Query',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_query',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_plugin_command_buttons[button.eisy_local_query-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'eisy.local Query',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.eisy_local_query',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_plugin_command_buttons[button.plugin_hub_beep-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': None,
+    'entity_id': 'button.plugin_hub_beep',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': <ButtonDeviceClass.IDENTIFY: 'identify'>,
+    'original_icon': None,
+    'original_name': 'Beep',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_n101_hub_BEEP',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_plugin_command_buttons[button.plugin_hub_beep-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'identify',
+      'friendly_name': 'Plugin Hub Beep',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.plugin_hub_beep',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_plugin_command_buttons[button.plugin_hub_discover-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': None,
+    'entity_id': 'button.plugin_hub_discover',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Discover',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_n101_hub_DISCOVER',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_plugin_command_buttons[button.plugin_hub_discover-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Plugin Hub Discover',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.plugin_hub_discover',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_plugin_command_buttons[button.plugin_hub_query-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'button.plugin_hub_query',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Query',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_n101_hub_query',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_plugin_command_buttons[button.plugin_hub_query-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Plugin Hub Query',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.plugin_hub_query',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---

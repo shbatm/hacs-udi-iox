@@ -105,6 +105,10 @@ NODE_PLATFORMS = [
 ]
 NODE_AUX_PROP_PLATFORMS = [
     Platform.BINARY_SENSOR,
+    # BUTTON here carries (node, command_id) pairs for plugin-defined
+    # zero-arg accept commands (pyisyox classifier's ``result.buttons``),
+    # not a property — see helpers._categorize_nodes / button.py.
+    Platform.BUTTON,
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SENSOR,
