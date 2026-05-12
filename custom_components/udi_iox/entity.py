@@ -332,21 +332,22 @@ class ISYNodeEntity(ISYEntity):
                 f"{command_id!r}. Accepted commands: {', '.join(sorted(accepted))}"
             )
 
-    async def async_get_node_commands(self) -> dict[str, list[str]]:
+    async def async_get_node_commands(self) -> dict[str, dict[str, str]]:
         """Entity-service response: the node's accepted-command vocabulary.
 
-        ``accepted_commands`` are the canonical wire ids (automation-
-        friendly); ``accepted_commands_friendly`` are the nodedef
-        ``name`` strings. Both sorted. Empty lists when the nodedef
-        isn't resolved.
+        ``accepted_commands`` is an id→friendly-name mapping (the wire
+        ids — ``DON``, ``OL``, ``BEEP`` — are what ``send_raw_node_command``
+        expects; the values are the nodedef ``name`` strings for display).
+        Sorted by wire id; empty when the nodedef isn't resolved.
         """
         nodedef = self._node.nodedef
         if nodedef is None:
-            return {"accepted_commands": [], "accepted_commands_friendly": []}
-        accepts = nodedef.cmds.accepts
+            return {"accepted_commands": {}}
         return {
-            "accepted_commands": sorted(cmd.id for cmd in accepts),
-            "accepted_commands_friendly": sorted(cmd.name or cmd.id for cmd in accepts),
+            "accepted_commands": {
+                cmd.id: cmd.name or cmd.id
+                for cmd in sorted(nodedef.cmds.accepts, key=lambda c: c.id)
+            }
         }
 
     async def async_send_node_command(self, command: str) -> None:

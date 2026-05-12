@@ -349,20 +349,21 @@ def _bare_node_entity(node):
     return entity
 
 
-async def test_get_node_commands_returns_sorted_accept_set(service_controller) -> None:
-    """``async_get_node_commands`` reports the node's nodedef accept set
-    as sorted wire ids + friendly names."""
+async def test_get_node_commands_returns_id_to_name_map(service_controller) -> None:
+    """``async_get_node_commands`` returns an id→friendly-name mapping,
+    sorted by wire id, covering exactly the nodedef accept set."""
     node = next(iter(service_controller.nodes.values()))
     entity = _bare_node_entity(node)
 
     result = await entity.async_get_node_commands()
+    commands = result["accepted_commands"]
 
-    expected_ids = sorted(c.id for c in node.nodedef.cmds.accepts)
-    assert result["accepted_commands"] == expected_ids
-    assert result["accepted_commands_friendly"] == sorted(
-        c.name or c.id for c in node.nodedef.cmds.accepts
-    )
-    assert result["accepted_commands"] == sorted(result["accepted_commands"])
+    accepts = node.nodedef.cmds.accepts
+    assert set(commands) == {c.id for c in accepts}
+    assert commands == {
+        c.id: c.name or c.id for c in sorted(accepts, key=lambda c: c.id)
+    }
+    assert list(commands) == sorted(commands)
 
 
 async def test_send_node_command_rejects_unaccepted_verb(service_controller) -> None:
