@@ -41,8 +41,8 @@ from pyisyox.constants import (
     PROP_ON_LEVEL,
 )
 
-from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE, UOM_FRIENDLY_NAME
-from .editor_classification import range_for_control
+from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
+from .editor_classification import range_for_control, unit_for_uom
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
@@ -93,13 +93,14 @@ def _number_description(
         return NumberEntityDescription(
             key=control, entity_category=EntityCategory.CONFIG
         )
+    step = rng.step if rng.step is not None else 10 ** (-max(0, rng.precision))
     return NumberEntityDescription(
         key=control,
         entity_category=EntityCategory.CONFIG,
-        native_unit_of_measurement=UOM_FRIENDLY_NAME.get(rng.uom) or None,
+        native_unit_of_measurement=unit_for_uom(rng.uom),
         native_min_value=float(rng.min) if rng.min is not None else 0.0,
         native_max_value=float(rng.max) if rng.max is not None else 100.0,
-        native_step=rng.step if rng.step is not None else 10 ** (-rng.precision),
+        native_step=step,
     )
 
 
@@ -170,32 +171,63 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
+class ISYAuxControlNumberEntity(ISYNodeEntity, RestoreNumber):
     """Representation of a ISY/IoX Aux Control Number entity.
 
-    HA shows the entity as a 0-100 percentage slider regardless of the
-    underlying device's encoding. Read and write use **different**
-    signals — the same control can report values in one unit while
-    accepting commands in another:
+    Two value-source modes, picked from whether the control is a
+    reported nodedef *property* (Insteon ``OL`` / ``RR`` are written via
+    a command but the controller also reports the value) or a write-only
+    *command* (a plugin setter with no backing property):
 
-    * **Read** — ``node_prop.uom`` describes how the value is encoded
-      on this wire frame. When it's ``UOM_8_BIT_RANGE`` (raw 0-255 byte,
-      classic Insteon), we scale to percent for HA. Anything else
-      (UOM 51 / 100 percentage, etc.) is displayed verbatim.
-    * **Write** — the editor backing this control decides what range
-      the controller accepts. KeypadDimmer_ADV and Z-Wave dimmers
-      use an editor with ``max=100`` (percentage); classic Insteon
-      dimmers use one with ``max=255`` (raw byte). Scaling driven by
-      the editor's max is the only correct write path because the
-      command-side encoding can disagree with the wire-side reading
-      (e.g. controller reports raw 147 but accepts percent input).
+    * **Readback control** — ``native_value`` reads ``node.properties``;
+      ``unknown`` until the controller reports a frame (the entity is
+      subscribed). ``assumed_state`` is ``False``.
+    * **Write-only control** — no readback; the value is whatever was
+      last set (restored across restarts via :class:`RestoreNumber`).
+      ``assumed_state`` is ``True``, matching the backlight entity.
+
+    Read and write also use **different** encodings — the same control
+    can report values in one unit while accepting commands in another:
+
+    * **Read** — ``node_prop.uom`` describes how the value is encoded on
+      this wire frame. ``UOM_8_BIT_RANGE`` (raw 0-255 byte, classic
+      Insteon) scales to percent; anything else (UOM 51 / 100) verbatim.
+    * **Write** — the editor backing this control decides the accepted
+      range. KeypadDimmer_ADV / Z-Wave dimmers use ``max=100``
+      (percentage); classic Insteon dimmers use ``max=255`` (raw byte).
     """
 
     _attr_mode = NumberMode.SLIDER
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the aux-control number entity."""
+        super().__init__(*args, **kwargs)
+        self._optimistic_value: float | int | None = None
+
+    @property
+    def _has_readback(self) -> bool:
+        """True when the controller reports this control as a property."""
+        nodedef = self._node.nodedef
+        return nodedef is not None and self._control in nodedef.properties
+
+    @property
+    def assumed_state(self) -> bool:
+        """A write-only control has no readback — its state is optimistic."""
+        return not self._has_readback
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to control events; restore the last set value for a
+        write-only control."""
+        await super().async_added_to_hass()
+        if not self._has_readback and (last := await self.async_get_last_number_data()):
+            self._optimistic_value = last.native_value
+
     @property
     def native_value(self) -> float | int | None:
-        """Return the state of the variable."""
+        """Return the entity's current value."""
+        if not self._has_readback:
+            return self._optimistic_value
+
         node_prop: NodePropertyValue | None = self._node.properties.get(self._control)
         if node_prop is None or not node_prop.value:
             return None
@@ -232,14 +264,17 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
                 value = percentage_to_ranged_value(ON_RANGE, round(value))
         if self._control == PROP_ON_LEVEL:
             await self._node.set_on_level(int(value))
-            return
-
-        try:
-            await self._node.send_command(self._control, value)
-        except NodeCommandError as err:
-            raise HomeAssistantError(
-                f"Could not set {self.name} to {value} for {self._node.address}: {err}"
-            ) from err
+        else:
+            try:
+                await self._node.send_command(self._control, value)
+            except NodeCommandError as err:
+                raise HomeAssistantError(
+                    f"Could not set {self.name} to {value} for "
+                    f"{self._node.address}: {err}"
+                ) from err
+        if not self._has_readback:
+            self._optimistic_value = value
+            self.async_write_ha_state()
 
 
 class ISYVariableNumberEntity(NumberEntity):

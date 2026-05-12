@@ -235,15 +235,17 @@ def _fan_out_commands(
       entity, the platform chosen from the parameter's editor via
       :func:`platform_for_control`. (Bool editors resolve to SWITCH but
       aren't surfaced yet — no aux-command switch entity exists.) A
-      parameter's ``init`` names the
-      property the value lives on: ``init == "ST"`` means the
-      controllable owns it (skip); ``init`` pointing at a property the
-      device hasn't reported yet means the number/select entity has no
-      live value to show (skip until it does — matches the pre-#10
-      behaviour); no ``init`` means the value is tracked optimistically
-      (``BL`` backlight). A command whose editor can't be resolved
-      falls back to :data:`NODE_AUX_FILTERS` if listed there, else is
-      skipped — the ``send_node_command`` service still reaches it.
+      parameter's ``init`` names the property the value lives on:
+      ``init == "ST"`` means the controllable platform owns it (skip);
+      otherwise the entity is created regardless of whether the device
+      has *reported* that property yet — a nodedef property is declared
+      to exist, so the entity simply reads ``unknown`` until the first
+      value frame (it's subscribed). No ``init`` means there's no
+      backing property at all → the entity is assumed-state (``BL``
+      backlight, plugin write-only setters). A command whose editor
+      can't be resolved falls back to :data:`NODE_AUX_FILTERS` if it's
+      listed there, else is skipped — the ``send_node_command`` service
+      still reaches it.
     * ``buttons`` (no required parameter) → one BUTTON entity each
       (``WDU`` "Write Changes", plugin ``DISCOVER`` …), minus the ones
       the integration ships a dedicated entity for.
@@ -252,10 +254,7 @@ def _fan_out_commands(
     for cmd in result.parameterized_commands:
         if cmd.id in dedicated:
             continue
-        init_prop = next((p.init for p in cmd.parameters if p.init), None)
-        if init_prop == PROP_STATUS:
-            continue
-        if init_prop is not None and init_prop not in node.properties:
+        if any(p.init == PROP_STATUS for p in cmd.parameters):
             continue
         editor = resolve_editor(controller, node, cmd.id)
         prop = node.properties.get(cmd.id)

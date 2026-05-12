@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.const import (
     STATE_UNAVAILABLE,
@@ -25,7 +27,6 @@ from pyisyox import (
 from pyisyox.constants import (
     BACKLIGHT_INDEX,
     CMD_BACKLIGHT,
-    COMMAND_FRIENDLY_NAME,
     INSTEON_RAMP_RATES,
     PROP_RAMP_RATE,
     UOM_TO_STATES,
@@ -87,17 +88,12 @@ async def async_setup_entry(
     ] = []
 
     for node, control in isy_data.aux_properties[Platform.SELECT]:
-        name = COMMAND_FRIENDLY_NAME.get(control, control).replace("_", " ").title()
-        # Sub-nodes prepend their own name so the aux entity disambiguates
-        # from the parent's same-control entity. Root nodes (primary_address
-        # is None) skip this since the device label is already the node's.
-        if node.primary_address is not None:
-            name = f"{node.name} {name}"
-
+        # The entity's friendly name (incl. the sub-node prefix where
+        # one's needed) is composed by ISYNodeEntity from the nodedef
+        # label — don't set ``name`` here, it'd be ignored.
         options = _select_options(isy_data, node, control)
         description = SelectEntityDescription(
             key=f"{node.address}_{control}",
-            name=name,
             entity_category=EntityCategory.CONFIG,
             options=options,
         )
@@ -133,24 +129,65 @@ class ISYRampRateSelectEntity(ISYNodeEntity, SelectEntity):
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
-        node_prop: NodePropertyValue = self._node.properties[self._control]
-        if node_prop.value is None:
+        node_prop: NodePropertyValue | None = self._node.properties.get(self._control)
+        if node_prop is None or node_prop.value is None:
             return None
-
-        return RAMP_RATE_OPTIONS[int(node_prop.value)]
+        try:
+            return RAMP_RATE_OPTIONS[int(float(node_prop.value))]
+        except (IndexError, TypeError, ValueError):
+            return None
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
-
         await self._node.set_ramp_rate(RAMP_RATE_OPTIONS.index(option))
 
 
-class ISYAuxControlIndexSelectEntity(ISYNodeEntity, SelectEntity):
-    """Representation of a ISY/IoX Aux Control Index Select entity."""
+class ISYAuxControlIndexSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
+    """Representation of a ISY/IoX Aux Control Index/enum Select entity.
+
+    Like the aux number entity, two value-source modes:
+
+    * **Readback control** — a reported nodedef property: ``current_option``
+      maps the live raw value to its option string (via ``UOM_TO_STATES``
+      or the editor's ``names``). ``unknown`` until reported.
+    * **Write-only control** — a plugin enum setter with no backing
+      property: ``current_option`` is the last selected option (restored
+      across restarts). ``assumed_state`` is ``True``.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the aux index/enum select entity."""
+        super().__init__(*args, **kwargs)
+        self._optimistic_option: str | None = None
+
+    @property
+    def _has_readback(self) -> bool:
+        """True when the controller reports this control as a property."""
+        nodedef = self._node.nodedef
+        return nodedef is not None and self._control in nodedef.properties
+
+    @property
+    def assumed_state(self) -> bool:
+        """A write-only control has no readback — its state is optimistic."""
+        return not self._has_readback
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to control events; restore the last selected option
+        for a write-only control."""
+        await super().async_added_to_hass()
+        if (
+            not self._has_readback
+            and (last := await self.async_get_last_state()) is not None
+            and last.state in self.options
+        ):
+            self._optimistic_option = last.state
 
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
+        if not self._has_readback:
+            return self._optimistic_option
+
         node_prop: NodePropertyValue | None = self._node.properties.get(self._control)
         if node_prop is None or node_prop.value is None:
             return None
@@ -168,12 +205,23 @@ class ISYAuxControlIndexSelectEntity(ISYNodeEntity, SelectEntity):
         return node_prop.formatted or None
 
     async def async_select_option(self, option: str) -> None:
-        """Change the selected option."""
-        # ``options`` is in raw-int order (sorted by the editor's name
-        # keys), so the option's position is its raw value for the
-        # contiguous case; the editor codec on ``send_command`` does the
-        # final validation either way.
-        await self._node.send_command(self._control, self.options.index(option))
+        """Change the selected option.
+
+        Sends the friendly option string — the editor codec on
+        ``send_command`` maps an enum name back to its raw int (so a
+        sparse / subset-narrowed ``names`` table round-trips correctly,
+        unlike a positional index would).
+        """
+        try:
+            await self._node.send_command(self._control, option)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Could not set {self.name} to {option!r} for "
+                f"{self._node.address}: {err}"
+            ) from err
+        if not self._has_readback:
+            self._optimistic_option = option
+            self.async_write_ha_state()
 
 
 class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):

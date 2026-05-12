@@ -248,9 +248,12 @@ class ISYNodeEntity(ISYEntity):
         #   sub-node's name with the parent's prefix stripped, so the
         #   rendered friendly name doesn't duplicate the device prefix.
         # - Aux control entity → the property's nodedef label, falling
-        #   back to the IoX command friendly-name table. For node-server
-        #   children this lives on the child's own device so the label
-        #   doesn't collide with sibling sensors.
+        #   back to the IoX command friendly-name table. On a node that
+        #   owns its DeviceInfo (root, or a node-server child) the label
+        #   stands alone; on a native sub-node folded under a parent
+        #   device it's prefixed with the sub-node's own (parent-prefix-
+        #   stripped) name so e.g. a "Ramp Rate" on the sub-node doesn't
+        #   render identically to the parent's.
         self._node_def = node.nodedef
         node_owns_device = (
             node.primary_address is None or node.protocol == "node_server"
@@ -274,7 +277,13 @@ class ISYNodeEntity(ISYEntity):
                     .replace("_", " ")
                     .title()
                 )
-            name = label
+            if node_owns_device:
+                name = label
+            else:
+                parent = isy_data.root.nodes.get(node.primary_address)
+                parent_name = parent.name if parent is not None else None
+                prefix = _strip_parent_prefix(node.name, parent_name)
+                name = f"{prefix} {label}".strip() if prefix else label
 
         self._attr_name = name
         self._attr_available = node.enabled

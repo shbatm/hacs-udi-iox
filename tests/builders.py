@@ -716,6 +716,13 @@ _PG_INTEGER_EDITOR = {
     "id": "INTEGER",
     "ranges": [{"uom": "25", "prec": 0, "min": 0, "max": 1000}],
 }
+# Generic bool editor: editor id ``BOOL`` → SWITCH (writable) — but the
+# integration doesn't surface a bool *command* as a switch yet, so a
+# command on this editor produces no aux entity at all.
+_PG_BOOL_EDITOR = {
+    "id": "BOOL",
+    "ranges": [{"uom": "2", "subset": "0,1", "names": {"0": "False", "1": "True"}}],
+}
 
 
 def _build_plugin_dimmer_nodedef() -> NodeDef:
@@ -745,6 +752,11 @@ def _build_plugin_dimmer_nodedef() -> NodeDef:
                         "name": "Threshold",
                         "parameters": [{"id": "", "editor": "INTEGER"}],
                     },
+                    {
+                        "id": "INVERT",
+                        "name": "Invert",
+                        "parameters": [{"id": "", "editor": "BOOL"}],
+                    },
                 ],
             },
         },
@@ -766,6 +778,7 @@ def make_profile_with_dimmer_plugin() -> Profile:
     instance.nodedefs[nodedef.id] = nodedef
     instance.editors["PG_LEVEL_ENUM"] = Editor.from_json(_PG_LEVEL_ENUM_EDITOR)
     instance.editors["INTEGER"] = Editor.from_json(_PG_INTEGER_EDITOR)
+    instance.editors["BOOL"] = Editor.from_json(_PG_BOOL_EDITOR)
     family = Family(id=PLUGIN_DIMMER_FAMILY_ID, name="Dimmer Plugin")
     family.instances[PLUGIN_DIMMER_INSTANCE_ID] = instance
     profile.families[PLUGIN_DIMMER_FAMILY_ID] = family

@@ -471,6 +471,15 @@ def test_plugin_dimmer_aux_commands_classified_by_editor(isy_data, options):
     # INTEGER setter must not become a 1000-option dropdown.
     assert (node, "SETMODE") not in isy_data.aux_properties[Platform.NUMBER]
     assert (node, "THRESHOLD") not in isy_data.aux_properties[Platform.SELECT]
+    # A bool-editor *command* resolves to SWITCH but isn't surfaced yet —
+    # no aux-command switch entity exists, so it produces nothing.
+    for platform in (
+        Platform.SWITCH,
+        Platform.NUMBER,
+        Platform.SELECT,
+        Platform.BUTTON,
+    ):
+        assert (node, "INVERT") not in isy_data.aux_properties[platform]
 
 
 # --- guard rail -------------------------------------------------------

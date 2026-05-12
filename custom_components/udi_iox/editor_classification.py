@@ -23,11 +23,13 @@ from .const import (
     UOM_8_BIT_RANGE,
     UOM_BARRIER,
     UOM_FAN_MODES,
+    UOM_FRIENDLY_NAME,
     UOM_HVAC_ACTIONS,
     UOM_HVAC_MODE_GENERIC,
     UOM_HVAC_MODE_INSTEON,
     UOM_INDEX,
     UOM_PERCENTAGE,
+    UOM_TO_STATES,
 )
 
 #: UOMs that mark a value as binary (two-state). Mirrors pyisyox's
@@ -156,3 +158,25 @@ def platform_for_control(
     if has_numeric_bounds:
         return Platform.NUMBER
     return None
+
+
+def unit_for_uom(uom: str) -> str | None:
+    """Friendly HA unit string for a UOM, or ``None`` when the UOM isn't
+    a measurement unit.
+
+    ``UOM_FRIENDLY_NAME`` doubles as a UOM→name table for several
+    non-unit UOMs — index types (UOM 25 maps to ``"25"``, a placeholder),
+    on/off, and the enum UOMs that ``UOM_TO_STATES`` covers. Those must
+    not become an ``native_unit_of_measurement`` (HA validates units and
+    feeds them into statistics), so this returns ``None`` for them —
+    same spirit as HA Core's isy994 ``raw_unit_of_measurement`` /
+    ``native_unit_of_measurement`` split.
+    """
+    if uom in UOM_TO_STATES:
+        return None
+    friendly = UOM_FRIENDLY_NAME.get(uom)
+    # Falsy ("" for UOM 100), missing, or a placeholder where the table
+    # just echoes the UOM id back ("25" -> "25") — none of those are units.
+    if not friendly or friendly == uom:
+        return None
+    return friendly

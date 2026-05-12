@@ -90,3 +90,21 @@ def test_multi_range_editor_picks_range_by_property_uom() -> None:
     )
     assert platform_for_control(ed, "4", writable=True) == Platform.NUMBER
     assert platform_for_control(ed, "17", writable=True) == Platform.NUMBER
+
+
+@pytest.mark.parametrize(
+    ("uom", "expected"),
+    [
+        ("51", "%"),  # percentage — a real unit
+        ("17", "°F"),  # Fahrenheit
+        ("25", None),  # index type — UOM_FRIENDLY_NAME["25"] == "25" placeholder
+        ("100", None),  # 0-255 byte — UOM_FRIENDLY_NAME["100"] == "" (no unit)
+        ("2", None),  # on/off — binary, no unit
+        ("66", None),  # HVAC heat/cool state — enum (in UOM_TO_STATES)
+        ("999", None),  # unknown UOM
+    ],
+)
+def test_unit_for_uom(uom: str, expected: str | None) -> None:
+    from custom_components.udi_iox.editor_classification import unit_for_uom
+
+    assert unit_for_uom(uom) == expected
