@@ -246,33 +246,36 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, RestoreNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        if self.entity_description.native_unit_of_measurement == PERCENTAGE:
-            # HA passes 0-100. Scale into whatever the editor accepts:
-            # only the raw-byte-with-full-byte-range case needs the
-            # percent → (1, 255) conversion. Percentage editors (uom 51)
-            # and byte-but-capped editors (uom 100, max ≤ 100 as on
-            # KeypadDimmer_ADV) accept the user's percent value as-is.
-            # If the editor can't be resolved, pass through and let the
-            # codec surface any range error.
-            rng = self._editor_range_for(self._control)
-            if (
-                rng is not None
-                and rng.uom == UOM_8_BIT_RANGE
-                and rng.max is not None
-                and rng.max > 100
-            ):
-                value = percentage_to_ranged_value(ON_RANGE, round(value))
+        # HA passes 0-100 on a percentage entity. The *wire* encoding is
+        # whatever the control reports: when the live property's UOM is
+        # ``UOM_8_BIT_RANGE`` (classic Insteon ``OL`` — reported and
+        # accepted as a raw 0-255 byte; ``153`` ≈ 60%) we scale up to
+        # the byte. Percentage controls (UOM 51) and not-yet-reported
+        # ones pass the user's value through unchanged. (Matches HA
+        # Core's isy994 — keyed on the live property's UOM, not the
+        # ``I_OL`` editor's, which only describes the display slider.)
+        node_prop = self._node.properties.get(self._control)
+        wire_value: float = value
+        if (
+            self.entity_description.native_unit_of_measurement == PERCENTAGE
+            and node_prop is not None
+            and node_prop.uom == UOM_8_BIT_RANGE
+        ):
+            wire_value = percentage_to_ranged_value(ON_RANGE, round(value))
         if self._control == PROP_ON_LEVEL:
-            await self._node.set_on_level(int(value))
+            # ``set_on_level`` sends the byte verbatim — the I_OL editor
+            # (max 100) would wrongly clamp it, so pyisyox bypasses it.
+            await self._node.set_on_level(int(wire_value))
         else:
             try:
-                await self._node.send_command(self._control, value)
+                await self._node.send_command(self._control, wire_value)
             except NodeCommandError as err:
                 raise HomeAssistantError(
                     f"Could not set {self.name} to {value} for "
                     f"{self._node.address}: {err}"
                 ) from err
         if not self._has_readback:
+            # Store the user-facing value, not the scaled wire byte.
             self._optimistic_value = value
             self.async_write_ha_state()
 
