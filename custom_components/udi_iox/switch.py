@@ -202,25 +202,54 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
             device_info=device_info,
         )
         self._attr_name = description.name  # Override super
-        # Always available; must follow super().__init__ which sets node.enabled
-        self._attr_available = True
+
+    @property
+    def available(self) -> bool:
+        """The enable switch is *always* available.
+
+        The base ``ISYNodeEntity`` ties availability to ``node.enabled``
+        so a disabled node's entities drop out — but then there'd be no
+        way to switch this one back on. Pin it to ``True`` regardless of
+        what the inherited control / lifecycle handlers set
+        ``_attr_available`` to.
+        """
+        return True
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:
-        """Handle a control event — availability is always True for enable switches."""
+        """Reflect a control / lifecycle event in the switch state."""
         self.async_write_ha_state()
 
     @property
     def is_on(self) -> bool | None:
-        """Get whether the ISY device is in the on state."""
+        """Whether the node is enabled on the controller.
+
+        ``node.enabled`` tracks ``EN`` lifecycle frames (pyisyox writes
+        the new state back to the record), so this follows changes made
+        from the admin console / REST as well as from this switch.
+        """
         return bool(self._node.enabled)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Send the turn off command to the ISY switch."""
-        if not await self._node.disable():
-            raise HomeAssistantError(f"Unable to disable device {self._node.address}")
+        """Disable the node on the controller."""
+        await self._async_set_enabled(False)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Send the turn on command to the ISY switch."""
-        if not await self._node.enable():
-            raise HomeAssistantError(f"Unable to enable device {self._node.address}")
+        """Re-enable the node on the controller."""
+        await self._async_set_enabled(True)
+
+    async def _async_set_enabled(self, enabled: bool) -> None:
+        """Toggle the node's controller-side enabled flag.
+
+        ``Node.set_enabled`` updates the node record optimistically on
+        success, so ``is_on`` reflects the change immediately; the
+        controller also pushes a lifecycle ``EN`` event.
+        """
+        try:
+            await self._node.set_enabled(enabled)
+        except Exception as err:  # pylint: disable=broad-except
+            verb = "enable" if enabled else "disable"
+            raise HomeAssistantError(
+                f"Unable to {verb} device {self._node.address}: {err}"
+            ) from err
+        self.async_write_ha_state()

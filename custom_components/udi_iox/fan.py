@@ -12,11 +12,13 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.percentage import (
     int_states_in_range,
+    ordered_list_item_to_percentage,
+    percentage_to_ordered_list_item,
     percentage_to_ranged_value,
     ranged_value_to_percentage,
 )
 from pyisyox import Node, Program
-from pyisyox.constants import CMD_OFF, Protocol
+from pyisyox.constants import CMD_OFF, CMD_ON, PROP_STATUS
 
 from .entity import (
     ISYNodeEntity,
@@ -27,7 +29,12 @@ from .entity import (
 )
 from .models import IsyConfigEntry, IsyData
 
-SPEED_RANGE = (1, 255)  # off is not included
+#: Used only when the fan node's ``ST`` editor doesn't give us a better
+#: bound (no ``max``, no enumerated speeds). IoX 6 expresses fan speed in
+#: the ``ST`` editor's unit — for the classic Insteon FanLinc that's
+#: ``I_FLM_LVL`` (UOM 51, 0-100% with discrete steps); for a continuous
+#: dimmer-style fan it's a 0-100 (or editor-``max``) range.
+SPEED_RANGE_FALLBACK = (1, 100)  # off is not included
 
 
 async def async_setup_entry(
@@ -54,7 +61,21 @@ async def async_setup_entry(
 
 
 class ISYFanEntity(ISYNodeEntity, FanEntity):
-    """Representation of an ISY fan device."""
+    """Representation of an ISY fan device.
+
+    Speed handling is driven by the node's ``ST`` editor:
+
+    * **Enumerated** (``subset`` / ``names`` — e.g. the Insteon FanLinc's
+      ``I_FLM_LVL`` ``0,25,75,100`` ⇒ Off/Low/Medium/High) — the on
+      values become an ordered preset list; HA's percentage maps to the
+      nearest member, so a command never sends an off-list value the
+      controller would reject.
+    * **Continuous** (``min``/``max``) — a plain ranged scale.
+
+    Read values come pre-normalised to the editor's unit by pyisyox, and
+    a set command is sent in that same unit (``/cmd/DON/{value}/{uom}``),
+    so there's no 0-255↔0-100 juggling here.
+    """
 
     _attr_supported_features = (
         FanEntityFeature.SET_SPEED
@@ -68,9 +89,29 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
     ) -> None:
         """Initialize the IoX fan entity."""
         super().__init__(isy_data, node=node, device_info=device_info)
+        rng = self._editor_range_for(PROP_STATUS)
+        self._ordered_speeds: list[int] | None = None
+        self._speed_range: tuple[int, int] = SPEED_RANGE_FALLBACK
+        if rng is not None:
+            enumerated = rng.subset or set(rng.names)
+            on_speeds = sorted(v for v in enumerated if v)
+            if on_speeds:
+                self._ordered_speeds = on_speeds
+            elif rng.max is not None:
+                self._speed_range = (1, int(rng.max))
         self._attr_speed_count = (
-            3 if node.protocol == Protocol.INSTEON else int_states_in_range(SPEED_RANGE)
+            len(self._ordered_speeds)
+            if self._ordered_speeds is not None
+            else int_states_in_range(self._speed_range)
         )
+
+    def _value_to_percentage(self, value: int) -> int:
+        if value <= 0:
+            return 0
+        if self._ordered_speeds is not None:
+            nearest = min(self._ordered_speeds, key=lambda s: abs(s - value))
+            return ordered_list_item_to_percentage(self._ordered_speeds, nearest)
+        return ranged_value_to_percentage(self._speed_range, value)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to events and set initial state."""
@@ -78,14 +119,13 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
         self._update_fan_attrs()
 
     def _update_fan_attrs(self) -> None:
-        if node_status_int(self._node) is None:
+        status = node_status_int(self._node)
+        if status is None:
             self._attr_is_on = None
             self._attr_percentage = None
         else:
-            self._attr_is_on = bool(node_status_int(self._node) != 0)
-            self._attr_percentage = ranged_value_to_percentage(
-                SPEED_RANGE, node_status_int(self._node)
-            )
+            self._attr_is_on = status != 0
+            self._attr_percentage = self._value_to_percentage(status)
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:
@@ -98,9 +138,11 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
         if percentage == 0:
             await self._node.send_command(CMD_OFF)
             return
-
-        isy_speed = math.ceil(percentage_to_ranged_value(SPEED_RANGE, percentage))
-        await self._node.set_on_level(isy_speed)
+        if self._ordered_speeds is not None:
+            value = percentage_to_ordered_list_item(self._ordered_speeds, percentage)
+        else:
+            value = math.ceil(percentage_to_ranged_value(self._speed_range, percentage))
+        await self._node.send_command(CMD_ON, value)
 
     async def async_turn_on(
         self,

@@ -138,6 +138,52 @@
     'state': 'unknown',
   })
 # ---
+# name: test_button_entities[button.fanlinc_lamp_write_changes-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.fanlinc_lamp_write_changes',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Write Changes',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_EE EE EE 1_WDU',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_button_entities[button.fanlinc_lamp_write_changes-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'FanLinc Lamp Write Changes',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.fanlinc_lamp_write_changes',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
 # name: test_button_entities[button.front_door_lock_query-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
@@ -277,6 +323,52 @@
     'state': 'unknown',
   })
 # ---
+# name: test_button_entities[button.garage_outlet_write_changes-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.garage_outlet_write_changes',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Write Changes',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_BB BB BB 1_WDU',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_button_entities[button.garage_outlet_write_changes-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Garage Outlet Write Changes',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.garage_outlet_write_changes',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
 # name: test_button_entities[button.hallway_light_beep-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
@@ -370,6 +462,52 @@
     'state': 'unknown',
   })
 # ---
+# name: test_button_entities[button.hallway_light_write_changes-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.hallway_light_write_changes',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Write Changes',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 1_WDU',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_button_entities[button.hallway_light_write_changes-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Hallway Light Write Changes',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.hallway_light_write_changes',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
 # name: test_button_entities[button.living_thermostat_beep-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
@@ -457,6 +595,98 @@
     }),
     'context': <ANY>,
     'entity_id': 'button.living_thermostat_query',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_button_entities[button.living_thermostat_set_time-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.living_thermostat_set_time',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Set Time',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_DD DD DD 1_SETTIME',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_button_entities[button.living_thermostat_set_time-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Living Thermostat Set Time',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.living_thermostat_set_time',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_button_entities[button.living_thermostat_write_changes-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.living_thermostat_write_changes',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Write Changes',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_DD DD DD 1_WDU',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_button_entities[button.living_thermostat_write_changes-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Living Thermostat Write Changes',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.living_thermostat_write_changes',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

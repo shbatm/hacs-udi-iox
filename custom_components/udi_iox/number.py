@@ -24,10 +24,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util.percentage import (
-    percentage_to_ranged_value,
-    ranged_value_to_percentage,
-)
+from homeassistant.util.percentage import ranged_value_to_percentage
 from pyisyox import (
     DeviceWriteAction,
     Event,
@@ -41,12 +38,18 @@ from pyisyox.constants import (
     PROP_ON_LEVEL,
 )
 
-from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
+from .const import BACKLIGHT_MEMORY_FILTER
+from .editor_classification import range_for_control, unit_for_uom
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
 ISY_MAX_SIZE = (2**32) / 2
-ON_RANGE = (1, 255)  # Off is not included
+
+#: Hand-tuned descriptions for the well-known aux controls — On Level
+#: excludes 0 ("Off" lives on the controllable), and the percentage
+#: framing is fixed regardless of the editor's reported UOM. Everything
+#: else is built from the control's editor at setup time (see
+#: ``_number_description``).
 CONTROL_DESC = {
     PROP_ON_LEVEL: NumberEntityDescription(
         key=PROP_ON_LEVEL,
@@ -65,6 +68,36 @@ CONTROL_DESC = {
         native_step=1.0,
     ),
 }
+
+
+def _number_description(
+    isy_data: IsyData, node: Node, control: str
+) -> NumberEntityDescription:
+    """Build a NumberEntityDescription for ``control``.
+
+    Hand-tuned controls (``CONTROL_DESC``) win; otherwise the bounds,
+    step and unit come from the control's editor range — ``min`` /
+    ``max`` slider bounds, ``step`` (or ``10**-precision`` when the
+    editor doesn't specify one), and the friendly unit for the range's
+    UOM. Falls back to HA's defaults (0-100, step 1, no unit) when the
+    editor can't be resolved.
+    """
+    if (desc := CONTROL_DESC.get(control)) is not None:
+        return desc
+    rng = range_for_control(isy_data.root, node, control)
+    if rng is None:
+        return NumberEntityDescription(
+            key=control, entity_category=EntityCategory.CONFIG
+        )
+    step = rng.step if rng.step is not None else 10 ** (-max(0, rng.precision))
+    return NumberEntityDescription(
+        key=control,
+        entity_category=EntityCategory.CONFIG,
+        native_unit_of_measurement=unit_for_uom(rng.uom),
+        native_min_value=float(rng.min) if rng.min is not None else 0.0,
+        native_max_value=float(rng.max) if rng.max is not None else 100.0,
+        native_step=step,
+    )
 
 
 async def async_setup_entry(
@@ -124,7 +157,7 @@ async def async_setup_entry(
             "node": node,
             "control": control,
             "unique_id": f"{isy_data.uid_base(node)}_{control}",
-            "description": CONTROL_DESC[control],
+            "description": _number_description(isy_data, node, control),
             "device_info": _resolve_device_info(device_info, node),
         }
         if control == CMD_BACKLIGHT:
@@ -134,76 +167,94 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
+class ISYAuxControlNumberEntity(ISYNodeEntity, RestoreNumber):
     """Representation of a ISY/IoX Aux Control Number entity.
 
-    HA shows the entity as a 0-100 percentage slider regardless of the
-    underlying device's encoding. Read and write use **different**
-    signals — the same control can report values in one unit while
-    accepting commands in another:
+    Two value-source modes, picked from whether the control is a
+    reported nodedef *property* (Insteon ``OL`` / ``RR`` are written via
+    a command but the controller also reports the value) or a write-only
+    *command* (a plugin setter with no backing property):
 
-    * **Read** — ``node_prop.uom`` describes how the value is encoded
-      on this wire frame. When it's ``UOM_8_BIT_RANGE`` (raw 0-255 byte,
-      classic Insteon), we scale to percent for HA. Anything else
-      (UOM 51 / 100 percentage, etc.) is displayed verbatim.
-    * **Write** — the editor backing this control decides what range
-      the controller accepts. KeypadDimmer_ADV and Z-Wave dimmers
-      use an editor with ``max=100`` (percentage); classic Insteon
-      dimmers use one with ``max=255`` (raw byte). Scaling driven by
-      the editor's max is the only correct write path because the
-      command-side encoding can disagree with the wire-side reading
-      (e.g. controller reports raw 147 but accepts percent input).
+    * **Readback control** — ``native_value`` reads ``node.properties``;
+      ``unknown`` until the controller reports a frame (the entity is
+      subscribed). ``assumed_state`` is ``False``.
+    * **Write-only control** — no readback; the value is whatever was
+      last set (restored across restarts via :class:`RestoreNumber`).
+      ``assumed_state`` is ``True``, matching the backlight entity.
+
+    pyisyox normalises read values to the control's editor unit and
+    appends that unit on writes (``/cmd/OL/75/51``), so the
+    classic-Insteon ``OL``-reports-a-0-255-byte quirk is handled
+    library-side — this entity works in the editor's units (percent for
+    ``I_OL``) both directions, no scaling here.
     """
 
     _attr_mode = NumberMode.SLIDER
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the aux-control number entity."""
+        super().__init__(*args, **kwargs)
+        self._optimistic_value: float | int | None = None
+
+    @property
+    def _has_readback(self) -> bool:
+        """True when the controller reports this control as a property."""
+        nodedef = self._node.nodedef
+        return nodedef is not None and self._control in nodedef.properties
+
+    @property
+    def assumed_state(self) -> bool:
+        """A write-only control has no readback — its state is optimistic."""
+        return not self._has_readback
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to control events; restore the last set value for a
+        write-only control."""
+        await super().async_added_to_hass()
+        if not self._has_readback and (last := await self.async_get_last_number_data()):
+            self._optimistic_value = last.native_value
+
     @property
     def native_value(self) -> float | int | None:
-        """Return the state of the variable."""
-        node_prop: NodePropertyValue = self._node.properties[self._control]
-        if not node_prop.value:
+        """Return the entity's current value."""
+        if not self._has_readback:
+            return self._optimistic_value
+
+        node_prop: NodePropertyValue | None = self._node.properties.get(self._control)
+        if node_prop is None or not node_prop.value:
             return None
 
+        # pyisyox already normalised the value to the control's editor
+        # unit (e.g. a classic-Insteon ``OL`` 0-255 byte → 0-100%).
         try:
-            raw = int(float(node_prop.value))
+            return int(float(node_prop.value))
         except (TypeError, ValueError):
             return None
 
-        if (
-            self.entity_description.native_unit_of_measurement == PERCENTAGE
-            and node_prop.uom == UOM_8_BIT_RANGE
-        ):
-            return ranged_value_to_percentage(ON_RANGE, raw)
-        return raw
-
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        if self.entity_description.native_unit_of_measurement == PERCENTAGE:
-            # HA passes 0-100. Scale into whatever the editor accepts:
-            # only the raw-byte-with-full-byte-range case needs the
-            # percent → (1, 255) conversion. Percentage editors (uom 51)
-            # and byte-but-capped editors (uom 100, max ≤ 100 as on
-            # KeypadDimmer_ADV) accept the user's percent value as-is.
-            # If the editor can't be resolved, pass through and let the
-            # codec surface any range error.
-            rng = self._editor_range_for(self._control)
-            if (
-                rng is not None
-                and rng.uom == UOM_8_BIT_RANGE
-                and rng.max is not None
-                and rng.max > 100
-            ):
-                value = percentage_to_ranged_value(ON_RANGE, round(value))
+        # The value is in the control's editor unit (percent for
+        # ``I_OL``); pyisyox appends the UOM on the wire and the
+        # controller does any device-side scaling.
         if self._control == PROP_ON_LEVEL:
-            await self._node.set_on_level(int(value))
-            return
-
-        try:
-            await self._node.send_command(self._control, value)
-        except NodeCommandError as err:
-            raise HomeAssistantError(
-                f"Could not set {self.name} to {value} for {self._node.address}: {err}"
-            ) from err
+            try:
+                await self._node.set_on_level(int(value))
+            except NodeCommandError as err:
+                raise HomeAssistantError(
+                    f"Could not set {self.name} to {value} for "
+                    f"{self._node.address}: {err}"
+                ) from err
+        else:
+            try:
+                await self._node.send_command(self._control, value)
+            except NodeCommandError as err:
+                raise HomeAssistantError(
+                    f"Could not set {self.name} to {value} for "
+                    f"{self._node.address}: {err}"
+                ) from err
+        if not self._has_readback:
+            self._optimistic_value = value
+            self.async_write_ha_state()
 
 
 class ISYVariableNumberEntity(NumberEntity):

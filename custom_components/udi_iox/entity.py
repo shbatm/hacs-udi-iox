@@ -27,6 +27,7 @@ from pyisyox.schema.editor import EditorRange
 from pyisyox.schema.nodedef import NodeDef
 
 from .const import DOMAIN
+from .editor_classification import range_for_control
 
 if TYPE_CHECKING:
     from pyisyox import Variable
@@ -247,9 +248,12 @@ class ISYNodeEntity(ISYEntity):
         #   sub-node's name with the parent's prefix stripped, so the
         #   rendered friendly name doesn't duplicate the device prefix.
         # - Aux control entity → the property's nodedef label, falling
-        #   back to the IoX command friendly-name table. For node-server
-        #   children this lives on the child's own device so the label
-        #   doesn't collide with sibling sensors.
+        #   back to the IoX command friendly-name table. On a node that
+        #   owns its DeviceInfo (root, or a node-server child) the label
+        #   stands alone; on a native sub-node folded under a parent
+        #   device it's prefixed with the sub-node's own (parent-prefix-
+        #   stripped) name so e.g. a "Ramp Rate" on the sub-node doesn't
+        #   render identically to the parent's.
         self._node_def = node.nodedef
         node_owns_device = (
             node.primary_address is None or node.protocol == "node_server"
@@ -273,7 +277,13 @@ class ISYNodeEntity(ISYEntity):
                     .replace("_", " ")
                     .title()
                 )
-            name = label
+            if node_owns_device:
+                name = label
+            else:
+                parent = isy_data.root.nodes.get(node.primary_address)
+                parent_name = parent.name if parent is not None else None
+                prefix = _strip_parent_prefix(node.name, parent_name)
+                name = f"{prefix} {label}".strip() if prefix else label
 
         self._attr_name = name
         self._attr_available = node.enabled
@@ -405,13 +415,11 @@ class ISYNodeEntity(ISYEntity):
     def _editor_range_for(self, control: str) -> EditorRange | None:
         """Return the write-side editor range for ``control`` on this node.
 
-        Editor resolution is determined by the **control's** ``editor_id``
-        (looked up via the property on this node's nodedef, then resolved
-        against the profile scoped to ``(family_id, instance_id)``). The
-        nodedef is just the bag holding the property definitions; the
-        editor reference is on the property itself, so the same control
-        id can resolve to different editors — and different ranges —
-        on different nodedefs.
+        Thin wrapper over :func:`.editor_classification.range_for_control`
+        — resolves the editor governing ``control`` (via the nodedef
+        property's ``editor_id``, or the accept-command parameter's for
+        command-only controls like backlight), scoped to
+        ``(family_id, instance_id)``, and picks ``ranges[0]``.
 
         Callers should inspect both ``uom`` and ``max``:
 
@@ -421,24 +429,12 @@ class ISYNodeEntity(ISYEntity):
           range (classic Insteon SwitchLinc) or a constrained subset
           like 0-100 (KeypadDimmer_ADV — byte-semantically but only the
           lower portion is valid).
-        * ``names`` non-empty → enum / discrete values; the entity
-          probably should be a SELECT rather than a NUMBER. The
-          classifier currently maps controls to platforms statically
-          (see helpers.NODE_AUX_FILTERS) and ignores this; the editor
-          shape should drive that decision in a future refactor.
+        * ``names`` non-empty → enum / discrete values; classification
+          (``helpers.platform_for_control``) routes those to SELECT.
 
         Returns ``None`` when the editor can't be resolved.
         """
-        if (nodedef := self._node.nodedef) is None:
-            return None
-        if (prop := nodedef.properties.get(control)) is None:
-            return None
-        editor = self._isy_data.root.profile.find_editor(
-            prop.editor_id, self._node.family_id, self._node.instance_id
-        )
-        if editor is None or not editor.ranges:
-            return None
-        return editor.ranges[0]
+        return range_for_control(self._isy_data.root, self._node, control)
 
 
 class ISYProgramEntity(ISYEntity):

@@ -53,6 +53,7 @@ from pyisyox.client import (
 )
 from pyisyox.runtime.events import EventDispatcher
 from pyisyox.schema import Profile
+from pyisyox.schema.editor import Editor
 from pyisyox.schema.nodedef import NodeDef
 from pyisyox.schema.profile import Family, Instance
 
@@ -689,6 +690,140 @@ def make_plugin_trigger_node_record(
         instance_id=PLUGIN_TRIGGER_INSTANCE_ID,
         type_="",
         properties={},
+    )
+
+
+# --- plugin "dimmer" nodedef: light controllable + editor-driven aux setters ---
+#
+# Models a PG3 dimmer that, beyond DON/DOF, accepts two parameterised
+# setters whose *editors* decide the HA platform: a pure-enum editor
+# (``names``, no numeric bounds) → SELECT; the generic ``INTEGER``
+# editor → NUMBER. The bundled eisy6 capture carries no PG3 editors, so
+# both editors are grafted into the plugin instance alongside the
+# nodedef. Exercises helpers._fan_out_commands' editor-shape routing.
+
+PLUGIN_DIMMER_FAMILY_ID = "103"
+PLUGIN_DIMMER_INSTANCE_ID = "1"
+PLUGIN_DIMMER_NODEDEF_ID = "PluginDimmer"
+
+# Pure-enum editor: ``names`` with no min/max → SELECT.
+_PG_LEVEL_ENUM_EDITOR = {
+    "id": "PG_LEVEL_ENUM",
+    "ranges": [{"uom": "56", "names": {"0": "Low", "1": "Medium", "2": "High"}}],
+}
+# Generic numeric editor: editor id ``INTEGER`` → NUMBER (no UOM guessing).
+_PG_INTEGER_EDITOR = {
+    "id": "INTEGER",
+    "ranges": [{"uom": "25", "prec": 0, "min": 0, "max": 1000}],
+}
+# Generic bool editor: editor id ``BOOL`` → SWITCH (writable) — but the
+# integration doesn't surface a bool *command* as a switch yet, so a
+# command on this editor produces no aux entity at all.
+_PG_BOOL_EDITOR = {
+    "id": "BOOL",
+    "ranges": [{"uom": "2", "subset": "0,1", "names": {"0": "False", "1": "True"}}],
+}
+
+
+def _build_plugin_dimmer_nodedef() -> NodeDef:
+    """PG3-shape dimmer nodedef — ``DON``/``DOF`` (light controllable),
+    a ``SETMODE`` setter on a pure-enum editor (→ SELECT) and a
+    ``THRESHOLD`` setter on the ``INTEGER`` editor (→ NUMBER)."""
+    return NodeDef.from_json(
+        {
+            "id": PLUGIN_DIMMER_NODEDEF_ID,
+            "nls": "dimmer",
+            "properties": [{"id": "ST", "editor": "I_OL", "name": "Status"}],
+            "cmds": {
+                "sends": [],
+                "accepts": [
+                    {"id": "DON", "name": "On"},
+                    {"id": "DOF", "name": "Off"},
+                    {"id": "BRT", "name": "Brighten"},
+                    {"id": "DIM", "name": "Dim"},
+                    {"id": "QUERY", "name": "Query"},
+                    {
+                        "id": "SETMODE",
+                        "name": "Set Mode",
+                        "parameters": [{"id": "", "editor": "PG_LEVEL_ENUM"}],
+                    },
+                    {
+                        "id": "THRESHOLD",
+                        "name": "Threshold",
+                        "parameters": [{"id": "", "editor": "INTEGER"}],
+                    },
+                    {
+                        "id": "INVERT",
+                        "name": "Invert",
+                        "parameters": [{"id": "", "editor": "BOOL"}],
+                    },
+                ],
+            },
+        },
+        family_id=PLUGIN_DIMMER_FAMILY_ID,
+        instance_id=PLUGIN_DIMMER_INSTANCE_ID,
+    )
+
+
+def make_profile_with_dimmer_plugin() -> Profile:
+    """Bundled eisy6 profile with the synthetic ``PluginDimmer`` nodedef
+    and its two editors grafted under plugin slot ``"103"``. Built fresh
+    per call (the cached :func:`load_profile` instance must not be
+    mutated)."""
+    raw = json.loads((FIXTURE_DIR / "eisy6_profile.json").read_text())
+    profile = Profile.load_from_json(raw)
+
+    nodedef = _build_plugin_dimmer_nodedef()
+    instance = Instance(id=PLUGIN_DIMMER_INSTANCE_ID, name="Dimmer Plugin")
+    instance.nodedefs[nodedef.id] = nodedef
+    instance.editors["PG_LEVEL_ENUM"] = Editor.from_json(_PG_LEVEL_ENUM_EDITOR)
+    instance.editors["INTEGER"] = Editor.from_json(_PG_INTEGER_EDITOR)
+    instance.editors["BOOL"] = Editor.from_json(_PG_BOOL_EDITOR)
+    family = Family(id=PLUGIN_DIMMER_FAMILY_ID, name="Dimmer Plugin")
+    family.instances[PLUGIN_DIMMER_INSTANCE_ID] = instance
+    profile.families[PLUGIN_DIMMER_FAMILY_ID] = family
+    profile.nodedef_lookup[nodedef.lookup_key] = nodedef
+    return profile
+
+
+def make_dimmer_plugin_load_result(
+    *,
+    uuid: str = DEFAULT_UUID,
+    version: str = "6.0.0a1",
+    nodes: dict[str, NodeRecord] | None = None,
+) -> LoadResult:
+    """A :class:`LoadResult` carrying the dimmer-plugin-augmented profile."""
+    return LoadResult(
+        config=ControllerConfig(uuid=uuid, version=version),
+        profile=make_profile_with_dimmer_plugin(),
+        nodes=nodes or {},
+        groups={},
+        folders={},
+        programs={},
+        triggers=[],
+        variables={"1": {}, "2": {}},
+        network_resources={},
+    )
+
+
+def make_plugin_dimmer_node_record(
+    address: str = "n103_lamp",
+    name: str = "Studio Lamp",
+    *,
+    status_value: str = "0",
+) -> NodeRecord:
+    """A :class:`NodeRecord` shaped like a PG3 dimmer node — family slot
+    ``"103"``, instance ``"1"``, nodedef ``PluginDimmer``."""
+    return make_node_record(
+        address,
+        name,
+        nodedef_id=PLUGIN_DIMMER_NODEDEF_ID,
+        family_id=PLUGIN_DIMMER_FAMILY_ID,
+        instance_id=PLUGIN_DIMMER_INSTANCE_ID,
+        type_="",
+        status_value=status_value,
+        status_uom="100",
+        status_formatted="0%",
     )
 
 
