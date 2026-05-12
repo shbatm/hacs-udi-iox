@@ -41,12 +41,19 @@ from pyisyox.constants import (
     PROP_ON_LEVEL,
 )
 
-from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
+from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE, UOM_FRIENDLY_NAME
+from .editor_classification import range_for_control
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
 ISY_MAX_SIZE = (2**32) / 2
 ON_RANGE = (1, 255)  # Off is not included
+
+#: Hand-tuned descriptions for the well-known aux controls — On Level
+#: excludes 0 ("Off" lives on the controllable), and the percentage
+#: framing is fixed regardless of the editor's reported UOM. Everything
+#: else is built from the control's editor at setup time (see
+#: ``_number_description``).
 CONTROL_DESC = {
     PROP_ON_LEVEL: NumberEntityDescription(
         key=PROP_ON_LEVEL,
@@ -65,6 +72,35 @@ CONTROL_DESC = {
         native_step=1.0,
     ),
 }
+
+
+def _number_description(
+    isy_data: IsyData, node: Node, control: str
+) -> NumberEntityDescription:
+    """Build a NumberEntityDescription for ``control``.
+
+    Hand-tuned controls (``CONTROL_DESC``) win; otherwise the bounds,
+    step and unit come from the control's editor range — ``min`` /
+    ``max`` slider bounds, ``step`` (or ``10**-precision`` when the
+    editor doesn't specify one), and the friendly unit for the range's
+    UOM. Falls back to HA's defaults (0-100, step 1, no unit) when the
+    editor can't be resolved.
+    """
+    if (desc := CONTROL_DESC.get(control)) is not None:
+        return desc
+    rng = range_for_control(isy_data.root, node, control)
+    if rng is None:
+        return NumberEntityDescription(
+            key=control, entity_category=EntityCategory.CONFIG
+        )
+    return NumberEntityDescription(
+        key=control,
+        entity_category=EntityCategory.CONFIG,
+        native_unit_of_measurement=UOM_FRIENDLY_NAME.get(rng.uom) or None,
+        native_min_value=float(rng.min) if rng.min is not None else 0.0,
+        native_max_value=float(rng.max) if rng.max is not None else 100.0,
+        native_step=rng.step if rng.step is not None else 10 ** (-rng.precision),
+    )
 
 
 async def async_setup_entry(
@@ -124,7 +160,7 @@ async def async_setup_entry(
             "node": node,
             "control": control,
             "unique_id": f"{isy_data.uid_base(node)}_{control}",
-            "description": CONTROL_DESC[control],
+            "description": _number_description(isy_data, node, control),
             "device_info": _resolve_device_info(device_info, node),
         }
         if control == CMD_BACKLIGHT:
@@ -160,8 +196,8 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, NumberEntity):
     @property
     def native_value(self) -> float | int | None:
         """Return the state of the variable."""
-        node_prop: NodePropertyValue = self._node.properties[self._control]
-        if not node_prop.value:
+        node_prop: NodePropertyValue | None = self._node.properties.get(self._control)
+        if node_prop is None or not node_prop.value:
             return None
 
         try:

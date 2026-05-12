@@ -31,7 +31,8 @@ from pyisyox.constants import (
     UOM_TO_STATES,
 )
 
-from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER, UOM_INDEX
+from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER
+from .editor_classification import range_for_control
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
@@ -44,6 +45,31 @@ def time_string(i: float) -> str:
 
 
 RAMP_RATE_OPTIONS = [time_string(rate) for rate in INSTEON_RAMP_RATES.values()]
+
+
+def _select_options(isy_data: IsyData, node: Node, control: str) -> list[str]:
+    """Resolve the option list for an aux SELECT control.
+
+    The control's *editor* is the source of truth: ``names`` (narrowed
+    by ``subset`` — only the listed raw ints are valid, including combo
+    specs like ``0-2,6,7``) gives the option strings in raw-int order.
+    ``UOM_TO_STATES`` is the fallback for the few index UOMs that lean
+    on the global table rather than per-editor names (slated to be
+    retired once everything resolves from editors); RAMP_RATE and
+    BACKLIGHT keep their bespoke tables.
+    """
+    if control == PROP_RAMP_RATE:
+        return RAMP_RATE_OPTIONS
+    if control == CMD_BACKLIGHT:
+        return list(BACKLIGHT_INDEX)
+    rng = range_for_control(isy_data.root, node, control)
+    if rng is not None and rng.names:
+        keys = sorted(rng.subset) if rng.subset else sorted(rng.names)
+        return [rng.names[k] for k in keys if k in rng.names]
+    prop = node.properties.get(control)
+    if prop is not None and (options_dict := UOM_TO_STATES.get(prop.uom)):
+        return [str(value) for value in options_dict.values()]
+    return []
 
 
 async def async_setup_entry(
@@ -68,16 +94,7 @@ async def async_setup_entry(
         if node.primary_address is not None:
             name = f"{node.name} {name}"
 
-        options = []
-        if control == PROP_RAMP_RATE:
-            options = RAMP_RATE_OPTIONS
-        elif control == CMD_BACKLIGHT:
-            options = BACKLIGHT_INDEX
-        elif (uom := node.properties[control].uom) == UOM_INDEX and (
-            options_dict := UOM_TO_STATES.get(uom)
-        ):
-            options = list(options_dict.values())
-
+        options = _select_options(isy_data, node, control)
         description = SelectEntityDescription(
             key=f"{node.address}_{control}",
             name=name,
@@ -99,17 +116,14 @@ async def async_setup_entry(
         if control == CMD_BACKLIGHT:
             entities.append(ISYBacklightSelectEntity(**entity_detail))
             continue
-        # The select platform only handles native UOM_INDEX nodes for
-        # plain index-style enums; check the property's UOM, not the
-        # gone-in-v6 node.uom shortcut.
-        prop = node.properties.get(control)
-        if prop is not None and prop.uom == UOM_INDEX and options:
-            entities.append(ISYAuxControlIndexSelectEntity(**entity_detail))
+        if not options:
+            # No editor names and no UOM_TO_STATES entry — nothing to
+            # show. The send_node_command service still reaches it.
+            _LOGGER.debug(
+                "No select options resolved for %s/%s; skipping", node.name, control
+            )
             continue
-        # Future: support Node Server custom index UOMs
-        _LOGGER.debug(
-            "ISY missing node index unit definitions for %s: %s", node.name, name
-        )
+        entities.append(ISYAuxControlIndexSelectEntity(**entity_detail))
     async_add_entities(entities)
 
 
@@ -137,18 +151,28 @@ class ISYAuxControlIndexSelectEntity(ISYNodeEntity, SelectEntity):
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
-        node_prop: NodePropertyValue = self._node.properties[self._control]
-        if node_prop.value is None:
+        node_prop: NodePropertyValue | None = self._node.properties.get(self._control)
+        if node_prop is None or node_prop.value is None:
             return None
 
         if options_dict := UOM_TO_STATES.get(node_prop.uom):
             return options_dict.get(str(node_prop.value), str(node_prop.value))
-        return node_prop.formatted
+        # Editor names: map the raw int → option string the way the
+        # options list was built (sorted by raw int).
+        rng = self._editor_range_for(self._control)
+        if rng is not None and rng.names:
+            try:
+                return rng.names[int(float(node_prop.value))]
+            except (KeyError, TypeError, ValueError):
+                pass
+        return node_prop.formatted or None
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
-        # send_command resolves the editor codec from the node's profile —
-        # the v3 explicit uom kwarg is gone.
+        # ``options`` is in raw-int order (sorted by the editor's name
+        # keys), so the option's position is its raw value for the
+        # contiguous case; the editor codec on ``send_command`` does the
+        # final validation either way.
         await self._node.send_command(self._control, self.options.index(option))
 
 
