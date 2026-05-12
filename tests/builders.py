@@ -496,6 +496,111 @@ def make_plugin_cover_node_record(
     )
 
 
+# --- plugin "hub" nodedef: no controllable, zero-arg accept verbs -----
+#
+# Models a PG3 controller-style node (Flume / Harmony hub shape): accepts
+# a couple of zero-arg verbs (``DISCOVER`` parameterless, ``BEEP`` with
+# one *optional* level param) plus the implicit ``QUERY``, and carries a
+# status property. pyisyox's classifier returns no controllable, two
+# ``buttons``, one reading — so the consumer surfaces a Query button
+# (root scaffold) plus a Discover + Beep button.
+
+PLUGIN_HUB_FAMILY_ID = "101"
+PLUGIN_HUB_INSTANCE_ID = "1"
+PLUGIN_HUB_NODEDEF_ID = "PluginHub"
+
+
+def _build_plugin_hub_nodedef() -> NodeDef:
+    """PG3-shape hub nodedef — no ``DON``/``DOF`` (no controllable
+    platform), zero-arg accept verbs, one ``ST`` property."""
+    return NodeDef.from_json(
+        {
+            "id": PLUGIN_HUB_NODEDEF_ID,
+            "nls": "hub",
+            "properties": [
+                {"id": "ST", "editor": "I_OL", "name": "Status"},
+            ],
+            "cmds": {
+                "sends": [],
+                "accepts": [
+                    {"id": "DISCOVER", "name": "Discover"},
+                    {
+                        "id": "BEEP",
+                        "name": "Beep",
+                        "parameters": [{"id": "", "editor": "I_OL", "optional": True}],
+                    },
+                    {"id": "QUERY", "name": "Query"},
+                ],
+            },
+        },
+        family_id=PLUGIN_HUB_FAMILY_ID,
+        instance_id=PLUGIN_HUB_INSTANCE_ID,
+    )
+
+
+def make_profile_with_button_plugin() -> Profile:
+    """Bundled eisy6 profile with the synthetic ``PluginHub`` nodedef
+    grafted under plugin slot ``"101"``. Built fresh per call (the cached
+    :func:`load_profile` instance must not be mutated)."""
+    raw = json.loads((FIXTURE_DIR / "eisy6_profile.json").read_text())
+    profile = Profile.load_from_json(raw)
+
+    nodedef = _build_plugin_hub_nodedef()
+    instance = Instance(id=PLUGIN_HUB_INSTANCE_ID, name="Hub Plugin")
+    instance.nodedefs[nodedef.id] = nodedef
+    family = Family(id=PLUGIN_HUB_FAMILY_ID, name="Hub Plugin")
+    family.instances[PLUGIN_HUB_INSTANCE_ID] = instance
+    profile.families[PLUGIN_HUB_FAMILY_ID] = family
+    profile.nodedef_lookup[nodedef.lookup_key] = nodedef
+    return profile
+
+
+def make_button_plugin_load_result(
+    *,
+    uuid: str = DEFAULT_UUID,
+    version: str = "6.0.0a1",
+    nodes: dict[str, NodeRecord] | None = None,
+) -> LoadResult:
+    """A :class:`LoadResult` carrying the hub-plugin-augmented profile.
+
+    Use with :func:`make_plugin_hub_node_record` so the classifier
+    resolves the nodedef and fans its zero-arg accepts into
+    ``aux_properties[Platform.BUTTON]``.
+    """
+    return LoadResult(
+        config=ControllerConfig(uuid=uuid, version=version),
+        profile=make_profile_with_button_plugin(),
+        nodes=nodes or {},
+        groups={},
+        folders={},
+        programs={},
+        triggers=[],
+        variables={"1": {}, "2": {}},
+        network_resources={},
+    )
+
+
+def make_plugin_hub_node_record(
+    address: str = "n101_hub",
+    name: str = "Plugin Hub",
+    *,
+    status_value: str = "0",
+) -> NodeRecord:
+    """A :class:`NodeRecord` shaped like a PG3 hub/controller node —
+    family slot ``"101"``, instance ``"1"``, nodedef ``PluginHub``."""
+    return make_node_record(
+        address,
+        name,
+        nodedef_id=PLUGIN_HUB_NODEDEF_ID,
+        family_id=PLUGIN_HUB_FAMILY_ID,
+        instance_id=PLUGIN_HUB_INSTANCE_ID,
+        type_="",
+        status_value=status_value,
+        status_uom="100",
+        status_formatted="0%",
+    )
+
+
 def make_classified_node_record(
     address: str,
     name: str,

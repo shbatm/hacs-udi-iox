@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from homeassistant.components.button import ButtonEntity
+from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
@@ -21,6 +21,24 @@ from pyisyox.constants import TAG_ENABLED, Protocol
 from .const import CONF_NETWORK, DOMAIN
 from .models import IsyConfigEntry, IsyData
 
+#: Plugin-defined accept commands whose semantics are "make the device
+#: announce itself" — tag the button with ``ButtonDeviceClass.IDENTIFY``
+#: so HA renders the identify affordance. ``BEEP`` is Insteon's; plugins
+#: occasionally reuse the verb.
+_IDENTIFY_COMMANDS = frozenset({"BEEP"})
+
+
+def _command_label(node: Node, command_id: str) -> str:
+    """Friendly label for a plugin accept command, from the nodedef."""
+    nodedef = node.nodedef
+    if nodedef is not None:
+        for cmd in nodedef.cmds.accepts:
+            if cmd.id == command_id:
+                if cmd.name:
+                    return cmd.name
+                break
+    return command_id.replace("_", " ").title()
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -34,6 +52,7 @@ async def async_setup_entry(
     entities: list[
         ISYNodeQueryButtonEntity
         | ISYNodeBeepButtonEntity
+        | ISYNodeCommandButtonEntity
         | ISYNetworkResourceButtonEntity
     ] = []
 
@@ -59,6 +78,22 @@ async def async_setup_entry(
                     device_info=device_info[node.address],
                 )
             )
+
+    # Plugin-defined zero-arg accept commands → one button each. pyisyox's
+    # classifier has already excluded QUERY and controllable-claimed cmds;
+    # commands with a required parameter live in result.parameterized_commands
+    # and aren't surfaced here.
+    for node, command_id in isy_data.aux_properties[Platform.BUTTON]:
+        entities.append(
+            ISYNodeCommandButtonEntity(
+                isy_data,
+                node=node,
+                command_id=command_id,
+                name=_command_label(node, command_id),
+                unique_id=f"{isy_data.uid_base(node)}_{command_id}",
+                device_info=device_info[node.address],
+            )
+        )
 
     for resource in isy_data.net_resources:
         entities.append(
@@ -162,13 +197,58 @@ class ISYNodeQueryButtonEntity(ISYNodeButtonEntity):
 
 
 class ISYNodeBeepButtonEntity(ISYNodeButtonEntity):
-    """Press → Insteon beep."""
+    """Press → Insteon beep (zero-arg; the controller applies a default
+    level). Tagged ``identify`` so HA renders the identify affordance."""
 
     _node: Node
+    _attr_device_class = ButtonDeviceClass.IDENTIFY
 
     async def async_press(self) -> None:
         """Press the button."""
         await self._node.send_command("BEEP")
+
+
+class ISYNodeCommandButtonEntity(ISYNodeButtonEntity):
+    """Press → send a plugin-defined zero-arg accept command to the node.
+
+    Covers parameterless verbs (DISCOVER, SETFAILED, ...) and ones whose
+    parameters are all optional (controller applies defaults). Callers who
+    need a non-default parameter value use the ``send_node_command``
+    service instead.
+
+    Categorised ``config`` — these are device-configuration verbs
+    (re-discover, reset, identify, ...) the user invokes deliberately,
+    not primary controls and not read-only diagnostics.
+    """
+
+    _node: Node
+
+    def __init__(
+        self,
+        isy_data: IsyData,
+        node: Node,
+        *,
+        command_id: str,
+        name: str,
+        unique_id: str,
+        device_info: DeviceInfo,
+    ) -> None:
+        """Bind to a single accept command on the node."""
+        super().__init__(
+            isy_data,
+            node,
+            name=name,
+            unique_id=unique_id,
+            device_info=device_info,
+            entity_category=EntityCategory.CONFIG,
+        )
+        self._command_id = command_id
+        if command_id in _IDENTIFY_COMMANDS:
+            self._attr_device_class = ButtonDeviceClass.IDENTIFY
+
+    async def async_press(self) -> None:
+        """Press the button — send the verb with no arguments."""
+        await self._node.send_command(self._command_id)
 
 
 class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):

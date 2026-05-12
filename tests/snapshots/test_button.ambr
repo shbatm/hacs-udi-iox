@@ -67,7 +67,7 @@
     'name': None,
     'options': dict({
     }),
-    'original_device_class': None,
+    'original_device_class': <ButtonDeviceClass.IDENTIFY: 'identify'>,
     'original_icon': None,
     'original_name': 'Beep',
     'platform': 'udi_iox',
@@ -81,6 +81,7 @@
 # name: test_button_entities[button.fanlinc_lamp_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'device_class': 'identify',
       'friendly_name': 'FanLinc Lamp Beep',
     }),
     'context': <ANY>,
@@ -205,7 +206,7 @@
     'name': None,
     'options': dict({
     }),
-    'original_device_class': None,
+    'original_device_class': <ButtonDeviceClass.IDENTIFY: 'identify'>,
     'original_icon': None,
     'original_name': 'Beep',
     'platform': 'udi_iox',
@@ -219,6 +220,7 @@
 # name: test_button_entities[button.garage_outlet_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'device_class': 'identify',
       'friendly_name': 'Garage Outlet Beep',
     }),
     'context': <ANY>,
@@ -297,7 +299,7 @@
     'name': None,
     'options': dict({
     }),
-    'original_device_class': None,
+    'original_device_class': <ButtonDeviceClass.IDENTIFY: 'identify'>,
     'original_icon': None,
     'original_name': 'Beep',
     'platform': 'udi_iox',
@@ -311,6 +313,7 @@
 # name: test_button_entities[button.hallway_light_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'device_class': 'identify',
       'friendly_name': 'Hallway Light Beep',
     }),
     'context': <ANY>,
@@ -389,7 +392,7 @@
     'name': None,
     'options': dict({
     }),
-    'original_device_class': None,
+    'original_device_class': <ButtonDeviceClass.IDENTIFY: 'identify'>,
     'original_icon': None,
     'original_name': 'Beep',
     'platform': 'udi_iox',
@@ -403,6 +406,7 @@
 # name: test_button_entities[button.living_thermostat_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'device_class': 'identify',
       'friendly_name': 'Living Thermostat Beep',
     }),
     'context': <ANY>,

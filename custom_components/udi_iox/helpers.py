@@ -324,6 +324,13 @@ def _categorize_nodes(
                 )
                 isy_data.nodes[ha_platform].append(node)
             _fan_out_readings(isy_data, node, result.readings)
+            # Zero-arg plugin accept commands (parameterless or all-params
+            # optional, e.g. DISCOVER / BEEP) → one button entity each.
+            # Commands with a required parameter (result.parameterized_commands)
+            # need editor-driven input entities — out of scope here; the
+            # send_node_command service covers them in the meantime.
+            for cmd in result.buttons:
+                isy_data.aux_properties[Platform.BUTTON].append((node, cmd.id))
             # NODE_PARALLEL_PLATFORMS (e.g. EVENT) — pyisyox classifier
             # surfaces emitted commands as triggers; the consumer wires
             # those into Platform.EVENT.
