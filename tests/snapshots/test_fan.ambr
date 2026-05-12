@@ -37,6 +37,24 @@
 # name: test_fan_entities[fan.fanlinc_lamp_fanlinc_motor-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'accepted_commands': list([
+        'BEEP',
+        'DFOF',
+        'DFON',
+        'DOF',
+        'DON',
+        'QUERY',
+        'WDU',
+      ]),
+      'accepted_commands_friendly': list([
+        'Beep',
+        'Fast Off',
+        'Fast On',
+        'Off',
+        'On',
+        'Query',
+        'Write Changes',
+      ]),
       'friendly_name': 'FanLinc Lamp FanLinc Motor',
       'percentage': 0,
       'percentage_step': 33.333333333333336,

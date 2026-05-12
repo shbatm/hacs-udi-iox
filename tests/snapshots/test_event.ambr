@@ -45,6 +45,38 @@
 # name: test_event_entities[event.fanlinc_lamp-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'accepted_commands': list([
+        'BEEP',
+        'BRT',
+        'DFOF',
+        'DFON',
+        'DIM',
+        'DOF',
+        'DON',
+        'FDDOWN',
+        'FDSTOP',
+        'FDUP',
+        'OL',
+        'QUERY',
+        'RR',
+        'WDU',
+      ]),
+      'accepted_commands_friendly': list([
+        'Beep',
+        'Brighten',
+        'Dim',
+        'Fade Down',
+        'Fade Stop',
+        'Fade Up',
+        'Fast Off',
+        'Fast On',
+        'Off',
+        'On',
+        'On Level',
+        'Query',
+        'Ramp Rate',
+        'Write Changes',
+      ]),
       'device_class': 'button',
       'event_type': None,
       'event_types': list([
@@ -112,6 +144,24 @@
 # name: test_event_entities[event.garage_outlet-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'accepted_commands': list([
+        'BEEP',
+        'DFOF',
+        'DFON',
+        'DOF',
+        'DON',
+        'QUERY',
+        'WDU',
+      ]),
+      'accepted_commands_friendly': list([
+        'Beep',
+        'Fast Off',
+        'Fast On',
+        'Off',
+        'On',
+        'Query',
+        'Write Changes',
+      ]),
       'device_class': 'button',
       'event_type': None,
       'event_types': list([
@@ -179,6 +229,38 @@
 # name: test_event_entities[event.hallway_light-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'accepted_commands': list([
+        'BEEP',
+        'BRT',
+        'DFOF',
+        'DFON',
+        'DIM',
+        'DOF',
+        'DON',
+        'FDDOWN',
+        'FDSTOP',
+        'FDUP',
+        'OL',
+        'QUERY',
+        'RR',
+        'WDU',
+      ]),
+      'accepted_commands_friendly': list([
+        'Beep',
+        'Brighten',
+        'Dim',
+        'Fade Down',
+        'Fade Stop',
+        'Fade Up',
+        'Fast Off',
+        'Fast On',
+        'Off',
+        'On',
+        'On Level',
+        'Query',
+        'Ramp Rate',
+        'Write Changes',
+      ]),
       'device_class': 'button',
       'event_type': None,
       'event_types': list([
@@ -246,6 +328,26 @@
 # name: test_event_entities[event.hallway_light_hallway_button_b-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'accepted_commands': list([
+        'BEEP',
+        'BL',
+        'DFOF',
+        'DFON',
+        'DOF',
+        'DON',
+        'QUERY',
+        'WDU',
+      ]),
+      'accepted_commands_friendly': list([
+        'Backlight',
+        'Beep',
+        'Fast Off',
+        'Fast On',
+        'Off',
+        'On',
+        'Query',
+        'Write Changes',
+      ]),
       'device_class': 'button',
       'event_type': None,
       'event_types': list([

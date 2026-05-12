@@ -568,7 +568,10 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Get the state attributes for the device."""
-        return {"parent_entity_id": self._parent_device.entity_id}
+        return {
+            **super().extra_state_attributes,
+            "parent_entity_id": self._parent_device.entity_id,
+        }
 
 
 class ISYBinarySensorProgramEntity(ISYProgramEntity, BinarySensorEntity):

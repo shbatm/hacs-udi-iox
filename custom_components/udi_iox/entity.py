@@ -278,6 +278,28 @@ class ISYNodeEntity(ISYEntity):
         self._attr_name = name
         self._attr_available = node.enabled
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Surface the node's accepted-command vocabulary.
+
+        ``nodedef.cmds.accepts`` is the canonical set of verbs the
+        controller will accept for this device — what an automation
+        author needs to know before calling ``udi_iox.send_node_command``.
+        Two views: ``accepted_commands`` (wire ids, automation-friendly)
+        and ``accepted_commands_friendly`` (the nodedef ``name`` strings).
+        Both sorted for snapshot stability. Different sub-nodes on the
+        same hardware (KeypadLinc buttons) carry different accept sets,
+        so this lives on the entity, not the device.
+        """
+        nodedef = self._node.nodedef
+        if nodedef is None:
+            return {}
+        accepts = nodedef.cmds.accepts
+        return {
+            "accepted_commands": sorted(cmd.id for cmd in accepts),
+            "accepted_commands_friendly": sorted(cmd.name or cmd.id for cmd in accepts),
+        }
+
     async def async_added_to_hass(self) -> None:
         """Subscribe to property changes for this node's control + the
         node-enabled lifecycle so we can flip ``available`` when the

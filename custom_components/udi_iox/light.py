@@ -133,7 +133,10 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the light attributes."""
-        return {ATTR_LAST_BRIGHTNESS: self._last_brightness}
+        return {
+            **super().extra_state_attributes,
+            ATTR_LAST_BRIGHTNESS: self._last_brightness,
+        }
 
     async def async_added_to_hass(self) -> None:
         """Restore last_brightness on restart."""

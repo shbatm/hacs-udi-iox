@@ -51,6 +51,30 @@
 # name: test_climate_entities[climate.living_thermostat-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'accepted_commands': list([
+        'BEEP',
+        'BRT',
+        'CLIFS',
+        'CLIMD',
+        'CLISPC',
+        'CLISPH',
+        'DIM',
+        'QUERY',
+        'SETTIME',
+        'WDU',
+      ]),
+      'accepted_commands_friendly': list([
+        'Beep',
+        'Cool Setpoint',
+        'Fan Mode',
+        'Heat Setpoint',
+        'Mode',
+        'Query',
+        'Set Time',
+        'Setpoint Down',
+        'Setpoint Up',
+        'Write Changes',
+      ]),
       'current_temperature': 68.0,
       'fan_mode': 'off',
       'fan_modes': list([
