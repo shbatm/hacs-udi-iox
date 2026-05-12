@@ -202,17 +202,32 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
             device_info=device_info,
         )
         self._attr_name = description.name  # Override super
-        # Always available; must follow super().__init__ which sets node.enabled
-        self._attr_available = True
+
+    @property
+    def available(self) -> bool:
+        """The enable switch is *always* available.
+
+        The base ``ISYNodeEntity`` ties availability to ``node.enabled``
+        so a disabled node's entities drop out — but then there'd be no
+        way to switch this one back on. Pin it to ``True`` regardless of
+        what the inherited control / lifecycle handlers set
+        ``_attr_available`` to.
+        """
+        return True
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:
-        """Handle a control event — availability is always True for enable switches."""
+        """Reflect a control / lifecycle event in the switch state."""
         self.async_write_ha_state()
 
     @property
     def is_on(self) -> bool | None:
-        """Get whether the ISY device is in the on state."""
+        """Whether the node is enabled on the controller.
+
+        ``node.enabled`` tracks ``EN`` lifecycle frames (pyisyox writes
+        the new state back to the record), so this follows changes made
+        from the admin console / REST as well as from this switch.
+        """
         return bool(self._node.enabled)
 
     async def async_turn_off(self, **kwargs: Any) -> None:

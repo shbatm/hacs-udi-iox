@@ -78,3 +78,50 @@ async def test_enable_switch_toggles_node_enabled() -> None:
         await entity.async_turn_on()
 
     assert [c.args for c in set_enabled.await_args_list] == [(False,), (True,)]
+
+
+async def test_enable_switch_always_available_and_tracks_record() -> None:
+    """The enable switch must never go unavailable (else there'd be no
+    way to switch a disabled node back on), and ``is_on`` follows the
+    node record — which pyisyox flips on ``EN`` lifecycle frames."""
+    from homeassistant.components.switch import SwitchDeviceClass
+    from homeassistant.const import EntityCategory
+    from pyisyox.constants import TAG_ENABLED
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.switch import (
+        ISYEnableSwitchEntity,
+        ISYSwitchEntityDescription,
+    )
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    record = make_node_record("AA AA AA 1", "Lamp")
+    record.enabled = False  # start disabled
+    node = make_node(record, controller)
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYEnableSwitchEntity(
+        isy_data,
+        node=node,
+        control=TAG_ENABLED,
+        unique_id="x_enabled",
+        description=ISYSwitchEntityDescription(
+            key=TAG_ENABLED,
+            device_class=SwitchDeviceClass.SWITCH,
+            name="Enabled",
+            entity_category=EntityCategory.CONFIG,
+        ),
+        device_info=None,
+    )
+
+    assert entity.available is True
+    assert entity.is_on is False
+    record.enabled = True  # e.g. re-enabled from the admin console
+    assert entity.available is True
+    assert entity.is_on is True
