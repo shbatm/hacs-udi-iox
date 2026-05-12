@@ -32,7 +32,6 @@ from pyisyox import (
     NodeLifecycleEvent,
     ProgramStatusEvent,
     SystemEventControl,
-    describe_system_event,
 )
 
 from .const import _LOGGER, DOMAIN, EVENT_UDI_IOX_CONTROL
@@ -256,21 +255,16 @@ class IsyControllerEvents:
         if not event.node_address:
             # System events. Variable + program changes ride here on the
             # ``SystemEventControl.TRIGGER`` frame with the payload in
-            # event_info; everything else just gets a debug log with the
-            # friendly label (e.g. ``system_status = not_busy`` instead
-            # of ``_5 = 0``) so devcontainer / `verbose:` traces stay
-            # readable. Codes outside UDI's published cookbook render
-            # verbatim — pyisyox owns that translation.
+            # event_info — that's the only system event this integration
+            # acts on. Everything else (heartbeats, config toggles,
+            # lifecycle verbs, Z-Wave/Matter status, ...) is logged by
+            # pyisyox itself at DEBUG; duplicating it here would just
+            # double every line in `verbose:` traces.
             if event.control == SystemEventControl.TRIGGER and event.action in (
                 _VAR_VALUE_ACTION,
                 _VAR_INIT_ACTION,
             ):
                 self._dispatch_variable_event(event)
-                return
-            _LOGGER.debug(
-                "IoX system event: %s",
-                describe_system_event(event.control, event.action),
-            )
             return
 
         address = event.node_address
@@ -361,16 +355,15 @@ class IsyControllerEvents:
 
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:
-        """Dispatch a node-lifecycle event to all subscribers."""
-        # ``NodeLifecycleAction.label`` lower-cases the member name (or
-        # echoes the raw value for codes pyisyox doesn't know); we
-        # title-case it for the log + the Repair card.
+        """Dispatch a node-lifecycle event to all subscribers.
+
+        pyisyox already logs the raw lifecycle frame at DEBUG
+        (``System event: node_lifecycle = …``); here we only act on it.
+        ``NodeLifecycleAction.label`` lower-cases the member name (or
+        echoes the raw value for codes pyisyox doesn't know); we
+        title-case it for the Repair card.
+        """
         verb = NodeLifecycleAction.label(event.raw_action)
-        _LOGGER.debug(
-            "IoX node lifecycle: %s on %s",
-            verb.replace("_", " ").title(),
-            event.node_address,
-        )
 
         # The reload-required verbs invalidate the cached node registry
         # (added/removed/renamed/enabled/revised/removed-from-scene). HA
