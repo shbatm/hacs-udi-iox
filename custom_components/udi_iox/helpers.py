@@ -67,11 +67,35 @@ from .const import (
     UOM_INDEX,
     UOM_ISYV4_DEGREES,
 )
-from .editor_classification import BINARY_UOMS
+from .editor_classification import BINARY_UOMS, platform_for_control, resolve_editor
 from .models import IsyData
 
 ROOT_AUX_CONTROLS = {PROP_ON_LEVEL, PROP_RAMP_RATE}
 SKIP_AUX_PROPS = {PROP_BUSY, PROP_COMMS_ERROR, PROP_STATUS, *ROOT_AUX_CONTROLS}
+
+
+def _aux_platform_for(
+    controller: Controller,
+    node: Node,
+    control: str,
+    *,
+    writable: bool,
+    fallback: Platform,
+) -> Platform:
+    """HA platform for an aux ``control``, decided from its editor shape.
+
+    Resolves the editor governing ``control`` (the nodedef property's
+    for settable status props, the accept-command parameter's for
+    command-only controls like backlight), disambiguates a multi-range
+    editor by the control's live UOM, and runs
+    :func:`platform_for_control`. Falls back to ``fallback`` (the legacy
+    static map / UOM heuristic) when the editor can't be resolved or
+    doesn't pin a platform down.
+    """
+    editor = resolve_editor(controller, node, control)
+    prop = node.properties.get(control)
+    prop_uom = prop.uom if prop is not None else None
+    return platform_for_control(editor, prop_uom, writable=writable) or fallback
 
 
 #: Map a controllable platform from the classifier to the HA platform
@@ -92,25 +116,29 @@ _READING_TO_HA_PLATFORM: dict[ReadingPlatform, Platform] = {
 }
 
 
-def _add_backlight_if_supported(isy_data: IsyData, node: Node) -> None:
+def _add_backlight_if_supported(
+    isy_data: IsyData, node: Node, controller: Controller
+) -> None:
     """Append a backlight aux entity for nodedefs that support it.
 
-    pyisyox's :data:`BACKLIGHT_SUPPORT` maps a nodedef id to the UOM
-    its backlight editor reports in. The UOM picks the HA platform:
-
-    * ``UOM_INDEX`` (e.g. KeypadDimmer_ADV / KeypadButton_ADV) → SELECT
-      (discrete on/off-level pairs from :data:`BACKLIGHT_INDEX`).
-    * ``UOM_PERCENTAGE`` (e.g. DimmerLampSwitch_ADV) → NUMBER
-      (continuous 0-100 backlight intensity).
-
-    pyisyox doesn't expose an ``is_backlight_supported`` introspection
-    property in v6 — we read the dict directly. Future pyisyox release
-    could promote this to a Node-level property.
+    pyisyox's :data:`BACKLIGHT_SUPPORT` still gates *which* nodedefs get
+    a backlight entity (it's an accept-only command — no backing
+    property — so there's no live value to key on). The HA platform,
+    though, comes from the ``BL`` command's editor: ``I_BL`` (UOM 51,
+    0-100) → NUMBER, ``I_BL_KP`` (UOM 25, indexed on/off pairs) →
+    SELECT. The legacy ``BACKLIGHT_SUPPORT`` UOM is the fallback when
+    the editor can't be resolved.
     """
-    uom = BACKLIGHT_SUPPORT.get(node.nodedef_id)
-    if uom is None:
+    legacy_uom = BACKLIGHT_SUPPORT.get(node.nodedef_id)
+    if legacy_uom is None:
         return
-    platform = Platform.SELECT if uom == UOM_INDEX else Platform.NUMBER
+    platform = _aux_platform_for(
+        controller,
+        node,
+        CMD_BACKLIGHT,
+        writable=True,
+        fallback=Platform.SELECT if legacy_uom == UOM_INDEX else Platform.NUMBER,
+    )
     isy_data.aux_properties[platform].append((node, CMD_BACKLIGHT))
 
 
@@ -319,10 +347,16 @@ def _categorize_nodes(
 
             if node.is_dimmable:
                 for control in ROOT_AUX_CONTROLS.intersection(node.properties):
-                    platform = NODE_AUX_FILTERS[control]
+                    platform = _aux_platform_for(
+                        controller,
+                        node,
+                        control,
+                        writable=True,
+                        fallback=NODE_AUX_FILTERS[control],
+                    )
                     isy_data.aux_properties[platform].append((node, control))
 
-            _add_backlight_if_supported(isy_data, node)
+            _add_backlight_if_supported(isy_data, node, controller)
 
         # User-forced sensor classification short-circuits everything
         # else — keep the v3 ergonomics.
