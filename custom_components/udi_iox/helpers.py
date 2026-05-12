@@ -48,6 +48,7 @@ from pyisyox.constants import (
     TAG_ENABLED,
     Protocol,
 )
+from pyisyox.schema.nodedef import Command
 
 from .const import (
     _LOGGER,
@@ -180,6 +181,30 @@ def _classify_plugin_node(
             editor_id, node.family_id, node.instance_id
         ),
     )
+
+
+def _node_trigger_commands(node: Node) -> list[Command]:
+    """The control verbs a node emits, from its nodedef's ``cmds.sends``.
+
+    Empty when the nodedef isn't resolved or declares no sent commands —
+    such nodes get no EVENT entity (they have nothing to fire).
+    """
+    nodedef = node.nodedef
+    return list(nodedef.cmds.sends) if nodedef is not None else []
+
+
+def _register_event_node(
+    isy_data: IsyData, node: Node, trigger_cmds: list[Command]
+) -> None:
+    """Route ``node`` onto the EVENT platform with its trigger vocabulary.
+
+    No-ops on an empty command list. Caller must have confirmed
+    ``Platform.EVENT`` is an enabled parallel platform.
+    """
+    if not trigger_cmds:
+        return
+    isy_data.nodes[Platform.EVENT].append(node)
+    isy_data.node_triggers[node.address] = trigger_cmds
 
 
 def _fan_out_readings(isy_data: IsyData, node: Node, readings: list[Reading]) -> None:
@@ -331,11 +356,12 @@ def _categorize_nodes(
             # send_node_command service covers them in the meantime.
             for cmd in result.buttons:
                 isy_data.aux_properties[Platform.BUTTON].append((node, cmd.id))
-            # NODE_PARALLEL_PLATFORMS (e.g. EVENT) — pyisyox classifier
-            # surfaces emitted commands as triggers; the consumer wires
-            # those into Platform.EVENT.
-            if result.triggers and Platform.EVENT in NODE_PARALLEL_PLATFORMS:
-                isy_data.nodes[Platform.EVENT].append(node)
+            # NODE_PARALLEL_PLATFORMS (e.g. EVENT) — the classifier's
+            # ``triggers`` list IS the nodedef's ``cmds.sends``; wire it
+            # onto the EVENT platform so plugin verbs (DOORBELL_PRESS,
+            # MOTION_ON, …) surface, not just the Insteon set.
+            if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
+                _register_event_node(isy_data, node, list(result.triggers))
             continue
 
         # Native nodes: type-based introspection.
@@ -352,20 +378,20 @@ def _categorize_nodes(
         )
         if is_subnode_button:
             if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
-                isy_data.nodes[Platform.EVENT].append(node)
+                _register_event_node(isy_data, node, _node_trigger_commands(node))
             continue
 
         isy_data.nodes[primary].append(node)
         _fan_out_native_aux(isy_data, node)
 
-        # Parallel: native Insteon LIGHT/SWITCH nodes also emit
-        # press/fast/fade events that the EVENT platform surfaces.
+        # Parallel: native Insteon LIGHT/SWITCH nodes whose nodedef
+        # declares sent verbs also feed the EVENT platform.
         if (
             Platform.EVENT in NODE_PARALLEL_PLATFORMS
             and primary in (Platform.LIGHT, Platform.SWITCH)
             and node.protocol == Protocol.INSTEON
         ):
-            isy_data.nodes[Platform.EVENT].append(node)
+            _register_event_node(isy_data, node, _node_trigger_commands(node))
 
 
 def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> None:

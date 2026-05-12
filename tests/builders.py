@@ -601,6 +601,97 @@ def make_plugin_hub_node_record(
     )
 
 
+# --- plugin "trigger source" nodedef: only cmds.sends, no controllable --
+#
+# Models a PG3 sensor/doorbell-style node that emits verbs but accepts
+# none — pyisyox's classifier returns no controllable, no readings, and
+# two ``triggers``. The consumer wires it onto Platform.EVENT with
+# event_types derived from the sent commands' names.
+
+PLUGIN_TRIGGER_FAMILY_ID = "102"
+PLUGIN_TRIGGER_INSTANCE_ID = "1"
+PLUGIN_TRIGGER_NODEDEF_ID = "PluginTriggerSource"
+
+
+def _build_plugin_trigger_nodedef() -> NodeDef:
+    """PG3-shape trigger-source nodedef — ``cmds.sends`` only, no accepts."""
+    return NodeDef.from_json(
+        {
+            "id": PLUGIN_TRIGGER_NODEDEF_ID,
+            "nls": "trigger",
+            "properties": [],
+            "cmds": {
+                "sends": [
+                    {"id": "DOORBELL_PRESS", "name": "Doorbell Press"},
+                    {"id": "MOTION_ON", "name": "Motion On"},
+                ],
+                "accepts": [],
+            },
+        },
+        family_id=PLUGIN_TRIGGER_FAMILY_ID,
+        instance_id=PLUGIN_TRIGGER_INSTANCE_ID,
+    )
+
+
+def make_profile_with_trigger_plugin() -> Profile:
+    """Bundled eisy6 profile with the synthetic ``PluginTriggerSource``
+    nodedef grafted under plugin slot ``"102"``. Built fresh per call."""
+    raw = json.loads((FIXTURE_DIR / "eisy6_profile.json").read_text())
+    profile = Profile.load_from_json(raw)
+
+    nodedef = _build_plugin_trigger_nodedef()
+    instance = Instance(id=PLUGIN_TRIGGER_INSTANCE_ID, name="Trigger Plugin")
+    instance.nodedefs[nodedef.id] = nodedef
+    family = Family(id=PLUGIN_TRIGGER_FAMILY_ID, name="Trigger Plugin")
+    family.instances[PLUGIN_TRIGGER_INSTANCE_ID] = instance
+    profile.families[PLUGIN_TRIGGER_FAMILY_ID] = family
+    profile.nodedef_lookup[nodedef.lookup_key] = nodedef
+    return profile
+
+
+def make_trigger_plugin_load_result(
+    *,
+    uuid: str = DEFAULT_UUID,
+    version: str = "6.0.0a1",
+    nodes: dict[str, NodeRecord] | None = None,
+) -> LoadResult:
+    """A :class:`LoadResult` carrying the trigger-plugin-augmented profile.
+
+    Use with :func:`make_plugin_trigger_node_record` so the classifier
+    resolves the nodedef and the consumer routes the node onto
+    ``Platform.EVENT``.
+    """
+    return LoadResult(
+        config=ControllerConfig(uuid=uuid, version=version),
+        profile=make_profile_with_trigger_plugin(),
+        nodes=nodes or {},
+        groups={},
+        folders={},
+        programs={},
+        triggers=[],
+        variables={"1": {}, "2": {}},
+        network_resources={},
+    )
+
+
+def make_plugin_trigger_node_record(
+    address: str = "n102_bell",
+    name: str = "Front Doorbell",
+) -> NodeRecord:
+    """A :class:`NodeRecord` shaped like a PG3 trigger-source node —
+    family slot ``"102"``, instance ``"1"``, nodedef ``PluginTriggerSource``,
+    no status property."""
+    return make_node_record(
+        address,
+        name,
+        nodedef_id=PLUGIN_TRIGGER_NODEDEF_ID,
+        family_id=PLUGIN_TRIGGER_FAMILY_ID,
+        instance_id=PLUGIN_TRIGGER_INSTANCE_ID,
+        type_="",
+        properties={},
+    )
+
+
 def make_classified_node_record(
     address: str,
     name: str,

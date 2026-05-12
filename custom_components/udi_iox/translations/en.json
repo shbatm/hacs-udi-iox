@@ -42,7 +42,10 @@
       "button": {
         "state_attributes": {
           "event_type": {
+            "name": "Event type",
             "state": {
+              "brighten": "Brighten",
+              "dim": "Dim",
               "fade_down": "Fade down",
               "fade_stop": "Fade stop",
               "fade_up": "Fade up",
