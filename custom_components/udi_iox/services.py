@@ -1,7 +1,11 @@
 """IoX services.
 
 * ``send_node_command`` — friendly-named entity command, dispatched
-  through :meth:`ISYNodeEntity.async_send_node_command`.
+  through :meth:`ISYNodeEntity.async_send_node_command`. The command id
+  is validated against the node's nodedef accept set before it's sent.
+* ``get_node_commands`` — response-only entity service returning the
+  node's accepted-command vocabulary (wire ids + friendly names), read
+  just-in-time from the nodedef.
 * ``set_variable`` — writes through
   :meth:`pyisyox.Controller.set_variable_value` /
   :meth:`set_variable_init`.
@@ -23,7 +27,13 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_TYPE,
 )
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.service import entity_service_call
@@ -47,6 +57,7 @@ INTEGRATION_SERVICES = [
 
 # Entity-targeting services (light, switch, climate, fan, cover, lock, etc.)
 SERVICE_SEND_NODE_COMMAND = "send_node_command"
+SERVICE_GET_NODE_COMMANDS = "get_node_commands"
 SERVICE_RENAME_NODE = "rename_node"
 
 CONF_VALUE = "value"
@@ -311,6 +322,19 @@ def async_setup_services(hass: HomeAssistant) -> None:
         service=SERVICE_SEND_NODE_COMMAND,
         schema=cv.make_entity_service_schema(SERVICE_SEND_NODE_COMMAND_SCHEMA),
         service_func=_async_send_node_command,
+    )
+
+    async def _async_get_node_commands(call: ServiceCall) -> ServiceResponse:
+        return await entity_service_call(
+            hass, async_get_platforms(hass, DOMAIN), "async_get_node_commands", call
+        )
+
+    hass.services.async_register(
+        domain=DOMAIN,
+        service=SERVICE_GET_NODE_COMMANDS,
+        schema=cv.make_entity_service_schema({}),
+        service_func=_async_get_node_commands,
+        supports_response=SupportsResponse.ONLY,
     )
 
     async def _async_rename_node(call: ServiceCall) -> None:

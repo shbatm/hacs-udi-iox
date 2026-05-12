@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity import DeviceInfo, Entity, EntityDescription
 from pyisyox import (
     Event,
@@ -306,17 +306,62 @@ class ISYNodeEntity(ISYEntity):
         self._attr_available = self._node.enabled
         self.async_write_ha_state()
 
+    def _accepted_command_ids(self) -> set[str] | None:
+        """Wire ids the node's nodedef declares it accepts.
+
+        Returns ``None`` when the nodedef isn't resolved — callers
+        should treat that as "can't validate, let it through" rather
+        than "accepts nothing".
+        """
+        nodedef = self._node.nodedef
+        if nodedef is None:
+            return None
+        return {cmd.id for cmd in nodedef.cmds.accepts}
+
+    def _validate_command(self, command_id: str) -> None:
+        """Raise if ``command_id`` isn't in the node's accept set.
+
+        Just-in-time against the live nodedef — saves a round-trip to
+        the controller for a verb it would reject, and gives the caller
+        the valid list instead of an opaque protocol error.
+        """
+        accepted = self._accepted_command_ids()
+        if accepted is not None and command_id not in accepted:
+            raise ServiceValidationError(
+                f"Node {self._node.address} does not accept command "
+                f"{command_id!r}. Accepted commands: {', '.join(sorted(accepted))}"
+            )
+
+    async def async_get_node_commands(self) -> dict[str, list[str]]:
+        """Entity-service response: the node's accepted-command vocabulary.
+
+        ``accepted_commands`` are the canonical wire ids (automation-
+        friendly); ``accepted_commands_friendly`` are the nodedef
+        ``name`` strings. Both sorted. Empty lists when the nodedef
+        isn't resolved.
+        """
+        nodedef = self._node.nodedef
+        if nodedef is None:
+            return {"accepted_commands": [], "accepted_commands_friendly": []}
+        accepts = nodedef.cmds.accepts
+        return {
+            "accepted_commands": sorted(cmd.id for cmd in accepts),
+            "accepted_commands_friendly": sorted(cmd.name or cmd.id for cmd in accepts),
+        }
+
     async def async_send_node_command(self, command: str) -> None:
         """Respond to an entity service command call.
 
         The legacy v3 ``send_node_command`` service mapped friendly
         names ("brighten", "fast_off") onto Node helper methods. v6
         unifies on Node.send_command — translate friendly names to the
-        canonical IoX command id and let the editor codec validate.
+        canonical IoX command id, validate against the node's accept
+        set, then let the editor codec validate the parameters.
         """
         # Reverse the friendly-name → IoX-id map.
         friendly_to_id = {v: k for k, v in COMMAND_FRIENDLY_NAME.items()}
         cmd_id = friendly_to_id.get(command, command)
+        self._validate_command(cmd_id)
         await self._node.send_command(cmd_id)
 
     async def async_send_raw_node_command(
@@ -332,6 +377,7 @@ class ISYNodeEntity(ISYEntity):
         editor codec on :meth:`Node.send_command` resolves them from
         the node's profile. Only ``(command, value)`` is honored.
         """
+        self._validate_command(command)
         params = (value,) if value is not None else ()
         await self._node.send_command(command, *params)
 

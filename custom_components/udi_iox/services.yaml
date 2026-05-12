@@ -26,6 +26,11 @@ send_node_command:
             - "fast_on"
             - "query"
 
+get_node_commands:
+  target:
+    entity:
+      integration: udi_iox
+
 rename_node:
   target:
     entity:

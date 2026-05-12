@@ -21,12 +21,13 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 import pytest
 from homeassistant.const import CONF_ADDRESS, CONF_NAME, CONF_TYPE
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from pyisyox import Controller
 
 from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.models import IsyData
 from custom_components.udi_iox.services import (
+    SERVICE_GET_NODE_COMMANDS,
     SERVICE_RENAME_NODE,
     SERVICE_RUN_NETWORK_RESOURCE,
     SERVICE_SEND_NODE_COMMAND,
@@ -323,6 +324,80 @@ async def test_rename_node_service_is_registered(hass, service_controller) -> No
     await _wire_services_with_entry(hass, service_controller)
     assert hass.services.has_service(DOMAIN, SERVICE_RENAME_NODE)
     assert hass.services.has_service(DOMAIN, SERVICE_SEND_NODE_COMMAND)
+    assert hass.services.has_service(DOMAIN, SERVICE_GET_NODE_COMMANDS)
+
+
+# --- accepted-command surface (get_node_commands + JIT validation) ---
+
+
+def _bare_node_entity(node):
+    """An ``ISYNodeEntity`` with just ``_node`` wired — enough for the
+    nodedef-reading helpers without a full HA setup."""
+    from custom_components.udi_iox.entity import ISYNodeEntity
+
+    entity = ISYNodeEntity.__new__(ISYNodeEntity)
+    entity._node = node
+    return entity
+
+
+async def test_get_node_commands_returns_sorted_accept_set(service_controller) -> None:
+    """``async_get_node_commands`` reports the node's nodedef accept set
+    as sorted wire ids + friendly names."""
+    node = next(iter(service_controller.nodes.values()))
+    entity = _bare_node_entity(node)
+
+    result = await entity.async_get_node_commands()
+
+    expected_ids = sorted(c.id for c in node.nodedef.cmds.accepts)
+    assert result["accepted_commands"] == expected_ids
+    assert result["accepted_commands_friendly"] == sorted(
+        c.name or c.id for c in node.nodedef.cmds.accepts
+    )
+    assert result["accepted_commands"] == sorted(result["accepted_commands"])
+
+
+async def test_send_node_command_rejects_unaccepted_verb(service_controller) -> None:
+    """A verb absent from the node's nodedef accept set raises before
+    any controller round-trip."""
+    node = next(iter(service_controller.nodes.values()))
+    assert "NOT_A_REAL_COMMAND" not in {c.id for c in node.nodedef.cmds.accepts}
+    entity = _bare_node_entity(node)
+
+    with pytest.raises(ServiceValidationError):
+        await entity.async_send_node_command("NOT_A_REAL_COMMAND")
+    service_controller._client.post_node_update.assert_not_awaited()
+
+
+async def test_send_node_command_accepted_verb_passes_through(
+    service_controller,
+) -> None:
+    """An accepted verb is forwarded to ``Node.send_command``."""
+    node = next(iter(service_controller.nodes.values()))
+    entity = _bare_node_entity(node)
+
+    assert "BEEP" in {c.id for c in node.nodedef.cmds.accepts}
+    with patch.object(type(node), "send_command", new=AsyncMock()) as send:
+        # Friendly "beep" → wire id "BEEP".
+        await entity.async_send_node_command("beep")
+
+    send.assert_awaited_once_with("BEEP")
+
+
+async def test_validate_command_skipped_when_nodedef_unresolved(
+    service_controller,
+) -> None:
+    """No nodedef → can't validate; the verb is let through (the
+    controller will reject it if truly bogus)."""
+    node = next(iter(service_controller.nodes.values()))
+    entity = _bare_node_entity(node)
+
+    with (
+        patch.object(type(node), "nodedef", property(lambda self: None)),
+        patch.object(type(node), "send_command", new=AsyncMock()) as send,
+    ):
+        await entity.async_send_node_command("anything")
+
+    send.assert_awaited_once_with("anything")
 
 
 # --- entity rename plumbing ------------------------------------------
