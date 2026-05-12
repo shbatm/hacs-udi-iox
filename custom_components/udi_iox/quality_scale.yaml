@@ -69,18 +69,23 @@ rules:
     comment: The config entry's unique_id is the controller UUID.
 
   # Silver
-  action-exceptions: todo
+  action-exceptions:
+    status: done
+    comment: |
+      Services wrap NodeCommandError / connection failures in
+      HomeAssistantError (services.py).
   config-entry-unloading:
     status: done
     comment: async_unload_entry stops the controller and unloads platforms.
   docs-configuration-parameters: todo
   docs-installation-parameters: todo
   entity-unavailable:
-    status: done
+    status: todo
     comment: |
-      Node entities track availability from node.enabled (and the
-      controller's connection state); the enable switch is intentionally
-      always available.
+      Entities only track node.enabled (the enable switch is
+      intentionally always available); availability isn't yet wired to
+      the controller's WebSocket-stream / connection health, so a
+      dropped event stream leaves entities "available" with stale state.
   integration-owner: done
   log-when-unavailable: todo
   parallel-updates: todo
@@ -97,7 +102,11 @@ rules:
   discovery:
     status: done
     comment: SSDP (X_IoX_Device:1) + DHCP.
-  discovery-update-info: todo
+  discovery-update-info:
+    status: done
+    comment: |
+      _async_set_unique_id_or_update updates the stored host when SSDP /
+      DHCP rediscover a configured controller at a new address.
   docs-data-update: todo
   docs-examples: todo
   docs-known-limitations: todo
