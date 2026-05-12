@@ -12,7 +12,7 @@ import pytest
 from homeassistant.const import Platform
 from pyisyox.schema.editor import Editor
 
-from custom_components.udi_iox.helpers import platform_for_control
+from custom_components.udi_iox.editor_classification import platform_for_control
 
 
 def _e(eid: str, **rng: object) -> Editor:
