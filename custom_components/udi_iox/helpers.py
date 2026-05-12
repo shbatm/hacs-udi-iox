@@ -38,8 +38,7 @@ from pyisyox import (
     classify,
 )
 from pyisyox.constants import (
-    BACKLIGHT_SUPPORT,
-    CMD_BACKLIGHT,
+    CMD_BEEP,
     PROP_BUSY,
     PROP_COMMS_ERROR,
     PROP_ON_LEVEL,
@@ -64,38 +63,17 @@ from .const import (
     NODE_PARALLEL_PLATFORMS,
     PROGRAM_PLATFORMS,
     UOM_DOUBLE_TEMP,
-    UOM_INDEX,
     UOM_ISYV4_DEGREES,
 )
 from .editor_classification import BINARY_UOMS, platform_for_control, resolve_editor
 from .models import IsyData
 
+#: ST / OL / RR — the dimmer's own controls. ST is the primary entity;
+#: OL / RR surface as aux NUMBER / SELECT entities via the nodedef's
+#: ``OL`` / ``RR`` accept commands (see ``_fan_out_commands``), so they
+#: must be excluded from the read-only sensor fan-out.
 ROOT_AUX_CONTROLS = {PROP_ON_LEVEL, PROP_RAMP_RATE}
 SKIP_AUX_PROPS = {PROP_BUSY, PROP_COMMS_ERROR, PROP_STATUS, *ROOT_AUX_CONTROLS}
-
-
-def _aux_platform_for(
-    controller: Controller,
-    node: Node,
-    control: str,
-    *,
-    writable: bool,
-    fallback: Platform,
-) -> Platform:
-    """HA platform for an aux ``control``, decided from its editor shape.
-
-    Resolves the editor governing ``control`` (the nodedef property's
-    for settable status props, the accept-command parameter's for
-    command-only controls like backlight), disambiguates a multi-range
-    editor by the control's live UOM, and runs
-    :func:`platform_for_control`. Falls back to ``fallback`` (the legacy
-    static map / UOM heuristic) when the editor can't be resolved or
-    doesn't pin a platform down.
-    """
-    editor = resolve_editor(controller, node, control)
-    prop = node.properties.get(control)
-    prop_uom = prop.uom if prop is not None else None
-    return platform_for_control(editor, prop_uom, writable=writable) or fallback
 
 
 #: Map a controllable platform from the classifier to the HA platform
@@ -114,32 +92,6 @@ _READING_TO_HA_PLATFORM: dict[ReadingPlatform, Platform] = {
     ReadingPlatform.SENSOR: Platform.SENSOR,
     ReadingPlatform.BINARY_SENSOR: Platform.BINARY_SENSOR,
 }
-
-
-def _add_backlight_if_supported(
-    isy_data: IsyData, node: Node, controller: Controller
-) -> None:
-    """Append a backlight aux entity for nodedefs that support it.
-
-    pyisyox's :data:`BACKLIGHT_SUPPORT` still gates *which* nodedefs get
-    a backlight entity (it's an accept-only command — no backing
-    property — so there's no live value to key on). The HA platform,
-    though, comes from the ``BL`` command's editor: ``I_BL`` (UOM 51,
-    0-100) → NUMBER, ``I_BL_KP`` (UOM 25, indexed on/off pairs) →
-    SELECT. The legacy ``BACKLIGHT_SUPPORT`` UOM is the fallback when
-    the editor can't be resolved.
-    """
-    legacy_uom = BACKLIGHT_SUPPORT.get(node.nodedef_id)
-    if legacy_uom is None:
-        return
-    platform = _aux_platform_for(
-        controller,
-        node,
-        CMD_BACKLIGHT,
-        writable=True,
-        fallback=Platform.SELECT if legacy_uom == UOM_INDEX else Platform.NUMBER,
-    )
-    isy_data.aux_properties[platform].append((node, CMD_BACKLIGHT))
 
 
 def _is_device_root(node: Node) -> bool:
@@ -187,15 +139,19 @@ def _primary_platform_for_native(node: Node) -> Platform:
     return Platform.SWITCH
 
 
-def _classify_plugin_node(
-    controller: Controller, node: Node
-) -> ClassificationResult | None:
-    """Run the pyisyox classifier against a plugin node's nodedef."""
+def _classify_node(controller: Controller, node: Node) -> ClassificationResult | None:
+    """Run the pyisyox classifier against a node's nodedef.
+
+    Same shape for native (Insteon / Z-Wave / Zigbee) and PG3 plugin
+    nodedefs — the classifier reads links / accepts / properties, not a
+    protocol flag. ``None`` when the nodedef isn't in the loaded profile
+    (a node that joined after load, or an unknown nodedef id — wait for
+    a reload).
+    """
     nodedef = node.nodedef
     if nodedef is None:
-        # Profile not loaded yet, or nodedef id unknown — skip until reload.
         _LOGGER.debug(
-            "Skipping plugin node %s: nodedef %r not present in profile",
+            "No nodedef for %s (%r) in the loaded profile; skipping classify",
             node.address,
             node.nodedef_id,
         )
@@ -248,6 +204,76 @@ def _fan_out_native_aux(isy_data: IsyData, node: Node) -> None:
             Platform.BINARY_SENSOR if prop.uom in BINARY_UOMS else Platform.SENSOR
         )
         isy_data.aux_properties[platform].append((node, control))
+
+
+#: Accept commands the integration surfaces through a *dedicated* entity
+#: rather than the generic command fan-out, keyed by the protocol whose
+#: device-root scaffold provides that entity — skip them here so they
+#: aren't double-created. (``QUERY`` is already dropped upstream by
+#: ``pyisyox.classify``; Insteon's ``BEEP`` gets the bespoke
+#: ``ISYNodeBeepButtonEntity``. A plugin nodedef that declares ``BEEP``
+#: still gets the generic button — there's no scaffolded one for it.)
+_DEDICATED_COMMANDS_BY_PROTOCOL: dict[str, frozenset[str]] = {
+    Protocol.INSTEON: frozenset({CMD_BEEP}),
+}
+
+
+def _fan_out_commands(
+    isy_data: IsyData,
+    node: Node,
+    controller: Controller,
+    result: ClassificationResult,
+) -> None:
+    """Surface a node's accept commands as input / button aux entities.
+
+    Driven by :func:`pyisyox.classify` (it already drops ``QUERY`` and
+    the verbs the controllable platform claims, e.g. ``DON`` / ``DOF`` /
+    ``BRT`` on a light):
+
+    * ``parameterized_commands`` (carry a required parameter — ``OL``,
+      ``RR``, ``BL`` backlight, plugin setters) → a NUMBER / SELECT /
+      SWITCH entity, the platform chosen from the parameter's editor via
+      :func:`platform_for_control`. A parameter's ``init`` names the
+      property the value lives on: ``init == "ST"`` means the
+      controllable owns it (skip); ``init`` pointing at a property the
+      device hasn't reported yet means the number/select entity has no
+      live value to show (skip until it does — matches the pre-#10
+      behaviour); no ``init`` means the value is tracked optimistically
+      (``BL`` backlight). A command whose editor can't be resolved
+      falls back to :data:`NODE_AUX_FILTERS` if listed there, else is
+      skipped — the ``send_node_command`` service still reaches it.
+    * ``buttons`` (no required parameter) → one BUTTON entity each
+      (``WDU`` "Write Changes", plugin ``DISCOVER`` …), minus the ones
+      the integration ships a dedicated entity for.
+    """
+    dedicated = _DEDICATED_COMMANDS_BY_PROTOCOL.get(node.protocol or "", frozenset())
+    for cmd in result.parameterized_commands:
+        if cmd.id in dedicated:
+            continue
+        init_prop = next((p.init for p in cmd.parameters if p.init), None)
+        if init_prop == PROP_STATUS:
+            continue
+        if init_prop is not None and init_prop not in node.properties:
+            continue
+        editor = resolve_editor(controller, node, cmd.id)
+        prop = node.properties.get(cmd.id)
+        platform = platform_for_control(
+            editor, prop.uom if prop is not None else None, writable=True
+        )
+        if platform is None:
+            platform = NODE_AUX_FILTERS.get(cmd.id)
+        if platform is None:
+            _LOGGER.debug(
+                "No editor-resolved platform for %s/%s; leaving it to the service",
+                node.address,
+                cmd.id,
+            )
+            continue
+        isy_data.aux_properties[platform].append((node, cmd.id))
+    for cmd in result.buttons:
+        if cmd.id in dedicated:
+            continue
+        isy_data.aux_properties[Platform.BUTTON].append((node, cmd.id))
 
 
 def _generate_device_info(controller: Controller, node: Node, host: str) -> DeviceInfo:
@@ -326,6 +352,13 @@ def _categorize_nodes(
                 controller, node, host
             )
 
+        # Classifier output drives the controllable platform (plugins),
+        # the readings (plugins), and the accept-command aux entities
+        # (every node). ``None`` when the nodedef isn't loaded — native
+        # nodes still get their introspection-based primary platform;
+        # plugin nodes are skipped.
+        result = _classify_node(controller, node)
+
         if _is_device_root(node):
             isy_data.root_nodes[Platform.BUTTON].append(node)
             # comms_error (ERR) is an Insteon PLM-side counter; native
@@ -345,19 +378,6 @@ def _categorize_nodes(
             if hasattr(node, TAG_ENABLED):
                 isy_data.aux_properties[Platform.SWITCH].append((node, TAG_ENABLED))
 
-            if node.is_dimmable:
-                for control in ROOT_AUX_CONTROLS.intersection(node.properties):
-                    platform = _aux_platform_for(
-                        controller,
-                        node,
-                        control,
-                        writable=True,
-                        fallback=NODE_AUX_FILTERS[control],
-                    )
-                    isy_data.aux_properties[platform].append((node, control))
-
-            _add_backlight_if_supported(isy_data, node, controller)
-
         # User-forced sensor classification short-circuits everything
         # else — keep the v3 ergonomics.
         if sensor_identifier in node.name:
@@ -369,9 +389,10 @@ def _categorize_nodes(
             isy_data.nodes[platform].append(node)
             continue
 
-        # Plugin nodes: defer to the pyisyox classifier.
+        # Plugin nodes: the classifier owns the controllable platform +
+        # readings; native nodes use type-based introspection for the
+        # primary. Either way the accept-command fan-out is the same.
         if node.protocol == Protocol.NODE_SERVER:
-            result = _classify_plugin_node(controller, node)
             if result is None:
                 continue
             if result.controllable is not None:
@@ -380,13 +401,7 @@ def _categorize_nodes(
                 )
                 isy_data.nodes[ha_platform].append(node)
             _fan_out_readings(isy_data, node, result.readings)
-            # Zero-arg plugin accept commands (parameterless or all-params
-            # optional, e.g. DISCOVER / BEEP) → one button entity each.
-            # Commands with a required parameter (result.parameterized_commands)
-            # need editor-driven input entities — out of scope here; the
-            # send_node_command service covers them in the meantime.
-            for cmd in result.buttons:
-                isy_data.aux_properties[Platform.BUTTON].append((node, cmd.id))
+            _fan_out_commands(isy_data, node, controller, result)
             # NODE_PARALLEL_PLATFORMS (e.g. EVENT) — the classifier's
             # ``triggers`` list IS the nodedef's ``cmds.sends``; wire it
             # onto the EVENT platform so plugin verbs (DOORBELL_PRESS,
@@ -395,13 +410,13 @@ def _categorize_nodes(
                 _register_event_node(isy_data, node, list(result.triggers))
             continue
 
-        # Native nodes: type-based introspection.
+        # Native nodes: type-based introspection for the primary.
         primary = _primary_platform_for_native(node)
 
         # KeypadLinc-style sub-buttons (LED-only sub-nodes that fall
         # through ``_primary_platform_for_native`` to SWITCH) don't
         # control a load — only their own LED. Surface them as EVENT
-        # only, drop the would-be switch entity entirely.
+        # only, drop the would-be switch entity (and its aux commands).
         is_subnode_button = (
             node.primary_address is not None
             and primary == Platform.SWITCH
@@ -414,6 +429,13 @@ def _categorize_nodes(
 
         isy_data.nodes[primary].append(node)
         _fan_out_native_aux(isy_data, node)
+        # Accept-command aux entities attach to the device, so only the
+        # device root carries them (a native sub-node — FanLinc fan side,
+        # KeypadLinc sub-button — has no HA device of its own; its
+        # commands belong to the primary). Plugin children each have
+        # their own device, so the plugin branch above isn't gated.
+        if result is not None and _is_device_root(node):
+            _fan_out_commands(isy_data, node, controller, result)
 
         # Parallel: native Insteon LIGHT/SWITCH nodes whose nodedef
         # declares sent verbs also feed the EVENT platform.
