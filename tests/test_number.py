@@ -29,10 +29,12 @@ async def test_number_entities(
     await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)
 
 
-async def test_aux_on_level_scales_percent_to_byte_for_insteon() -> None:
-    """A classic Insteon dimmer reports/accepts ``OL`` as a 0-255 byte;
-    the HA slider is 0-100, so setting 100% must send byte 255 (not 100,
-    which would land the device at ~39%)."""
+async def test_aux_on_level_uses_editor_units_both_directions() -> None:
+    """``OL`` is the ``I_OL`` editor's UOM-51 0-100% quantity. A classic
+    Insteon dimmer reports it as the raw UOM-100 0-255 byte on the wire,
+    but pyisyox normalises that to the percentage on read — so the entity
+    surfaces ``60`` for byte ``153`` — and writes the percentage straight
+    through (``set_on_level(75)`` → pyisyox sends ``/cmd/OL/75/51``)."""
     from unittest.mock import AsyncMock, patch
 
     from pyisyox import NodePropertyValue
@@ -55,6 +57,7 @@ async def test_aux_on_level_scales_percent_to_byte_for_insteon() -> None:
             "ST": NodePropertyValue(
                 id="ST", value="0", formatted="Off", uom="100", name="Status"
             ),
+            # Raw wire form: a 0-255 byte. pyisyox normalises to 60% (UOM 51).
             "OL": NodePropertyValue(
                 id="OL", value="153", formatted="60%", uom="100", name="On Level"
             ),
@@ -72,10 +75,10 @@ async def test_aux_on_level_scales_percent_to_byte_for_insteon() -> None:
         device_info=None,
     )
 
+    assert entity.native_value == 60  # byte 153 → 60%, normalised by pyisyox
+
     set_on_level = AsyncMock()
     with patch.object(type(node), "set_on_level", set_on_level):
-        await entity.async_set_native_value(100)
-        # ... and reading back the 0-255 byte shows the right percent.
-        assert entity.native_value == 60  # 153 / 255 ≈ 60%
+        await entity.async_set_native_value(75)
 
-    assert set_on_level.await_args.args == (255,)
+    assert set_on_level.await_args.args == (75,)

@@ -24,10 +24,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util.percentage import (
-    percentage_to_ranged_value,
-    ranged_value_to_percentage,
-)
+from homeassistant.util.percentage import ranged_value_to_percentage
 from pyisyox import (
     DeviceWriteAction,
     Event,
@@ -41,13 +38,12 @@ from pyisyox.constants import (
     PROP_ON_LEVEL,
 )
 
-from .const import BACKLIGHT_MEMORY_FILTER, UOM_8_BIT_RANGE
+from .const import BACKLIGHT_MEMORY_FILTER
 from .editor_classification import range_for_control, unit_for_uom
 from .entity import ISYNodeEntity, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 
 ISY_MAX_SIZE = (2**32) / 2
-ON_RANGE = (1, 255)  # Off is not included
 
 #: Hand-tuned descriptions for the well-known aux controls — On Level
 #: excludes 0 ("Off" lives on the controllable), and the percentage
@@ -186,15 +182,11 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, RestoreNumber):
       last set (restored across restarts via :class:`RestoreNumber`).
       ``assumed_state`` is ``True``, matching the backlight entity.
 
-    Read and write also use **different** encodings — the same control
-    can report values in one unit while accepting commands in another:
-
-    * **Read** — ``node_prop.uom`` describes how the value is encoded on
-      this wire frame. ``UOM_8_BIT_RANGE`` (raw 0-255 byte, classic
-      Insteon) scales to percent; anything else (UOM 51 / 100) verbatim.
-    * **Write** — the editor backing this control decides the accepted
-      range. KeypadDimmer_ADV / Z-Wave dimmers use ``max=100``
-      (percentage); classic Insteon dimmers use ``max=255`` (raw byte).
+    pyisyox normalises read values to the control's editor unit and
+    appends that unit on writes (``/cmd/OL/75/51``), so the
+    classic-Insteon ``OL``-reports-a-0-255-byte quirk is handled
+    library-side — this entity works in the editor's units (percent for
+    ``I_OL``) both directions, no scaling here.
     """
 
     _attr_mode = NumberMode.SLIDER
@@ -232,50 +224,35 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, RestoreNumber):
         if node_prop is None or not node_prop.value:
             return None
 
+        # pyisyox already normalised the value to the control's editor
+        # unit (e.g. a classic-Insteon ``OL`` 0-255 byte → 0-100%).
         try:
-            raw = int(float(node_prop.value))
+            return int(float(node_prop.value))
         except (TypeError, ValueError):
             return None
 
-        if (
-            self.entity_description.native_unit_of_measurement == PERCENTAGE
-            and node_prop.uom == UOM_8_BIT_RANGE
-        ):
-            return ranged_value_to_percentage(ON_RANGE, raw)
-        return raw
-
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        # HA passes 0-100 on a percentage entity. The *wire* encoding is
-        # whatever the control reports: when the live property's UOM is
-        # ``UOM_8_BIT_RANGE`` (classic Insteon ``OL`` — reported and
-        # accepted as a raw 0-255 byte; ``153`` ≈ 60%) we scale up to
-        # the byte. Percentage controls (UOM 51) and not-yet-reported
-        # ones pass the user's value through unchanged. (Matches HA
-        # Core's isy994 — keyed on the live property's UOM, not the
-        # ``I_OL`` editor's, which only describes the display slider.)
-        node_prop = self._node.properties.get(self._control)
-        wire_value: float = value
-        if (
-            self.entity_description.native_unit_of_measurement == PERCENTAGE
-            and node_prop is not None
-            and node_prop.uom == UOM_8_BIT_RANGE
-        ):
-            wire_value = percentage_to_ranged_value(ON_RANGE, round(value))
+        # The value is in the control's editor unit (percent for
+        # ``I_OL``); pyisyox appends the UOM on the wire and the
+        # controller does any device-side scaling.
         if self._control == PROP_ON_LEVEL:
-            # ``set_on_level`` sends the byte verbatim — the I_OL editor
-            # (max 100) would wrongly clamp it, so pyisyox bypasses it.
-            await self._node.set_on_level(int(wire_value))
+            try:
+                await self._node.set_on_level(int(value))
+            except NodeCommandError as err:
+                raise HomeAssistantError(
+                    f"Could not set {self.name} to {value} for "
+                    f"{self._node.address}: {err}"
+                ) from err
         else:
             try:
-                await self._node.send_command(self._control, wire_value)
+                await self._node.send_command(self._control, value)
             except NodeCommandError as err:
                 raise HomeAssistantError(
                     f"Could not set {self.name} to {value} for "
                     f"{self._node.address}: {err}"
                 ) from err
         if not self._has_readback:
-            # Store the user-facing value, not the scaled wire byte.
             self._optimistic_value = value
             self.async_write_ha_state()
 
