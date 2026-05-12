@@ -231,9 +231,11 @@ def _fan_out_commands(
     ``BRT`` on a light):
 
     * ``parameterized_commands`` (carry a required parameter — ``OL``,
-      ``RR``, ``BL`` backlight, plugin setters) → a NUMBER / SELECT /
-      SWITCH entity, the platform chosen from the parameter's editor via
-      :func:`platform_for_control`. A parameter's ``init`` names the
+      ``RR``, ``BL`` backlight, plugin setters) → a NUMBER / SELECT
+      entity, the platform chosen from the parameter's editor via
+      :func:`platform_for_control`. (Bool editors resolve to SWITCH but
+      aren't surfaced yet — no aux-command switch entity exists.) A
+      parameter's ``init`` names the
       property the value lives on: ``init == "ST"`` means the
       controllable owns it (skip); ``init`` pointing at a property the
       device hasn't reported yet means the number/select entity has no
@@ -260,6 +262,16 @@ def _fan_out_commands(
         platform = platform_for_control(
             editor, prop.uom if prop is not None else None, writable=True
         )
+        if platform is Platform.SWITCH:
+            # The SWITCH platform's aux path is the device-enable switch,
+            # not a command sender — a bool *command* needs its own
+            # entity class. Until that exists, leave it to the service.
+            _LOGGER.debug(
+                "Bool aux command %s/%s not surfaced as a switch yet; use the service",
+                node.address,
+                cmd.id,
+            )
+            continue
         if platform is None:
             platform = NODE_AUX_FILTERS.get(cmd.id)
         if platform is None:

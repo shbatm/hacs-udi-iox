@@ -437,6 +437,42 @@ def test_native_insteon_root_keeps_comms_error_sensor(isy_data, options, control
     assert (node, "ERR") in sensor_aux
 
 
+# --- editor-driven aux command fan-out (issue #10) --------------------
+
+
+def test_plugin_dimmer_aux_commands_classified_by_editor(isy_data, options):
+    """A PG3 dimmer's parameterised setters land on the HA platform
+    their *editor* implies: a pure-enum editor (``names``, no numeric
+    bounds) → SELECT; the generic ``INTEGER`` editor → NUMBER. The node
+    itself routes onto LIGHT via the classifier's controllable.
+    """
+    from tests.builders import (
+        make_controller,
+        make_dimmer_plugin_load_result,
+        make_node,
+        make_plugin_dimmer_node_record,
+    )
+
+    controller = make_controller(make_dimmer_plugin_load_result())
+    record = make_plugin_dimmer_node_record("n103_lamp", "Studio Lamp")
+    node = make_node(record, controller)
+    _categorize_nodes(
+        isy_data,
+        {node.address: node},
+        options,
+        controller=controller,
+        host="https://eisy.local",
+    )
+
+    assert node in isy_data.nodes[Platform.LIGHT]
+    assert (node, "SETMODE") in isy_data.aux_properties[Platform.SELECT]
+    assert (node, "THRESHOLD") in isy_data.aux_properties[Platform.NUMBER]
+    # SETMODE's enum editor must not be mistaken for a slider, and the
+    # INTEGER setter must not become a 1000-option dropdown.
+    assert (node, "SETMODE") not in isy_data.aux_properties[Platform.NUMBER]
+    assert (node, "THRESHOLD") not in isy_data.aux_properties[Platform.SELECT]
+
+
 # --- guard rail -------------------------------------------------------
 
 
