@@ -215,6 +215,10 @@ class ISYNodeCommandButtonEntity(ISYNodeButtonEntity):
     parameters are all optional (controller applies defaults). Callers who
     need a non-default parameter value use the ``send_node_command``
     service instead.
+
+    Categorised ``config`` — these are device-configuration verbs
+    (re-discover, reset, identify, ...) the user invokes deliberately,
+    not primary controls and not read-only diagnostics.
     """
 
     _node: Node
@@ -236,6 +240,7 @@ class ISYNodeCommandButtonEntity(ISYNodeButtonEntity):
             name=name,
             unique_id=unique_id,
             device_info=device_info,
+            entity_category=EntityCategory.CONFIG,
         )
         self._command_id = command_id
         if command_id in _IDENTIFY_COMMANDS:
