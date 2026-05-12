@@ -25,19 +25,15 @@ from pyisyox import (
     ISYConnectionError,
     ISYInvalidAuthError,
     ISYResponseParseError,
-    LocalAuth,
     PortalAuth,
 )
 
 from .const import (
     _LOGGER,
-    AUTH_MODE_LOCAL,
-    CONF_AUTH_MODE,
     CONF_ENABLE_NETWORKING,
     CONF_ENABLE_PROGRAMS,
     CONF_ENABLE_VARIABLES,
     CONF_NETWORK,
-    DEFAULT_AUTH_MODE,
     DOMAIN,
     MANUFACTURER,
     PLATFORMS,
@@ -71,21 +67,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     user = isy_config[CONF_USERNAME]
     password = isy_config[CONF_PASSWORD]
     host = isy_config[CONF_HOST]
-    auth_mode = isy_config.get(CONF_AUTH_MODE, DEFAULT_AUTH_MODE)
     verify_ssl = isy_config.get(CONF_VERIFY_SSL, False)
 
     enable_variables = isy_options.get(CONF_ENABLE_VARIABLES, True)
     enable_programs = isy_options.get(CONF_ENABLE_PROGRAMS, True)
     enable_networking = isy_options.get(CONF_ENABLE_NETWORKING, False)
 
-    auth = (
-        LocalAuth(user, password)
-        if auth_mode == AUTH_MODE_LOCAL
-        else PortalAuth(user, password)
-    )
     controller = Controller(
         host,
-        auth=auth,
+        auth=PortalAuth(user, password),
         verify_ssl=verify_ssl,
     )
 

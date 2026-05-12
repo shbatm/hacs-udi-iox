@@ -69,7 +69,6 @@ DOMAIN = "udi_iox"
 
 MANUFACTURER = "Universal Devices, Inc"
 
-CONF_AUTH_MODE = "auth_mode"
 CONF_ENABLE_NETWORKING = "enable_networking"
 CONF_ENABLE_NODESERVERS = "enable_nodeservers"
 CONF_ENABLE_PROGRAMS = "enable_programs"
@@ -78,10 +77,6 @@ CONF_IGNORE_STRING = "ignore_string"
 CONF_NETWORK = "network"
 CONF_RESTORE_LIGHT_STATE = "restore_light_state"
 CONF_SENSOR_STRING = "sensor_string"
-
-AUTH_MODE_PORTAL = "portal"
-AUTH_MODE_LOCAL = "local"
-DEFAULT_AUTH_MODE = AUTH_MODE_PORTAL
 
 DEFAULT_IGNORE_STRING = "{IGNORE ME}"
 DEFAULT_SENSOR_STRING = "sensor"
