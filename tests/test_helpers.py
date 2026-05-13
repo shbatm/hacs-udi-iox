@@ -198,9 +198,74 @@ def test_subbutton_non_insteon_not_suppressed(isy_data, options, controller):
     _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.SWITCH] == [node]
-    # EVENT branch is also gated on Insteon, so a Z-Wave sub-node
-    # gets switch-only.
+    # The non-Insteon path registers EVENT from the nodedef's ``cmds.sends``;
+    # ``RelayLampOnly`` declares none, so this sub-node stays switch-only.
     assert isy_data.nodes[Platform.EVENT] == []
+
+
+def test_zwave_node_with_no_controllable_is_not_a_switch(isy_data, options, controller):
+    """A Z-Wave node whose (dynamically-loaded) nodedef has no DON/DOF
+    accept and isn't a recognised device class must NOT fall into the
+    Insteon SWITCH default — it gets only its readings (an energy meter:
+    ST/TPW sensors). A Central-Scene controller (accepts QUERY only,
+    *sends* the press verbs) gets an EVENT entity, no switch."""
+    from pyisyox import NodePropertyValue
+    from pyisyox.schema.cmd import Command
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
+
+    energy_def = NodeDef(
+        id="UZW0016",
+        family_id="4",
+        instance_id="1",
+        properties={
+            "ST": NodeProperty(id="ST", editor_id=""),
+            "TPW": NodeProperty(id="TPW", editor_id=""),
+        },
+        cmds=NodeCommands(accepts=[Command(id="QUERY"), Command(id="RESET")]),
+    )
+    rec = make_node_record(
+        "ZW003_143",
+        "Energy Meter",
+        family_id="4",
+        nodedef_id="UZW0016",
+        properties={
+            "ST": NodePropertyValue(id="ST", value="0"),
+            "TPW": NodePropertyValue(id="TPW", value="0"),
+        },
+    )
+    node = make_node(rec, controller)
+    with patch.object(
+        Node, "nodedef", new_callable=lambda: property(lambda _self: energy_def)
+    ):
+        _categorize(isy_data, node, options, controller=controller)
+
+    assert isy_data.nodes[Platform.SWITCH] == []
+    assert isy_data.nodes[Platform.LIGHT] == []
+    sensor_owners = {n for n, _ in isy_data.aux_properties[Platform.SENSOR]}
+    assert node in sensor_owners
+
+    # Central-Scene controller shape: accepts QUERY only, sends the verbs.
+    scene_def = NodeDef(
+        id="UZW0010",
+        family_id="4",
+        instance_id="1",
+        cmds=NodeCommands(
+            accepts=[Command(id="QUERY")],
+            sends=[Command(id="DON3"), Command(id="DON4"), Command(id="FDUP")],
+        ),
+    )
+    scene_data = IsyData()
+    scene_rec = make_node_record(
+        "ZW002_201", "Scene Button", family_id="4", nodedef_id="UZW0010"
+    )
+    scene_node = make_node(scene_rec, controller)
+    with patch.object(
+        Node, "nodedef", new_callable=lambda: property(lambda _self: scene_def)
+    ):
+        _categorize(scene_data, scene_node, options, controller=controller)
+
+    assert scene_data.nodes[Platform.SWITCH] == []
+    assert scene_data.nodes[Platform.EVENT] == [scene_node]
 
 
 # --- aux property fan-out ---------------------------------------------
