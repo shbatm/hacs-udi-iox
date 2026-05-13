@@ -11,7 +11,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from pyisyox import Node, NodeCommandError
-from pyisyox.constants import CMD_OFF, CMD_ON, PROP_ON_LEVEL
+from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import _LOGGER, CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
 from .entity import (
@@ -108,16 +108,25 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         super().async_on_update(event, key)
 
     async def async_turn_on(self, brightness: int | None = None, **kwargs: Any) -> None:
-        """Send the turn on command to the light device."""
+        """Send the turn on command to the light device.
+
+        Brightness is set via the ``DON`` command's level parameter
+        (``/cmd/DON/<v>/<uom>``) for every dimmer family — that's the
+        controller's "go to this level now" surface. (Insteon's separate
+        ``OL`` "On Level" — the level a bare paddle press goes to — is a
+        device *setting*, surfaced as its own NUMBER entity, not touched
+        here.)
+        """
         if self._restore_light_state and brightness is None and self._last_brightness:
             brightness = self._last_brightness
         if brightness is not None:
             # HA gives brightness in 0-255. Scale down to 0-100 when the
-            # editor expects percent (uom 51) or a byte-capped 0-100
-            # subset (uom 100, max ≤ 100 — KeypadDimmer_ADV). Classic
-            # Insteon SwitchLinc keeps the full 0-255 range so we pass
-            # through. Unresolvable → pass through, codec surfaces error.
-            rng = self._editor_range_for(PROP_ON_LEVEL)
+            # ``DON`` level parameter's editor expects percent (uom 51) or
+            # a byte-capped 0-100 subset (uom 100, max ≤ 100 —
+            # KeypadDimmer_ADV); classic dimmers that take the full 0-255
+            # range pass through. Unresolvable → pass through, codec
+            # surfaces any error.
+            rng = self._editor_range_for(CMD_ON)
             if rng is not None and (
                 rng.uom == UOM_PERCENTAGE or (rng.max is not None and rng.max <= 100)
             ):
@@ -126,7 +135,7 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
             if brightness is None:
                 await self._node.send_command(CMD_ON)
             else:
-                await self._node.set_on_level(brightness)
+                await self._node.send_command(CMD_ON, brightness)
         except NodeCommandError as err:
             _LOGGER.debug("Unable to turn on light: %s", err)
 

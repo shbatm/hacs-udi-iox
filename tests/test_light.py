@@ -27,3 +27,61 @@ async def test_light_entities(
 ) -> None:
     """Snapshot every light entity created by the integration."""
     await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)
+
+
+async def test_turn_on_sets_brightness_via_don_level_parameter() -> None:
+    """Brightness is set with the ``DON`` command's level parameter (not
+    a separate ``OL`` write), scaling HA's 0-255 down to 0-100 when the
+    parameter's editor is percent / byte-capped."""
+    from unittest.mock import AsyncMock, patch
+
+    from pyisyox import Node
+    from pyisyox.schema.cmd import Command, CommandParameter
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef
+
+    from custom_components.udi_iox.light import ISYLightEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(
+        make_node_record("A 1", "Dimmer", family_id="1", nodedef_id="DimmerLampOnly"),
+        controller,
+    )
+    # ``DON`` takes an optional level whose editor is ``I_OL`` — uom 51
+    # (0-100 %), present in the bundled Insteon profile — so 128/255 → 50.
+    dimmer_def = NodeDef(
+        id="DimmerLampOnly",
+        family_id="1",
+        instance_id="1",
+        cmds=NodeCommands(
+            accepts=[
+                Command(
+                    id="DON",
+                    parameters=[CommandParameter(editor_id="I_OL", optional=True)],
+                ),
+                Command(id="DOF"),
+            ]
+        ),
+    )
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYLightEntity(isy_data, node, restore_light_state=False)
+    with (
+        patch.object(
+            Node, "nodedef", new_callable=lambda: property(lambda _self: dimmer_def)
+        ),
+        patch.object(Node, "send_command", new=AsyncMock()) as send_command,
+    ):
+        await entity.async_turn_on(brightness=128)  # 128/255 → 50 %
+        await entity.async_turn_on()  # no brightness ⇒ plain DON
+
+    assert send_command.call_args_list[0].args == ("DON", 50)
+    assert send_command.call_args_list[1].args == ("DON",)
+    # Never an ``OL`` write — that's a separate device setting.
+    assert all(call.args[0] == "DON" for call in send_command.call_args_list)

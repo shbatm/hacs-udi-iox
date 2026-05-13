@@ -421,7 +421,43 @@ def _categorize_nodes(
                 _register_event_node(isy_data, node, list(result.triggers))
             continue
 
-        # Native nodes: type-based introspection for the primary.
+        # Non-Insteon native nodes (Z-Wave / Zigbee / Matter): the
+        # dynamically-loaded nodedef drives the controllable platform via
+        # the classifier — the type-based introspection below only knows
+        # Insteon device classes and would default everything else
+        # (energy meters, scene-controller buttons, …) to SWITCH. Fall
+        # back to introspection only when it *positively* names a device
+        # class the classifier's command-only view can't see (e.g. Z-Wave
+        # locks speak LOCK/UNLOCK, not the Insteon SECMD verb).
+        if node.protocol != Protocol.INSTEON:
+            native_platform: Platform | None = None
+            if result is not None and result.controllable is not None:
+                native_platform = _CONTROLLABLE_TO_HA_PLATFORM.get(
+                    result.controllable, Platform.SENSOR
+                )
+            elif node.is_thermostat:
+                native_platform = Platform.CLIMATE
+            elif node.is_lock:
+                native_platform = Platform.LOCK
+            elif node.is_fan:
+                native_platform = Platform.FAN
+            elif node.is_dimmable:
+                native_platform = Platform.LIGHT
+            elif result is None:
+                # Nodedef not loaded yet and introspection found nothing —
+                # keep the historical SWITCH default rather than dropping it.
+                native_platform = Platform.SWITCH
+            if native_platform is not None:
+                isy_data.nodes[native_platform].append(node)
+            if result is not None:
+                _fan_out_readings(isy_data, node, result.readings)
+                if _is_device_root(node):
+                    _fan_out_commands(isy_data, node, controller, result)
+            if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
+                _register_event_node(isy_data, node, _node_trigger_commands(node))
+            continue
+
+        # Native Insteon nodes: type-based introspection for the primary.
         primary = _primary_platform_for_native(node)
 
         # KeypadLinc-style sub-buttons (LED-only sub-nodes that fall
