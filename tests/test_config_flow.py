@@ -358,7 +358,6 @@ async def test_options_flow(hass) -> None:
     """The options flow shows the per-platform toggles and stores them."""
     from custom_components.udi_iox.const import (
         CONF_ENABLE_NETWORKING,
-        CONF_ENABLE_NODESERVERS,
         CONF_ENABLE_PROGRAMS,
         CONF_ENABLE_VARIABLES,
         CONF_IGNORE_STRING,
@@ -380,7 +379,6 @@ async def test_options_flow(hass) -> None:
         CONF_SENSOR_STRING: "telemetry",
         CONF_RESTORE_LIGHT_STATE: True,
         CONF_ENABLE_VARIABLES: False,
-        CONF_ENABLE_NODESERVERS: False,
         CONF_ENABLE_PROGRAMS: True,
         CONF_ENABLE_NETWORKING: True,
     }

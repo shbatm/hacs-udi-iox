@@ -70,7 +70,6 @@ DOMAIN = "udi_iox"
 MANUFACTURER = "Universal Devices, Inc"
 
 CONF_ENABLE_NETWORKING = "enable_networking"
-CONF_ENABLE_NODESERVERS = "enable_nodeservers"
 CONF_ENABLE_PROGRAMS = "enable_programs"
 CONF_ENABLE_VARIABLES = "enable_variables"
 CONF_IGNORE_STRING = "ignore_string"

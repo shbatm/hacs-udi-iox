@@ -6,13 +6,11 @@
 * ``get_node_commands`` — response-only entity service returning the
   node's accepted-command vocabulary (wire ids + friendly names), read
   just-in-time from the nodedef.
-* ``set_variable`` — writes through
-  :meth:`pyisyox.Controller.set_variable_value` /
-  :meth:`set_variable_init`.
-* ``system_query`` — calls :meth:`pyisyox.Controller.refresh`.
-* ``send_program_command`` / ``run_network_resource`` — registered for
-  schema continuity but raise on call: pyisyox doesn't expose
-  controller-level program commands or typed network resources yet.
+* ``send_program_command`` — runs a verb (run, run_then, run_else,
+  stop, enable, disable, …) against an IoX program or folder.
+
+Per-network-resource fire-triggers are handled by the button platform
+(``button.<resource_name>``), not a domain-level service.
 """
 
 from __future__ import annotations
@@ -25,7 +23,6 @@ from homeassistant.const import (
     CONF_ADDRESS,
     CONF_COMMAND,
     CONF_NAME,
-    CONF_TYPE,
 )
 from homeassistant.core import (
     HomeAssistant,
@@ -44,16 +41,10 @@ from pyisyox.constants import COMMAND_FRIENDLY_NAME
 from .const import DOMAIN
 
 # Domain-wide services
-SERVICE_SYSTEM_QUERY = "system_query"
-SERVICE_SET_VARIABLE = "set_variable"
 SERVICE_SEND_PROGRAM_COMMAND = "send_program_command"
-SERVICE_RUN_NETWORK_RESOURCE = "run_network_resource"
 
 INTEGRATION_SERVICES = [
-    SERVICE_SYSTEM_QUERY,
-    SERVICE_SET_VARIABLE,
     SERVICE_SEND_PROGRAM_COMMAND,
-    SERVICE_RUN_NETWORK_RESOURCE,
 ]
 
 # Entity-targeting services (light, switch, climate, fan, cover, lock, etc.)
@@ -64,7 +55,6 @@ SERVICE_SET_ZWAVE_PARAMETER = "set_zwave_parameter"
 SERVICE_GET_ZWAVE_PARAMETER = "get_zwave_parameter"
 
 CONF_VALUE = "value"
-CONF_INIT = "init"
 CONF_ISY = "isy"
 CONF_PARAMETER = "parameter"
 CONF_SIZE = "size"
@@ -104,10 +94,6 @@ def _valid_iox_command(value: Any) -> str:
 
 SCHEMA_GROUP = "name-address"
 
-SERVICE_SYSTEM_QUERY_SCHEMA = vol.Schema(
-    {vol.Optional(CONF_ADDRESS): cv.string, vol.Optional(CONF_ISY): cv.string}
-)
-
 SERVICE_SEND_NODE_COMMAND_SCHEMA = {
     vol.Required(CONF_COMMAND): vol.In(VALID_NODE_COMMANDS)
 }
@@ -127,16 +113,6 @@ SERVICE_GET_ZWAVE_PARAMETER_SCHEMA = {
     vol.Required(CONF_PARAMETER): vol.All(vol.Coerce(int), vol.Range(min=1)),
 }
 
-SERVICE_SET_VARIABLE_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_ADDRESS): vol.Coerce(int),
-        vol.Required(CONF_TYPE): vol.All(vol.Coerce(int), vol.Range(1, 2)),
-        vol.Required(CONF_VALUE): vol.Coerce(int),
-        vol.Optional(CONF_INIT, default=False): bool,
-        vol.Optional(CONF_ISY): cv.string,
-    }
-)
-
 SERVICE_SEND_PROGRAM_COMMAND_SCHEMA = vol.All(
     cv.has_at_least_one_key(CONF_ADDRESS, CONF_NAME),
     vol.Schema(
@@ -149,29 +125,33 @@ SERVICE_SEND_PROGRAM_COMMAND_SCHEMA = vol.All(
     ),
 )
 
-SERVICE_RUN_NETWORK_RESOURCE_SCHEMA = vol.All(
-    cv.has_at_least_one_key(CONF_ADDRESS, CONF_NAME),
-    vol.Schema(
-        {
-            vol.Exclusive(CONF_NAME, SCHEMA_GROUP): cv.string,
-            vol.Exclusive(CONF_ADDRESS, SCHEMA_GROUP): vol.Coerce(int),
-            vol.Optional(CONF_ISY): cv.string,
-        }
-    ),
-)
 
-
-def async_get_entities(hass: HomeAssistant) -> dict[str, Entity]:
+def async_get_entities(
+    hass: HomeAssistant, supports: str | None = None
+) -> dict[str, Entity]:
     """Collect every udi_iox entity across all platforms, keyed by entity_id.
 
     ``entity_service_call`` wants a ``dict[str, Entity]`` (or a callable
     returning one); handing it the raw platform list it used to accept
     now raises ``AttributeError: 'list' object has no attribute 'get'``.
+
+    ``supports`` narrows the result to entities exposing a given method
+    — node-targeted services (``send_node_command``, ``get_node_commands``,
+    ``set_zwave_parameter``, etc.) only live on the ``ISYNodeEntity``
+    branch, so a user targeting a scene/group entity should get a
+    "no entities matched" failure from the service-call layer rather
+    than an opaque ``AttributeError`` inside ``_handle_entity_call``.
     """
     entities: dict[str, Entity] = {}
     for platform in async_get_platforms(hass, DOMAIN):
         entities.update(platform.entities)
-    return entities
+    if supports is None:
+        return entities
+    return {
+        entity_id: entity
+        for entity_id, entity in entities.items()
+        if hasattr(entity, supports)
+    }
 
 
 def _select_isy_data(hass: HomeAssistant, isy_name: str | None):
@@ -199,47 +179,6 @@ def async_setup_services(hass: HomeAssistant) -> None:
         # Already registered for an earlier entry; the services live for
         # the lifetime of the integration.
         return
-
-    async def async_system_query(call: ServiceCall) -> None:
-        """Refresh the controller's node + property cache."""
-        isy_name = call.data.get(CONF_ISY)
-        targeted = list(_select_isy_data(hass, isy_name))
-        if not targeted:
-            raise HomeAssistantError(f"No IoX controller matched isy={isy_name!r}")
-        for _, isy_data in targeted:
-            await isy_data.root.refresh()
-
-    hass.services.async_register(
-        domain=DOMAIN,
-        service=SERVICE_SYSTEM_QUERY,
-        service_func=async_system_query,
-        schema=SERVICE_SYSTEM_QUERY_SCHEMA,
-    )
-
-    async def async_set_variable(call: ServiceCall) -> None:
-        """Write a variable via the controller."""
-        var_id = call.data[CONF_ADDRESS]
-        var_type = call.data[CONF_TYPE]
-        value = call.data[CONF_VALUE]
-        init = call.data[CONF_INIT]
-        isy_name = call.data.get(CONF_ISY)
-
-        targeted = list(_select_isy_data(hass, isy_name))
-        if not targeted:
-            raise HomeAssistantError(f"No IoX controller matched isy={isy_name!r}")
-        for _, isy_data in targeted:
-            controller = isy_data.root
-            if init:
-                await controller.set_variable_init(var_type, var_id, value)
-            else:
-                await controller.set_variable_value(var_type, var_id, value)
-
-    hass.services.async_register(
-        domain=DOMAIN,
-        service=SERVICE_SET_VARIABLE,
-        service_func=async_set_variable,
-        schema=SERVICE_SET_VARIABLE_SCHEMA,
-    )
 
     async def async_send_program_command(call: ServiceCall) -> None:
         """Send a verb (``run`` / ``run_then`` / ``enable`` / …) to a
@@ -302,50 +241,12 @@ def async_setup_services(hass: HomeAssistant) -> None:
         schema=SERVICE_SEND_PROGRAM_COMMAND_SCHEMA,
     )
 
-    async def async_run_network_resource(call: ServiceCall) -> None:
-        """Fire a configured IoX network resource by id or name."""
-        address = call.data.get(CONF_ADDRESS)
-        name = call.data.get(CONF_NAME)
-        isy_name = call.data.get(CONF_ISY)
-
-        targeted = list(_select_isy_data(hass, isy_name))
-        if not targeted:
-            raise HomeAssistantError(f"No IoX controller matched isy={isy_name!r}")
-
-        # The schema enforces "at least one of name/address" — if
-        # address is given, target it directly (cheaper than resolving
-        # by name and works for callers carrying the resource id).
-        # When both are given, address wins (matches the legacy
-        # send_program_command resolution order).
-        for _, isy_data in targeted:
-            controller = isy_data.root
-            resources = controller.network_resources
-            if address is not None:
-                resource_id = str(address)
-                if resource_id not in resources:
-                    raise HomeAssistantError(
-                        f"No network resource with id {address!r} on this controller"
-                    )
-                await controller.run_network_resource(resource_id)
-                continue
-            # Resolve by name — first match wins.
-            match = next((r for r in resources.values() if r.name == name), None)
-            if match is None:
-                raise HomeAssistantError(
-                    f"No network resource named {name!r} on this controller"
-                )
-            await match.run()
-
-    hass.services.async_register(
-        domain=DOMAIN,
-        service=SERVICE_RUN_NETWORK_RESOURCE,
-        service_func=async_run_network_resource,
-        schema=SERVICE_RUN_NETWORK_RESOURCE_SCHEMA,
-    )
-
     async def _async_send_node_command(call: ServiceCall) -> None:
         await entity_service_call(
-            hass, async_get_entities(hass), "async_send_node_command", call
+            hass,
+            async_get_entities(hass, supports="async_send_node_command"),
+            "async_send_node_command",
+            call,
         )
 
     hass.services.async_register(
@@ -357,7 +258,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def _async_get_node_commands(call: ServiceCall) -> ServiceResponse:
         return await entity_service_call(
-            hass, async_get_entities(hass), "async_get_node_commands", call
+            hass,
+            async_get_entities(hass, supports="async_get_node_commands"),
+            "async_get_node_commands",
+            call,
         )
 
     hass.services.async_register(
@@ -370,7 +274,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def _async_rename_node(call: ServiceCall) -> None:
         await entity_service_call(
-            hass, async_get_entities(hass), "async_rename_node", call
+            hass,
+            async_get_entities(hass, supports="async_rename_node"),
+            "async_rename_node",
+            call,
         )
 
     hass.services.async_register(
@@ -382,7 +289,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def _async_set_zwave_parameter(call: ServiceCall) -> None:
         await entity_service_call(
-            hass, async_get_entities(hass), "async_set_zwave_parameter", call
+            hass,
+            async_get_entities(hass, supports="async_set_zwave_parameter"),
+            "async_set_zwave_parameter",
+            call,
         )
 
     hass.services.async_register(
@@ -394,7 +304,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def _async_get_zwave_parameter(call: ServiceCall) -> ServiceResponse:
         return await entity_service_call(
-            hass, async_get_entities(hass), "async_get_zwave_parameter", call
+            hass,
+            async_get_entities(hass, supports="async_get_zwave_parameter"),
+            "async_get_zwave_parameter",
+            call,
         )
 
     hass.services.async_register(

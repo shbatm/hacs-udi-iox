@@ -87,51 +87,6 @@ get_zwave_parameter:
           max: 255
           mode: box
 
-system_query:
-  fields:
-    address:
-      example: "1A 2B 3C 1"
-      selector:
-        text:
-    isy:
-      example: "00:21:b9:01:23:45"
-      selector:
-        text:
-
-set_variable:
-  fields:
-    address:
-      required: true
-      example: 1
-      selector:
-        number:
-          min: 1
-          max: 255
-    type:
-      required: true
-      example: 2
-      selector:
-        select:
-          options:
-            - "1"
-            - "2"
-    value:
-      required: true
-      example: 100
-      selector:
-        number:
-          min: -2147483648
-          max: 2147483647
-          mode: box
-    init:
-      default: false
-      selector:
-        boolean:
-    isy:
-      example: "00:21:b9:01:23:45"
-      selector:
-        text:
-
 send_program_command:
   fields:
     address:
@@ -155,23 +110,6 @@ send_program_command:
             - "run_else"
             - "run_then"
             - "stop"
-    isy:
-      example: "00:21:b9:01:23:45"
-      selector:
-        text:
-
-run_network_resource:
-  fields:
-    address:
-      example: 1
-      selector:
-        number:
-          min: 1
-          max: 255
-    name:
-      example: "My Resource"
-      selector:
-        text:
     isy:
       example: "00:21:b9:01:23:45"
       selector:
