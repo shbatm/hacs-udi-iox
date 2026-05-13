@@ -89,11 +89,16 @@ async def test_diagnostics_preserves_node_addresses_and_names(
     """Node ``address`` and ``name`` are *not* redacted — bug-report
     diagnosis needs the wire address to correlate with log lines, and
     the human name to identify what the user actually has.
+
+    Nodes live under ``controller.nodes`` (keyed by address) per the
+    ``Controller.to_dict()`` shape.
     """
     payload = await async_get_config_entry_diagnostics(hass, init_integration)
-    assert payload["nodes"], "snapshot fixture should produce at least one node"
-    for node in payload["nodes"]:
-        assert node["address"]
+    nodes = payload["controller"]["nodes"]
+    assert nodes, "snapshot fixture should produce at least one node"
+    for address, node in nodes.items():
+        assert address  # dict key carries the wire address
+        assert node["address"] == address
         # name might legitimately be empty for some hidden nodes, but
         # the key must be present and not the redact sentinel when set.
         assert node["name"] != "**REDACTED**"
@@ -106,14 +111,12 @@ async def test_diagnostics_includes_profile_payload(
     """The loaded profile (nodedefs + editors + linkdefs + NLS tables)
     is part of the diagnostics download — the editor codec / classifier
     logic all routes through it, so a reviewer triaging a misclassified
-    node needs the same profile pyisyox used."""
+    node needs the same profile pyisyox used.
+
+    Lives under ``controller.profile`` per ``Controller.to_dict()``.
+    """
     payload = await async_get_config_entry_diagnostics(hass, init_integration)
-    profile = payload["profile"]
+    profile = payload["controller"]["profile"]
     assert isinstance(profile, dict)
-    # The bundled eisy6 fixture always carries family ``"1"`` (Insteon)
-    # with at least one editor and one nodedef on the default instance;
-    # the lookup count tracks how many ``(nodedef_id, family, instance)``
-    # entries pyisyox built. Either signal is enough to prove the
-    # profile blob landed in the diagnostics payload.
     assert profile.get("families"), "families tree empty in diagnostics"
     assert profile.get("nodedef_lookup_count", 0) > 0
