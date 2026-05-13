@@ -152,7 +152,7 @@
     },
     "get_zwave_parameter": {
       "name": "Get Z-Wave parameter",
-      "description": "Request the current value of a Z-Wave configuration parameter. Returns a {parameter, size, value} dict.",
+      "description": "Request the current value of a Z-Wave configuration parameter. Returns a parameter/size/value dict.",
       "fields": {
         "parameter": {
           "name": "Parameter number",
