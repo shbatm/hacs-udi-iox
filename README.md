@@ -4,23 +4,17 @@
 
 Home Assistant custom component for **Universal Devices eisy / Polisy** controllers running **IoX 6.0+**.
 
-## Status
-
-Alpha. Tracks `pyisyox` 6.x. Feature-equivalent to `hacs-isy994` for IoX-6+ hardware (authentication, classifier-driven entities, services, variables, SSDP discovery, Repair-card lifecycle UX). Targets the Bronze [integration quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/) tier — see [`custom_components/udi_iox/quality_scale.yaml`](custom_components/udi_iox/quality_scale.yaml).
-
-## Scope
-
-- HA domain: `udi_iox`
-- Library: [`pyisyox`](https://github.com/automicus/pyisyox) 6.x (eisy/Polisy on IoX 6+)
-- Hardware: eisy, Polisy. **Not** ISY-994.
+## Legacy Hardware Scope
 
 If you have ISY-994 hardware, use the existing [`hacs-isy994`](https://github.com/shbatm/hacs-isy994) (which stays on `pyisy` 3.x) or HA Core's first-party `isy994` integration. The two integrations register distinct domains and coexist on the same HA instance.
 
 ## Why a separate repo
 
-`hacs-isy994` is a stable beta-testing channel for the upstream `isy994` integration. The eisy / IoX-6+ rewrite is a clean break: different library (`pyisyox` v6 with JWT/portal auth, WebSocket-only, classifier-driven entity routing, ergonomic Node wrappers). Forcing existing `hacs-isy994` users onto that rewrite would regress their working ISY-994 setups, so this is a new repo with a new domain.
+`hacs-isy994` was a stable beta-testing channel for the upstream `isy994` integration which served it's purpose, but I no longer want to maintain legacy hardware support for Home Assistant's core `isy994` and try to maintain both new features and legacy support in another repo. The eisy / IoX-6+ rewrite is a clean break: different library (`pyisyox` v6 with JWT/portal auth, WebSocket-only, classifier-driven entity routing, ergonomic Node wrappers). Forcing existing `hacs-isy994` users onto that rewrite would regress their working ISY-994 setups, so this is a new repo with a new domain.
 
 ## Installation
+
+> **IF YOU ARE USING THE CORE ISY994 INTEGRATION:** You may wish to remove that integration before adding this one. For the large portion of entities that overlap, they will try to get the same `entity_id` and you will end up with everything suffixed with `domain.*_2`. To keep your dashboards intact as much as possible, remove the `isy994` integration, restart HA once (needed for installing this repo anyways) and then add this integration to restore the entities. Any `entity_id` that you manually renamed on the old integration will need to be renamed again.
 
 This is a HACS Custom Repository:
 
