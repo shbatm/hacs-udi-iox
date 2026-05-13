@@ -33,6 +33,14 @@ This is a HACS Custom Repository:
 1. Settings → Devices & Services → Universal Devices IoX → ⋮ → Delete (removes the config entry, its devices, and its entities).
 2. Optionally remove the repository in HACS (Integrations → Universal Devices IoX → ⋮ → Remove) and restart HA.
 
+## Supported devices
+
+The integration surfaces every device on your controller — Insteon, Z-Wave, Zigbee, Matter, and any [PG3 node-server plugin](https://www.universal-devices.com/polyglot/) you have installed. HA platform routing is driven by `pyisyox`'s classifier reading each device's nodedef, not a hard-coded table.
+
+If you bridge a device through a PG3 plugin **and** Home Assistant has a first-party integration for that same device (Sonos, Hue, Rachio, Roku, Plex, Ecobee, Shelly, WLED, etc.), install HA's native integration directly. It will almost always be the better source of truth — local-push state, manufacturer-aware quirks, more device-specific features. The two coexist fine: this integration still exposes the device's IoX-side state (useful if your IoX programs reference the device), and the native integration handles the device itself.
+
+See [`docs/supported-devices.md`](docs/supported-devices.md) for the full list of PG3 plugins with HA-native equivalents, the cases where the IoX path is the right call, and roadmap notes for the platforms still to come.
+
 ## Roadmap
 
 Open issues and milestones are tracked in [GitHub Issues](https://github.com/shbatm/hacs-udi-iox/issues).
