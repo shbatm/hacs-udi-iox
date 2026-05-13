@@ -121,16 +121,9 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         if self._restore_light_state and brightness is None and self._last_brightness:
             brightness = self._last_brightness
         if brightness is not None:
-            # HA gives brightness in 0-255. Scale down to 0-100 when the
-            # ``DON`` level parameter's editor expects percent (uom 51) or
-            # a byte-capped 0-100 subset (uom 100, max ≤ 100 —
-            # KeypadDimmer_ADV); classic dimmers that take the full 0-255
-            # range pass through. ``Editor.range_for`` does the
-            # multi-range pick (e.g. ``ZW_DIM_PERCENT``'s percent range
-            # alongside its tiny ``{1: "Previous Value"}`` index range)
-            # by UOM hint, falling back to ``ranges[0]`` when no percent
-            # range exists. Unresolvable editor → pass through, codec
-            # surfaces any error.
+            # Scale 0-255 → 0-100 when the DON editor expects percent
+            # (uom 51) or a byte-capped 0-100 subset (uom 100, max ≤ 100);
+            # full-range 0-255 dimmers pass through.
             editor = resolve_editor(self._isy_data.root, self._node, CMD_ON)
             if editor is not None:
                 rng = editor.range_for(UOM_PERCENTAGE)

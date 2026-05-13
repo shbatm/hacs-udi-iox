@@ -20,7 +20,6 @@ from .entity import (
     node_status_int,
 )
 from .models import IsyConfigEntry
-from .services import async_setup_lock_services
 
 VALUE_TO_STATE = {0: False, 100: True}
 
@@ -45,7 +44,6 @@ async def async_setup_entry(
         entities.append(ISYLockProgramEntity(isy_data, name, status, actions))
 
     async_add_entities(entities)
-    async_setup_lock_services(hass)
 
 
 class ISYLockEntity(ISYNodeEntity, LockEntity):

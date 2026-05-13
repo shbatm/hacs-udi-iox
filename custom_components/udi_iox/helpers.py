@@ -1,22 +1,8 @@
-"""Node-to-platform classification for the IoX integration.
+"""Sort runtime nodes onto HA platforms.
 
-Two-tier strategy that mirrors pyisyox 6's design:
-
-1. **Native nodes** (Insteon, Z-Wave, Zigbee, X10) are classified by
-   the type-based introspection that pyisyox exposes on ``Node``:
-   ``is_thermostat`` / ``is_lock`` / ``is_fan`` / ``is_dimmable`` /
-   ``is_battery_node``. No hardcoded type-prefix tables here — pyisyox
-   owns that knowledge.
-2. **Plugin nodes** (PG3 node-server, ``protocol == "node_server"``)
-   fall back to :func:`pyisyox.classify` against the plugin's nodedef.
-   That returns a :class:`ClassificationResult` with a controllable
-   platform plus per-property reading platforms.
-
-Properties that aren't covered by the primary platform fan out into
-``aux_properties`` (number / select / sensor / binary_sensor) using
-the same loop the legacy XML-filter code used. The loop uses
-``Node.properties`` (the v6 rename of ``aux_properties``) and
-:class:`NodePropertyValue`.
+Native nodes use type-based introspection on ``pyisyox.Node``; plugin
+nodes go through ``pyisyox.classify``. Properties not covered by the
+primary platform fan out into ``aux_properties``.
 """
 
 from __future__ import annotations
@@ -97,13 +83,7 @@ _READING_TO_HA_PLATFORM: dict[ReadingPlatform, Platform] = {
 def _is_device_root(node: Node) -> bool:
     """A node without a primary_address is a physical device root.
 
-    Sub-nodes of multi-button devices (KeypadLinc, RemoteLinc, FanLinc
-    sides) expose ``primary_address`` pointing at the device primary;
-    primaries themselves return ``None``.
-
-    Used to gate the root-only scaffold (BUTTON entity, comms_error
-    sensor, enable switch) — those only make sense on a physical
-    device's primary node, not on plugin-side logical children.
+    Gates root-only scaffold (BUTTON, comms_error, enable switch).
     """
     return node.primary_address is None
 
@@ -111,17 +91,10 @@ def _is_device_root(node: Node) -> bool:
 def _has_own_device(node: Node) -> bool:
     """Whether this node should have its own HA :class:`DeviceInfo`.
 
-    True for top-level roots AND for node-server plugin children: each
-    plugin node is a distinct logical device on the upstream service
-    (e.g. each Flume sensor / hub under a Flume controller node), so
-    we mirror the eisy UI by giving each its own HA device card rather
-    than folding every child's aux properties under the controller —
-    which produces duplicate "Current" / "Leak Detected" entities the
-    user can't tell apart.
-
-    False for Insteon / Z-Wave physical sub-nodes (KeypadLinc buttons,
-    FanLinc fan-vs-light sides): those are sub-parts of one physical
-    device and stay folded under the primary.
+    Node-server plugin children get their own card (each is a distinct
+    logical device upstream — folding would duplicate aux entities
+    indistinguishably). Insteon/Z-Wave physical sub-nodes stay folded
+    under the primary.
     """
     return node.primary_address is None or node.protocol == Protocol.NODE_SERVER
 
@@ -217,18 +190,12 @@ _DEDICATED_COMMANDS_BY_PROTOCOL: dict[str, frozenset[str]] = {
     Protocol.INSTEON: frozenset({CMD_BEEP}),
 }
 
-#: Accept commands the integration deliberately leaves to **service
-#: calls only** instead of surfacing as aux entities. Z-Wave ``CONFIG``
-#: is the case in point: the dynamic ``UZW*`` nodedefs model it as a
-#: ``(NUM, VAL)`` pair editor (``_107_0_R_0_255`` + ``ZW_CONFIG``),
-#: which the auto-fan-out would render as a 0-255 slider — but the
-#: parameter's *byte size* is a third, device-defined arg that the
-#: editor can't express, and the resulting slider drops it on the
-#: floor. Multi-byte parameter writes need the dedicated
-#: ``/rest/zwave/.../parameters/set/{n}/{v}/{sz}`` path, exposed
-#: through the ``udi_iox.set_zwave_parameter`` service. Insteon
-#: ``CONFIG`` (rare; legacy) stays surfaced as a slider — its single
-#: byte fits the editor.
+#: Accept commands surfaced **only** as service calls, never as aux
+#: entities. Z-Wave ``CONFIG``'s ``(NUM, VAL)`` pair editor can't
+#: express the parameter's third *byte size* arg, so the multi-byte
+#: write path needs ``/rest/zwave/.../parameters/set/{n}/{v}/{sz}``
+#: via the ``udi_iox.set_zwave_parameter`` service. Insteon
+#: ``CONFIG`` (rare; single byte) stays as a slider.
 _SERVICE_ONLY_COMMANDS_BY_PROTOCOL: dict[str, frozenset[str]] = {
     Protocol.ZWAVE: frozenset({"CONFIG"}),
 }
@@ -242,29 +209,13 @@ def _fan_out_commands(
 ) -> None:
     """Surface a node's accept commands as input / button aux entities.
 
-    Driven by :func:`pyisyox.classify` (it already drops ``QUERY`` and
-    the verbs the controllable platform claims, e.g. ``DON`` / ``DOF`` /
-    ``BRT`` on a light):
-
-    * ``parameterized_commands`` (carry a required parameter — ``OL``,
-      ``RR``, ``BL`` backlight, plugin setters) → a NUMBER / SELECT
-      entity, the platform chosen from the parameter's editor via
-      :func:`platform_for_control`. (Bool editors resolve to SWITCH but
-      aren't surfaced yet — no aux-command switch entity exists.) A
-      parameter's ``init`` names the property the value lives on:
-      ``init == "ST"`` means the controllable platform owns it (skip);
-      otherwise the entity is created regardless of whether the device
-      has *reported* that property yet — a nodedef property is declared
-      to exist, so the entity simply reads ``unknown`` until the first
-      value frame (it's subscribed). No ``init`` means there's no
-      backing property at all → the entity is assumed-state (``BL``
-      backlight, plugin write-only setters). A command whose editor
-      can't be resolved falls back to :data:`NODE_AUX_FILTERS` if it's
-      listed there, else is skipped — the ``send_node_command`` service
-      still reaches it.
-    * ``buttons`` (no required parameter) → one BUTTON entity each
-      (``WDU`` "Write Changes", plugin ``DISCOVER`` …), minus the ones
-      the integration ships a dedicated entity for.
+    * ``parameterized_commands`` → NUMBER / SELECT via editor →
+      ``platform_for_control``. ``init == "ST"`` means controllable
+      owns it (skip); no ``init`` → assumed-state (backlight, plugin
+      write-only setters); editor unresolved → ``NODE_AUX_FILTERS``
+      fallback or service-only.
+    * ``buttons`` → one BUTTON each (``WDU``, plugin ``DISCOVER``…),
+      minus the ones with a dedicated entity class.
     """
     protocol_key = node.protocol or ""
     dedicated = _DEDICATED_COMMANDS_BY_PROTOCOL.get(protocol_key, frozenset())
@@ -281,9 +232,7 @@ def _fan_out_commands(
             editor, prop.uom if prop is not None else None, writable=True
         )
         if platform is Platform.SWITCH:
-            # The SWITCH platform's aux path is the device-enable switch,
-            # not a command sender — a bool *command* needs its own
-            # entity class. Until that exists, leave it to the service.
+            # No aux-command switch entity class yet; leave to service.
             _LOGGER.debug(
                 "Bool aux command %s/%s not surfaced as a switch yet; use the service",
                 node.address,
@@ -391,20 +340,12 @@ def _categorize_nodes(
 
         if _is_device_root(node):
             isy_data.root_nodes[Platform.BUTTON].append(node)
-            # comms_error (ERR) is an Insteon PLM-side counter; native
-            # Insteon nodes carry it on ``properties``, plugin/Z-Wave/
-            # Zigbee roots don't. Gate on actual presence rather than
-            # protocol so any node that exposes ERR gets the sensor and
-            # node-server controllers don't sprout a perpetual
-            # "Unavailable".
+            # ERR is an Insteon PLM-side counter; gate on presence so
+            # non-Insteon roots don't sprout a perpetual "Unavailable".
             if PROP_COMMS_ERROR in node.properties:
                 isy_data.aux_properties[Platform.SENSOR].append(
                     (node, PROP_COMMS_ERROR)
                 )
-            # Per-device enable/disable switch — mirrors hacs-isy994's
-            # exposure of the controller-side enabled flag, useful for
-            # automations that need to mute a flaky node without removing
-            # it from the controller.
             if hasattr(node, TAG_ENABLED):
                 isy_data.aux_properties[Platform.SWITCH].append((node, TAG_ENABLED))
 

@@ -7,9 +7,9 @@
           "username": "Universal Devices portal email",
           "host": "URL",
           "password": "Universal Devices portal password",
-          "verify_ssl": "Verify SSL certificate (leave off for the default self-signed certificate)."
+          "verify_ssl": "Verify SSL certificate (leave off for the self-signed default)."
         },
-        "description": "The host entry must be the full URL, e.g., {sample_ip}\n\nSign in with your Universal Devices portal account (the email and password you use at my.isy.io / the Universal Devices portal) — the same account your eisy / Polisy is registered to. Local admin credentials are not supported yet.",
+        "description": "Host must be a full URL, e.g., {sample_ip}\n\nSign in with your Universal Devices portal account (my.isy.io). Local admin credentials are not supported yet.",
         "title": "Connect to your eisy / Polisy"
       },
       "reauth_confirm": {
@@ -110,7 +110,7 @@
   "services": {
     "send_node_command": {
       "name": "Send node command",
-      "description": "Send a friendly-named command to an IoX device by entity ID. Valid commands: beep, brighten, dim, disable, enable, fade_down, fade_stop, fade_up, fast_off, fast_on, query.",
+      "description": "Send a friendly-named command (beep, brighten, dim, disable, enable, fade_down/stop/up, fast_off/on, query) to an IoX device.",
       "fields": {
         "command": {
           "name": "Command",
@@ -120,11 +120,11 @@
     },
     "get_node_commands": {
       "name": "Get node commands",
-      "description": "Return the IoX commands a node accepts. The response's 'accepted_commands' maps each canonical wire id (e.g. DON, OL, BEEP — what 'Send raw node command' expects) to its human-readable name."
+      "description": "Return the IoX commands a node accepts, as a wire-id → friendly-name mapping."
     },
     "rename_node": {
       "name": "Rename node",
-      "description": "Rename the underlying IoX node or scene. The controller emits a lifecycle event afterwards; the integration's Repair card will prompt you to reload so HA's caches catch up.",
+      "description": "Rename the underlying IoX node or scene. A Repair card will prompt you to reload afterwards.",
       "fields": {
         "name": {
           "name": "Name",
@@ -134,7 +134,7 @@
     },
     "set_zwave_parameter": {
       "name": "Set Z-Wave parameter",
-      "description": "Write a Z-Wave configuration parameter on the targeted entity's node. Uses the dedicated controller endpoint that carries the parameter's byte size — so multi-byte parameters round-trip correctly. The post-write parameter report arrives asynchronously on the controller's event stream.",
+      "description": "Write a Z-Wave configuration parameter, carrying byte size so multi-byte values round-trip correctly. The post-write report arrives asynchronously on the event stream.",
       "fields": {
         "parameter": {
           "name": "Parameter number",
@@ -142,7 +142,7 @@
         },
         "value": {
           "name": "Value",
-          "description": "Parameter value to write (signed integer; the device interprets the sign per its parameter spec)."
+          "description": "Parameter value (signed integer; device interprets the sign)."
         },
         "size": {
           "name": "Size (bytes)",
@@ -152,7 +152,7 @@
     },
     "get_zwave_parameter": {
       "name": "Get Z-Wave parameter",
-      "description": "Request the current value of a Z-Wave configuration parameter. Returns a parameter / size / value dict on success; raises on controller failure (404 / device unreachable / unknown parameter).",
+      "description": "Request the current value of a Z-Wave configuration parameter. Returns a {parameter, size, value} dict.",
       "fields": {
         "parameter": {
           "name": "Parameter number",
