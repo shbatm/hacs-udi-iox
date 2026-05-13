@@ -4,9 +4,9 @@ rules:
     status: done
     comment: |
       Services (send_node_command, get_node_commands, rename_node,
-      system_query, set_variable, send_program_command,
-      run_network_resource) are registered in async_setup, not
-      async_setup_entry — see services.py / __init__.py.
+      set_zwave_parameter, get_zwave_parameter, send_program_command)
+      are registered in async_setup, not async_setup_entry — see
+      services.py / __init__.py.
   appropriate-polling:
     status: exempt
     comment: |
@@ -14,10 +14,14 @@ rules:
       WebSocket event stream (pyisyox EventDispatcher); the integration
       never polls.
   brands:
-    status: exempt
+    status: done
     comment: |
-      Custom (HACS) component — the udi_iox domain is not registered in
-      the home-assistant/brands repository.
+      Brand assets shipped locally under
+      ``custom_components/udi_iox/brand/`` (icon.png 256×256 + icon@2x.png
+      512×512 — the Universal Devices mark). HA 2026.3+ serves these
+      via the Brands Proxy API and prefers them over the brands CDN, so
+      the udi_iox domain renders the brand mark even though the domain
+      isn't registered in home-assistant/brands.
   common-modules:
     status: done
     comment: |
