@@ -14,6 +14,7 @@ from pyisyox import Node, NodeCommandError
 from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import _LOGGER, CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
+from .editor_classification import resolve_editor
 from .entity import (
     ISYNodeEntity,
     NodeEventType,
@@ -124,13 +125,19 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
             # ``DON`` level parameter's editor expects percent (uom 51) or
             # a byte-capped 0-100 subset (uom 100, max ≤ 100 —
             # KeypadDimmer_ADV); classic dimmers that take the full 0-255
-            # range pass through. Unresolvable → pass through, codec
+            # range pass through. ``Editor.range_for`` does the
+            # multi-range pick (e.g. ``ZW_DIM_PERCENT``'s percent range
+            # alongside its tiny ``{1: "Previous Value"}`` index range)
+            # by UOM hint, falling back to ``ranges[0]`` when no percent
+            # range exists. Unresolvable editor → pass through, codec
             # surfaces any error.
-            rng = self._editor_range_for(CMD_ON)
-            if rng is not None and (
-                rng.uom == UOM_PERCENTAGE or (rng.max is not None and rng.max <= 100)
-            ):
-                brightness = round(brightness * 100.0 / 255.0)
+            editor = resolve_editor(self._isy_data.root, self._node, CMD_ON)
+            if editor is not None:
+                rng = editor.range_for(UOM_PERCENTAGE)
+                if rng.uom == UOM_PERCENTAGE or (
+                    rng.max is not None and rng.max <= 100
+                ):
+                    brightness = round(brightness * 100.0 / 255.0)
         try:
             if brightness is None:
                 await self._node.send_command(CMD_ON)

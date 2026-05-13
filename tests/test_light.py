@@ -85,3 +85,65 @@ async def test_turn_on_sets_brightness_via_don_level_parameter() -> None:
     assert send_command.call_args_list[1].args == ("DON",)
     # Never an ``OL`` write — that's a separate device setting.
     assert all(call.args[0] == "DON" for call in send_command.call_args_list)
+
+
+async def test_turn_on_scales_brightness_for_multirange_zwave_editor() -> None:
+    """Multi-range editors (``ZW_DIM_PERCENT``: a tiny ``{1: "Previous Value"}``
+    index range alongside a 0-100 % range) must still scale 0-255 → 0-100.
+
+    Regression: ``ranges[0]`` is the index range with no numeric ``max``,
+    so the old logic short-circuited and sent 138 raw — which the codec
+    then rejected against the percent range's ``max=100``.
+    """
+    from unittest.mock import AsyncMock, patch
+
+    from pyisyox import Node
+    from pyisyox.schema.cmd import Command, CommandParameter
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef
+
+    from custom_components.udi_iox.light import ISYLightEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(
+        make_node_record("Z 1", "ZWaveDimmer", family_id="4", nodedef_id="UZW000E"),
+        controller,
+    )
+    # ``ZW_DIM_PERCENT`` ships in the bundled profile (family "4", instance
+    # "1") with ranges = [{uom:25, names:{1:"Previous Value"}}, {uom:51,
+    # min:0, max:100}]. The first range has no numeric bounds, so the
+    # scaling code must walk past it to the percent range.
+    dimmer_def = NodeDef(
+        id="UZW000E",
+        family_id="4",
+        instance_id="1",
+        cmds=NodeCommands(
+            accepts=[
+                Command(
+                    id="DON",
+                    parameters=[
+                        CommandParameter(editor_id="ZW_DIM_PERCENT", optional=True)
+                    ],
+                ),
+                Command(id="DOF"),
+            ]
+        ),
+    )
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYLightEntity(isy_data, node, restore_light_state=False)
+    with (
+        patch.object(
+            Node, "nodedef", new_callable=lambda: property(lambda _self: dimmer_def)
+        ),
+        patch.object(Node, "send_command", new=AsyncMock()) as send_command,
+    ):
+        await entity.async_turn_on(brightness=138)  # 138/255 → 54 %
+
+    assert send_command.call_args_list[0].args == ("DON", 54)

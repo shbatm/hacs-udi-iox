@@ -42,6 +42,51 @@ rename_node:
       selector:
         text:
 
+set_zwave_parameter:
+  target:
+    entity:
+      integration: udi_iox
+  fields:
+    parameter:
+      required: true
+      example: 24
+      selector:
+        number:
+          min: 1
+          max: 255
+          mode: box
+    value:
+      required: true
+      example: 1
+      selector:
+        number:
+          min: -2147483648
+          max: 2147483647
+          mode: box
+    size:
+      required: true
+      example: 1
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+            - "4"
+
+get_zwave_parameter:
+  target:
+    entity:
+      integration: udi_iox
+  fields:
+    parameter:
+      required: true
+      example: 24
+      selector:
+        number:
+          min: 1
+          max: 255
+          mode: box
+
 system_query:
   fields:
     address:

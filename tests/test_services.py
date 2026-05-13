@@ -28,11 +28,13 @@ from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.models import IsyData
 from custom_components.udi_iox.services import (
     SERVICE_GET_NODE_COMMANDS,
+    SERVICE_GET_ZWAVE_PARAMETER,
     SERVICE_RENAME_NODE,
     SERVICE_RUN_NETWORK_RESOURCE,
     SERVICE_SEND_NODE_COMMAND,
     SERVICE_SEND_PROGRAM_COMMAND,
     SERVICE_SET_VARIABLE,
+    SERVICE_SET_ZWAVE_PARAMETER,
     SERVICE_SYSTEM_QUERY,
     async_get_entities,
     async_setup_services,
@@ -326,6 +328,8 @@ async def test_rename_node_service_is_registered(hass, service_controller) -> No
     assert hass.services.has_service(DOMAIN, SERVICE_RENAME_NODE)
     assert hass.services.has_service(DOMAIN, SERVICE_SEND_NODE_COMMAND)
     assert hass.services.has_service(DOMAIN, SERVICE_GET_NODE_COMMANDS)
+    assert hass.services.has_service(DOMAIN, SERVICE_SET_ZWAVE_PARAMETER)
+    assert hass.services.has_service(DOMAIN, SERVICE_GET_ZWAVE_PARAMETER)
 
 
 async def test_async_get_entities_returns_mapping(hass, service_controller) -> None:
@@ -430,3 +434,76 @@ async def test_isy_node_entity_async_rename_calls_node_rename(
     assert service_controller._client.post_node_update.await_args_list == [
         call("A 1", {"nodeType": "node", "name": "Renamed"})
     ]
+
+
+# --- Z-Wave parameter entity service ----------------------------------
+
+
+async def test_async_set_zwave_parameter_delegates_to_node(
+    service_controller,
+) -> None:
+    """``ISYNodeEntity.async_set_zwave_parameter`` calls
+    :meth:`pyisyox.Node.set_zwave_parameter` with the
+    ``(number, value, size)`` triple as-is — pyisyox's helper picks the
+    right wire path from the node's ``family_id`` itself."""
+    from custom_components.udi_iox.entity import ISYNodeEntity
+
+    node = next(iter(service_controller.nodes.values()))
+    entity = ISYNodeEntity.__new__(ISYNodeEntity)
+    entity._node = node
+
+    with patch.object(type(node), "set_zwave_parameter", new=AsyncMock()) as set_param:
+        await entity.async_set_zwave_parameter(24, 1, 1)
+
+    set_param.assert_awaited_once_with(24, 1, 1)
+
+
+async def test_async_set_zwave_parameter_raises_homeassistanterror_on_non_zwave(
+    service_controller,
+) -> None:
+    """A non-Z-Wave node's set_zwave_parameter raises ``NodeCommandError``
+    in pyisyox; the entity wrapper surfaces that as ``HomeAssistantError``
+    so HA's service dispatch can format it for the user."""
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import NodeCommandError
+
+    from custom_components.udi_iox.entity import ISYNodeEntity
+
+    node = next(iter(service_controller.nodes.values()))
+    entity = ISYNodeEntity.__new__(ISYNodeEntity)
+    entity._node = node
+
+    with (
+        patch.object(
+            type(node),
+            "set_zwave_parameter",
+            new=AsyncMock(side_effect=NodeCommandError("not a Z-Wave node")),
+        ),
+        pytest.raises(HomeAssistantError, match="not a Z-Wave node"),
+    ):
+        await entity.async_set_zwave_parameter(24, 1, 1)
+
+
+async def test_async_get_zwave_parameter_returns_parsed_dict(
+    service_controller,
+) -> None:
+    """``async_get_zwave_parameter`` surfaces pyisyox's structured
+    ``{"parameter", "size", "value"}`` return as the HA service
+    response — matching PyISY 3.x's shape so existing automations
+    migrating off the legacy integration keep the same keys."""
+    from custom_components.udi_iox.entity import ISYNodeEntity
+
+    node = next(iter(service_controller.nodes.values()))
+    entity = ISYNodeEntity.__new__(ISYNodeEntity)
+    entity._node = node
+
+    parsed = {"parameter": 24, "size": 1, "value": 2}
+    with patch.object(
+        type(node),
+        "get_zwave_parameter",
+        new=AsyncMock(return_value=parsed),
+    ) as get_param:
+        result = await entity.async_get_zwave_parameter(24)
+
+    get_param.assert_awaited_once_with(24)
+    assert result == parsed

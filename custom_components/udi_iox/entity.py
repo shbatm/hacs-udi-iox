@@ -13,6 +13,7 @@ from pyisyox import (
     Folder,
     Group,
     Node,
+    NodeCommandError,
     NodeLifecycleAction,
     NodeLifecycleEvent,
     NodePropertyValue,
@@ -392,15 +393,44 @@ class ISYNodeEntity(ISYEntity):
         params = (value,) if value is not None else ()
         await self._node.send_command(command, *params)
 
-    async def async_get_zwave_parameter(self, parameter: int) -> None:
-        """Z-Wave parameter read — not supported."""
-        raise HomeAssistantError("Z-Wave parameter services are not supported")
+    async def async_get_zwave_parameter(self, parameter: int) -> dict[str, int]:
+        """Z-Wave parameter read.
+
+        Returns a structured ``{"parameter", "size", "value"}`` dict
+        (pyisyox parses the controller's ``<config>`` response shape
+        for us); HA renders that directly as the service response.
+        Mirrors PyISY 3.x's structured return on
+        ``Node.get_zwave_parameter`` so existing automations migrating
+        from the legacy ``isy994`` integration keep the same dict
+        keys.
+
+        Raises ``HomeAssistantError`` when the underlying node isn't a
+        Z-Wave node, or when the controller rejects the read
+        (unknown parameter number / device unreachable —
+        :class:`pyisyox.NodeCommandError` surfaces the status code).
+        """
+        try:
+            return await self._node.get_zwave_parameter(parameter)
+        except NodeCommandError as err:
+            raise HomeAssistantError(str(err)) from err
 
     async def async_set_zwave_parameter(
         self, parameter: int, value: int, size: int
     ) -> None:
-        """Z-Wave parameter write — not supported."""
-        raise HomeAssistantError("Z-Wave parameter services are not supported")
+        """Z-Wave parameter write.
+
+        Delegates to :meth:`pyisyox.Node.set_zwave_parameter` which uses
+        the dedicated ``/rest/(zmatter/)?zwave/.../parameters/set/...``
+        wire path — the only surface that carries ``size`` (the
+        parameter's byte width), unlike the legacy ``CONFIG`` ``cmd``
+        editor which only models the ``(NUM, VAL)`` pair. This is why
+        the auto-fan-out for ``CONFIG`` is suppressed on Z-Wave: the
+        slider it'd produce can't express ``size``.
+        """
+        try:
+            await self._node.set_zwave_parameter(parameter, value, size)
+        except NodeCommandError as err:
+            raise HomeAssistantError(str(err)) from err
 
     async def async_rename_node(self, name: str) -> None:
         """Rename the underlying node on the controller.

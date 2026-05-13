@@ -217,6 +217,22 @@ _DEDICATED_COMMANDS_BY_PROTOCOL: dict[str, frozenset[str]] = {
     Protocol.INSTEON: frozenset({CMD_BEEP}),
 }
 
+#: Accept commands the integration deliberately leaves to **service
+#: calls only** instead of surfacing as aux entities. Z-Wave ``CONFIG``
+#: is the case in point: the dynamic ``UZW*`` nodedefs model it as a
+#: ``(NUM, VAL)`` pair editor (``_107_0_R_0_255`` + ``ZW_CONFIG``),
+#: which the auto-fan-out would render as a 0-255 slider — but the
+#: parameter's *byte size* is a third, device-defined arg that the
+#: editor can't express, and the resulting slider drops it on the
+#: floor. Multi-byte parameter writes need the dedicated
+#: ``/rest/zwave/.../parameters/set/{n}/{v}/{sz}`` path, exposed
+#: through the ``udi_iox.set_zwave_parameter`` service. Insteon
+#: ``CONFIG`` (rare; legacy) stays surfaced as a slider — its single
+#: byte fits the editor.
+_SERVICE_ONLY_COMMANDS_BY_PROTOCOL: dict[str, frozenset[str]] = {
+    Protocol.ZWAVE: frozenset({"CONFIG"}),
+}
+
 
 def _fan_out_commands(
     isy_data: IsyData,
@@ -250,9 +266,12 @@ def _fan_out_commands(
       (``WDU`` "Write Changes", plugin ``DISCOVER`` …), minus the ones
       the integration ships a dedicated entity for.
     """
-    dedicated = _DEDICATED_COMMANDS_BY_PROTOCOL.get(node.protocol or "", frozenset())
+    protocol_key = node.protocol or ""
+    dedicated = _DEDICATED_COMMANDS_BY_PROTOCOL.get(protocol_key, frozenset())
+    service_only = _SERVICE_ONLY_COMMANDS_BY_PROTOCOL.get(protocol_key, frozenset())
+    skipped = dedicated | service_only
     for cmd in result.parameterized_commands:
-        if cmd.id in dedicated:
+        if cmd.id in skipped:
             continue
         if any(p.init == PROP_STATUS for p in cmd.parameters):
             continue
@@ -282,7 +301,7 @@ def _fan_out_commands(
             continue
         isy_data.aux_properties[platform].append((node, cmd.id))
     for cmd in result.buttons:
-        if cmd.id in dedicated:
+        if cmd.id in skipped:
             continue
         isy_data.aux_properties[Platform.BUTTON].append((node, cmd.id))
 
@@ -453,7 +472,21 @@ def _categorize_nodes(
                 _fan_out_readings(isy_data, node, result.readings)
                 if _is_device_root(node):
                     _fan_out_commands(isy_data, node, controller, result)
-            if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
+            # EVENT entity registration is restricted to nodes with **no
+            # primary platform** — i.e. true scene-controller / paddle
+            # nodes (Z-Wave central scene endpoints, ``UZW0010``-shaped
+            # nodedefs whose accepts is just ``QUERY`` but whose sends
+            # list carries the press verbs). Switch / dimmer / lock /
+            # fan / climate endpoints are skipped on purpose: eisy's
+            # Z-Wave bridge isn't a reliable EVENT surface for those —
+            # it echoes spurious DON/DOF on paired endpoints (a ZEN30
+            # relay toggle fires DON/DOF on the dimmer side too) and
+            # other plug nodedefs declare ``sends=[DON,DOF]`` but only
+            # ever emit ``ST`` on the wire, so the event entity would
+            # either fire phantom presses or never fire at all. Insteon
+            # natives keep the broader rule below — their wire events
+            # are faithful.
+            if Platform.EVENT in NODE_PARALLEL_PLATFORMS and native_platform is None:
                 _register_event_node(isy_data, node, _node_trigger_commands(node))
             continue
 

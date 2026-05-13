@@ -60,10 +60,14 @@ INTEGRATION_SERVICES = [
 SERVICE_SEND_NODE_COMMAND = "send_node_command"
 SERVICE_GET_NODE_COMMANDS = "get_node_commands"
 SERVICE_RENAME_NODE = "rename_node"
+SERVICE_SET_ZWAVE_PARAMETER = "set_zwave_parameter"
+SERVICE_GET_ZWAVE_PARAMETER = "get_zwave_parameter"
 
 CONF_VALUE = "value"
 CONF_INIT = "init"
 CONF_ISY = "isy"
+CONF_PARAMETER = "parameter"
+CONF_SIZE = "size"
 
 VALID_NODE_COMMANDS = [
     "beep",
@@ -109,6 +113,19 @@ SERVICE_SEND_NODE_COMMAND_SCHEMA = {
 }
 
 SERVICE_RENAME_NODE_SCHEMA = {vol.Required(CONF_NAME): cv.string}
+
+SERVICE_SET_ZWAVE_PARAMETER_SCHEMA = {
+    vol.Required(CONF_PARAMETER): vol.All(vol.Coerce(int), vol.Range(min=1)),
+    vol.Required(CONF_VALUE): vol.Coerce(int),
+    # ``select`` selectors hand the value back as a string ("1" / "2" /
+    # "4"); coerce before the membership check so the schema accepts
+    # both the UI's string form and an int from YAML / scripts.
+    vol.Required(CONF_SIZE): vol.All(vol.Coerce(int), vol.In((1, 2, 4))),
+}
+
+SERVICE_GET_ZWAVE_PARAMETER_SCHEMA = {
+    vol.Required(CONF_PARAMETER): vol.All(vol.Coerce(int), vol.Range(min=1)),
+}
 
 SERVICE_SET_VARIABLE_SCHEMA = vol.Schema(
     {
@@ -361,6 +378,31 @@ def async_setup_services(hass: HomeAssistant) -> None:
         service=SERVICE_RENAME_NODE,
         schema=cv.make_entity_service_schema(SERVICE_RENAME_NODE_SCHEMA),
         service_func=_async_rename_node,
+    )
+
+    async def _async_set_zwave_parameter(call: ServiceCall) -> None:
+        await entity_service_call(
+            hass, async_get_entities(hass), "async_set_zwave_parameter", call
+        )
+
+    hass.services.async_register(
+        domain=DOMAIN,
+        service=SERVICE_SET_ZWAVE_PARAMETER,
+        schema=cv.make_entity_service_schema(SERVICE_SET_ZWAVE_PARAMETER_SCHEMA),
+        service_func=_async_set_zwave_parameter,
+    )
+
+    async def _async_get_zwave_parameter(call: ServiceCall) -> ServiceResponse:
+        return await entity_service_call(
+            hass, async_get_entities(hass), "async_get_zwave_parameter", call
+        )
+
+    hass.services.async_register(
+        domain=DOMAIN,
+        service=SERVICE_GET_ZWAVE_PARAMETER,
+        schema=cv.make_entity_service_schema(SERVICE_GET_ZWAVE_PARAMETER_SCHEMA),
+        service_func=_async_get_zwave_parameter,
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
 

@@ -106,6 +106,34 @@
         }
       }
     },
+    "set_zwave_parameter": {
+      "name": "Set Z-Wave parameter",
+      "description": "Write a Z-Wave configuration parameter on the targeted entity's node. Uses the dedicated controller endpoint that carries the parameter's byte size — so multi-byte parameters round-trip correctly. The post-write parameter report arrives asynchronously on the controller's event stream.",
+      "fields": {
+        "parameter": {
+          "name": "Parameter number",
+          "description": "Z-Wave parameter number (device-defined, 1-based)."
+        },
+        "value": {
+          "name": "Value",
+          "description": "Parameter value to write (signed integer; the device interprets the sign per its parameter spec)."
+        },
+        "size": {
+          "name": "Size (bytes)",
+          "description": "Parameter byte size as defined by the device — 1, 2, or 4."
+        }
+      }
+    },
+    "get_zwave_parameter": {
+      "name": "Get Z-Wave parameter",
+      "description": "Request the current value of a Z-Wave configuration parameter. Returns a parameter / size / value dict on success; raises on controller failure (404 / device unreachable / unknown parameter).",
+      "fields": {
+        "parameter": {
+          "name": "Parameter number",
+          "description": "Z-Wave parameter number (device-defined, 1-based)."
+        }
+      }
+    },
     "system_query": {
       "name": "System query",
       "description": "Refresh the controller's node table. Re-pulls /api/nodes + /rest/status, useful after manual changes in the IoX admin console.",
