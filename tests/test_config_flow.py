@@ -123,6 +123,96 @@ async def test_options_step_creates_entry_with_data_and_options(hass) -> None:
     assert result["options"]["enable_networking"] is True
 
 
+async def test_options_step_round_trips_non_default_toggles(hass) -> None:
+    """Non-default toggles flipped in the options step land verbatim on
+    the entry — guards against the helper silently re-applying defaults
+    over user input."""
+    flow = await _start_user_flow(hass)
+    with (
+        _patch_validate("rtrip-uuid"),
+        patch(
+            "custom_components.udi_iox.async_setup_entry",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        await hass.config_entries.flow.async_configure(
+            flow["flow_id"], _build_user_input()
+        )
+        result = await hass.config_entries.flow.async_configure(
+            flow["flow_id"],
+            {
+                "ignore_string": "{HIDE}",
+                "sensor_string": "binary",
+                "restore_light_state": True,  # flipped from default
+                "enable_variables": False,  # flipped from default
+                "enable_programs": False,  # flipped from default
+                "enable_networking": True,  # flipped from default
+            },
+        )
+        await hass.async_block_till_done()
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+    opts = result["options"]
+    assert opts["restore_light_state"] is True
+    assert opts["enable_variables"] is False
+    assert opts["enable_programs"] is False
+    assert opts["enable_networking"] is True
+    assert opts["ignore_string"] == "{HIDE}"
+    assert opts["sensor_string"] == "binary"
+
+
+async def test_options_step_without_credentials_bounces_to_user(hass) -> None:
+    """Defensive — if the options step somehow runs without
+    ``self._user_input`` populated (deep-link, flow-manager re-entry
+    after a restart, race between duplicate ``async_configure`` calls),
+    bounce back to the user step instead of asserting / 500-ing the
+    flow."""
+    from custom_components.udi_iox.config_flow import ConfigFlow
+
+    flow = ConfigFlow()
+    flow.hass = hass
+    # Skip the user step entirely — invoke options directly.
+    result = await flow.async_step_options()
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "user"
+
+
+async def test_ssdp_discovery_walks_both_steps_to_create_entry(hass) -> None:
+    """End-to-end discovery path: SSDP → user step (host prefilled by
+    discovery) → options step → CREATE_ENTRY. The two-step refactor
+    must not break the discovered-host flow."""
+    flow = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_SSDP},
+        data=_ssdp_info(host="9.9.9.9"),
+    )
+    assert flow["step_id"] == "user"
+    with (
+        _patch_validate("ssdp-uuid"),
+        patch(
+            "custom_components.udi_iox.async_setup_entry",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        options_form = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], _build_user_input()
+        )
+        assert options_form["step_id"] == "options"
+        result = await hass.config_entries.flow.async_configure(
+            flow["flow_id"],
+            {
+                "ignore_string": "{IGNORE ME}",
+                "sensor_string": "sensor",
+                "restore_light_state": False,
+                "enable_variables": True,
+                "enable_programs": True,
+                "enable_networking": False,
+            },
+        )
+        await hass.async_block_till_done()
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_USERNAME] == "admin@example.com"
+
+
 async def test_unique_id_prevents_duplicate_entries(hass) -> None:
     """A second flow with the same controller uuid aborts as
     already_configured — the abort fires at the user step (before

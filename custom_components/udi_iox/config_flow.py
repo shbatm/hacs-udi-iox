@@ -233,8 +233,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
         entry. The fields are intentionally surfaced here rather than
         deferred to post-install so users discover the toggles up
         front instead of finding them after entities are already loaded.
+
+        ``self._user_input`` is per-flow instance state — HA's flow
+        manager allocates one :class:`ConfigFlow` per ``flow_id``, so
+        two concurrent flows (e.g. two browser tabs) don't share this.
+        If we land here without credentials (deep-link, flow-manager
+        re-entry after a restart, duplicate ``async_configure`` racing
+        the submit), bounce back to the user step rather than asserting.
         """
-        assert self._user_input is not None  # async_step_user gates this
+        if self._user_input is None:
+            return await self.async_step_user()
         if user_input is not None:
             return self.async_create_entry(
                 title=self._entry_title or "",
