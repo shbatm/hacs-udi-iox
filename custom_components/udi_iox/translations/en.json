@@ -59,16 +59,22 @@
     "step": {
       "init": {
         "title": "IoX Options",
-        "description": "Set the options for the IoX integration: \n \u2022 Node Sensor String: Any device or folder that contains 'Node Sensor String' in the name will be treated as a sensor or binary sensor. \n \u2022 Ignore String: Any device with 'Ignore String' in the name will be ignored. \n \u2022 Variable Sensor String: Any variable that contains 'Variable Sensor String' will be added as a sensor. \n \u2022 Restore Light Brightness: If enabled, the previous brightness will be restored when turning on a light instead of the device's built-in On-Level. \n \u2022 Enable Adding Variable, Node Server, Network Resource, or Program Entities: If you don't use any of these features you can disable them to speed up loading times.",
+        "description": "Set the options for the IoX integration.",
         "data": {
           "sensor_string": "Node Sensor String",
           "ignore_string": "Ignore String",
-          "variable_sensor_string": "Variable Sensor String",
           "restore_light_state": "Restore Light Brightness",
           "enable_variables": "Enable adding variables entities",
-          "enable_nodeservers": "Enable adding node server entities",
           "enable_programs": "Enable adding program entities",
           "enable_networking": "Enable adding network resource entities"
+        },
+        "data_description": {
+          "sensor_string": "Any device or folder containing this string in its name is treated as a sensor or binary sensor.",
+          "ignore_string": "Any device containing this string in its name is ignored.",
+          "restore_light_state": "Restore the previous brightness when turning on a light instead of the device's built-in On Level.",
+          "enable_variables": "Disable to skip loading variable entities (faster startup if you don't use them).",
+          "enable_programs": "Disable to skip loading program entities (faster startup if you don't use them).",
+          "enable_networking": "Disable to skip loading network resource entities (faster startup if you don't use them)."
         }
       }
     }
@@ -134,83 +140,25 @@
         }
       }
     },
-    "system_query": {
-      "name": "System query",
-      "description": "Refresh the controller's node table. Re-pulls /api/nodes + /rest/status, useful after manual changes in the IoX admin console.",
+    "send_program_command": {
+      "name": "Send program command",
+      "description": "Send a verb (run, run_then, run_else, stop, enable, disable, …) to a program or folder by id or name.",
       "fields": {
         "address": {
-          "name": "Address",
-          "description": "Optional node address to focus the refresh. Currently advisory — the controller refresh is always full-scope."
+          "name": "Program id",
+          "description": "The program or folder id (e.g. 0030). Takes precedence over name when both are given."
         },
-        "isy": {
-          "name": "Controller",
-          "description": "If you have more than one IoX controller, the controller UUID to target. Omit to refresh every controller."
-        }
-      }
-    },
-    "set_variable": {
-      "name": "Set variable",
-      "description": "Write a value to a controller variable.",
-      "fields": {
-        "address": {
-          "name": "Variable id",
-          "description": "Numeric variable id within its type."
+        "name": {
+          "name": "Program name",
+          "description": "Exact name of the program or folder. Used when no id is given."
         },
-        "type": {
-          "name": "Variable type",
-          "description": "1 = Integer variable, 2 = State variable."
-        },
-        "value": {
-          "name": "Value",
-          "description": "The integer value to write."
-        },
-        "init": {
-          "name": "Set initial value",
-          "description": "When true, write to the variable's restore-on-startup slot instead of its current value."
+        "command": {
+          "name": "Command",
+          "description": "The verb to send. Folders only accept run / stop / enable / disable."
         },
         "isy": {
           "name": "Controller",
           "description": "If you have more than one IoX controller, the controller UUID to target."
-        }
-      }
-    },
-    "send_program_command": {
-      "name": "Send program command",
-      "description": "Not currently supported. The schema is kept so existing automations parse, but the call will raise.",
-      "fields": {
-        "address": {
-          "name": "Address",
-          "description": "Address of the program."
-        },
-        "name": {
-          "name": "Name",
-          "description": "Name of the program."
-        },
-        "command": {
-          "name": "Command",
-          "description": "The program command."
-        },
-        "isy": {
-          "name": "Controller",
-          "description": "Controller UUID."
-        }
-      }
-    },
-    "run_network_resource": {
-      "name": "Run network resource",
-      "description": "Not currently supported.",
-      "fields": {
-        "address": {
-          "name": "Address",
-          "description": "Network resource id."
-        },
-        "name": {
-          "name": "Name",
-          "description": "Network resource name."
-        },
-        "isy": {
-          "name": "Controller",
-          "description": "Controller UUID."
         }
       }
     }

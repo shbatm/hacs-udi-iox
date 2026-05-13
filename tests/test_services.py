@@ -1,17 +1,16 @@
 """Tests for the udi_iox services.
 
 Pins:
-- ``set_variable`` routes through ``Controller.set_variable_value`` /
-  ``set_variable_init`` based on the ``init`` flag — both land
-  ``POST /api/variables/{type}/{id}`` on the client.
-- ``system_query`` routes through ``Controller.refresh``.
 - ``send_program_command`` resolves the target by id / name, then
   invokes the matching method on the typed ``Program`` /
   ``ProgramFolder`` wrapper (which fires
   ``GET /rest/programs/{id}/{command}`` on the client).
-- ``run_network_resource`` routes by id straight through the
-  controller helper, and by name through the typed
-  ``NetworkResource.run()`` wrapper.
+
+Variable writes are exercised by the native number platform
+(``test_number.py``); per-resource fire-triggers by the button platform
+(``test_button.py``). The domain-level ``set_variable`` /
+``run_network_resource`` services were removed in favour of those
+paths.
 """
 
 from __future__ import annotations
@@ -19,10 +18,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
-from homeassistant.const import CONF_ADDRESS, CONF_NAME, CONF_TYPE
+from homeassistant.const import CONF_ADDRESS, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from pyisyox import Controller
 
 from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.models import IsyData
@@ -30,12 +28,9 @@ from custom_components.udi_iox.services import (
     SERVICE_GET_NODE_COMMANDS,
     SERVICE_GET_ZWAVE_PARAMETER,
     SERVICE_RENAME_NODE,
-    SERVICE_RUN_NETWORK_RESOURCE,
     SERVICE_SEND_NODE_COMMAND,
     SERVICE_SEND_PROGRAM_COMMAND,
-    SERVICE_SET_VARIABLE,
     SERVICE_SET_ZWAVE_PARAMETER,
-    SERVICE_SYSTEM_QUERY,
     async_get_entities,
     async_setup_services,
 )
@@ -83,90 +78,6 @@ async def _wire_services_with_entry(hass: HomeAssistant, controller) -> None:
 
     async_setup_services(hass)
     await hass.async_block_till_done()
-
-
-# --- system_query -----------------------------------------------------
-
-
-async def test_system_query_calls_controller_refresh(hass, service_controller) -> None:
-    """``system_query`` lands on ``Controller.refresh``. Patched at the
-    class level because ``Controller`` uses ``__slots__`` — we can't
-    drop an ``AsyncMock`` on the instance directly."""
-    await _wire_services_with_entry(hass, service_controller)
-
-    with patch.object(
-        Controller, "refresh", new=AsyncMock(return_value=None)
-    ) as refresh_mock:
-        await hass.services.async_call(DOMAIN, SERVICE_SYSTEM_QUERY, {}, blocking=True)
-
-    refresh_mock.assert_awaited_once()
-
-
-async def test_system_query_targets_controller_by_uuid(
-    hass, service_controller
-) -> None:
-    """Passing isy=<uuid> targets only the matching controller."""
-    await _wire_services_with_entry(hass, service_controller)
-
-    with patch.object(
-        Controller, "refresh", new=AsyncMock(return_value=None)
-    ) as refresh_mock:
-        await hass.services.async_call(
-            DOMAIN, SERVICE_SYSTEM_QUERY, {"isy": "test-uuid"}, blocking=True
-        )
-
-    refresh_mock.assert_awaited_once()
-
-
-async def test_system_query_with_unmatched_isy_raises(hass, service_controller) -> None:
-    await _wire_services_with_entry(hass, service_controller)
-
-    with pytest.raises(HomeAssistantError):
-        await hass.services.async_call(
-            DOMAIN, SERVICE_SYSTEM_QUERY, {"isy": "no-such-uuid"}, blocking=True
-        )
-
-
-# --- set_variable -----------------------------------------------------
-
-
-async def test_set_variable_value_writes_through_controller(
-    hass, service_controller
-) -> None:
-    """``init=False`` (the default) maps to
-    ``Controller.set_variable_value`` which lands
-    ``POST /api/variables/{type}/{id}`` with ``{"value": <int>}``."""
-    await _wire_services_with_entry(hass, service_controller)
-
-    await hass.services.async_call(
-        DOMAIN,
-        SERVICE_SET_VARIABLE,
-        {CONF_ADDRESS: 5, CONF_TYPE: 2, "value": 100},
-        blocking=True,
-    )
-
-    assert service_controller._client.post_variable_update.await_args_list == [
-        call(2, 5, {"value": 100})
-    ]
-
-
-async def test_set_variable_init_routes_to_init_method(
-    hass, service_controller
-) -> None:
-    """``init=True`` maps to ``Controller.set_variable_init`` which
-    lands the same endpoint with ``{"init": <int>}`` instead."""
-    await _wire_services_with_entry(hass, service_controller)
-
-    await hass.services.async_call(
-        DOMAIN,
-        SERVICE_SET_VARIABLE,
-        {CONF_ADDRESS: 5, CONF_TYPE: 1, "value": 42, "init": True},
-        blocking=True,
-    )
-
-    assert service_controller._client.post_variable_update.await_args_list == [
-        call(1, 5, {"init": 42})
-    ]
 
 
 # --- send_program_command ---------------------------------------------
@@ -254,68 +165,6 @@ async def test_send_program_command_folder_rejects_program_only_verb(
         )
 
 
-# --- run_network_resource --------------------------------------------
-
-
-async def test_run_network_resource_by_address_fires_controller(
-    hass, service_controller
-) -> None:
-    """Targeting a resource by id calls
-    ``Controller.run_network_resource(<id>)`` directly — lands
-    ``GET /rest/networking/resources/{id}`` on the client."""
-    await _wire_services_with_entry(hass, service_controller)
-
-    await hass.services.async_call(
-        DOMAIN, SERVICE_RUN_NETWORK_RESOURCE, {CONF_ADDRESS: 5}, blocking=True
-    )
-    assert service_controller._client.run_network_resource.await_args_list == [
-        call("5")
-    ]
-
-
-async def test_run_network_resource_by_name_resolves_then_fires(
-    hass, service_controller
-) -> None:
-    """By-name resolution finds the wrapper in
-    ``controller.network_resources`` and calls its ``run()`` —
-    same ``GET /rest/networking/resources/{id}`` on the wire as the
-    by-id path."""
-    await _wire_services_with_entry(hass, service_controller)
-
-    await hass.services.async_call(
-        DOMAIN,
-        SERVICE_RUN_NETWORK_RESOURCE,
-        {CONF_NAME: "Webhook"},
-        blocking=True,
-    )
-    assert service_controller._client.run_network_resource.await_args_list == [
-        call("5")
-    ]
-
-
-async def test_run_network_resource_unknown_id_raises(hass, service_controller) -> None:
-    await _wire_services_with_entry(hass, service_controller)
-
-    with pytest.raises(HomeAssistantError, match="No network resource with id"):
-        await hass.services.async_call(
-            DOMAIN, SERVICE_RUN_NETWORK_RESOURCE, {CONF_ADDRESS: 99}, blocking=True
-        )
-
-
-async def test_run_network_resource_unknown_name_raises(
-    hass, service_controller
-) -> None:
-    await _wire_services_with_entry(hass, service_controller)
-
-    with pytest.raises(HomeAssistantError, match="No network resource named"):
-        await hass.services.async_call(
-            DOMAIN,
-            SERVICE_RUN_NETWORK_RESOURCE,
-            {CONF_NAME: "no-such"},
-            blocking=True,
-        )
-
-
 # --- entity-targeting service registration ---------------------------
 
 
@@ -338,6 +187,46 @@ async def test_async_get_entities_returns_mapping(hass, service_controller) -> N
     dispatch. Pin that the helper hands back a mapping."""
     await _wire_services_with_entry(hass, service_controller)
     assert isinstance(async_get_entities(hass), dict)
+
+
+async def test_async_get_entities_filters_by_supported_attribute(
+    hass, service_controller
+) -> None:
+    """``async_get_entities(supports=...)`` drops entities that don't
+    expose the given method. Without this filter, calling a
+    node-targeted service (``send_node_command``, ``get_node_commands``,
+    ``set_zwave_parameter``) on a scene/group entity raises
+    ``AttributeError`` deep inside HA's ``_handle_entity_call`` (the
+    user-reported "'ISYGroupSwitchEntity' object has no attribute
+    'async_get_node_commands'" trace)."""
+    from homeassistant.helpers.entity import Entity
+
+    class _NodeLike(Entity):
+        entity_id = "switch.dimmer_1"
+
+        async def async_get_node_commands(self) -> dict[str, str]:
+            return {}
+
+    class _GroupLike(Entity):
+        entity_id = "switch.scene_1"
+
+    await _wire_services_with_entry(hass, service_controller)
+
+    with patch(
+        "custom_components.udi_iox.services.async_get_platforms"
+    ) as get_platforms:
+        platform = MagicMock()
+        platform.entities = {
+            "switch.dimmer_1": _NodeLike(),
+            "switch.scene_1": _GroupLike(),
+        }
+        get_platforms.return_value = [platform]
+
+        all_entities = async_get_entities(hass)
+        filtered = async_get_entities(hass, supports="async_get_node_commands")
+
+    assert set(all_entities) == {"switch.dimmer_1", "switch.scene_1"}
+    assert set(filtered) == {"switch.dimmer_1"}
 
 
 # --- accepted-command surface (get_node_commands + JIT validation) ---

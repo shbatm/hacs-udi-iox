@@ -32,7 +32,6 @@ from pyisyox import (
 
 from .const import (
     CONF_ENABLE_NETWORKING,
-    CONF_ENABLE_NODESERVERS,
     CONF_ENABLE_PROGRAMS,
     CONF_ENABLE_VARIABLES,
     CONF_IGNORE_STRING,
@@ -329,7 +328,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         ignore_string = options.get(CONF_IGNORE_STRING, DEFAULT_IGNORE_STRING)
         sensor_string = options.get(CONF_SENSOR_STRING, DEFAULT_SENSOR_STRING)
         enable_variables = options.get(CONF_ENABLE_VARIABLES, True)
-        enable_nodeservers = options.get(CONF_ENABLE_NODESERVERS, True)
         enable_programs = options.get(CONF_ENABLE_PROGRAMS, True)
         enable_networking = options.get(CONF_ENABLE_NETWORKING, False)
 
@@ -341,7 +339,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_RESTORE_LIGHT_STATE, default=restore_light_state
                 ): bool,
                 vol.Required(CONF_ENABLE_VARIABLES, default=enable_variables): bool,
-                vol.Required(CONF_ENABLE_NODESERVERS, default=enable_nodeservers): bool,
                 vol.Required(CONF_ENABLE_PROGRAMS, default=enable_programs): bool,
                 vol.Required(CONF_ENABLE_NETWORKING, default=enable_networking): bool,
             }
