@@ -1,0 +1,148 @@
+rules:
+  # Bronze
+  action-setup:
+    status: done
+    comment: |
+      Services (send_node_command, get_node_commands, rename_node,
+      system_query, set_variable, send_program_command,
+      run_network_resource) are registered in async_setup, not
+      async_setup_entry — see services.py / __init__.py.
+  appropriate-polling:
+    status: exempt
+    comment: |
+      iot_class is local_push. State is driven by the controller's
+      WebSocket event stream (pyisyox EventDispatcher); the integration
+      never polls.
+  brands:
+    status: exempt
+    comment: |
+      Custom (HACS) component — the udi_iox domain is not registered in
+      the home-assistant/brands repository.
+  common-modules:
+    status: done
+    comment: |
+      Base entity classes live in entity.py; there is no
+      DataUpdateCoordinator (the integration is push-based, with the
+      event hub in controller_events.py).
+  config-flow:
+    status: done
+    comment: |
+      Full UI config flow with reauth and SSDP / DHCP discovery; option
+      flow for the per-platform enable toggles and naming strings.
+  config-flow-test-coverage: done
+  dependency-transparency:
+    status: done
+    comment: pyisyox is the only requirement, published on PyPI.
+  docs-actions:
+    status: done
+    comment: |
+      Every service is described in services.yaml and strings.json
+      ("services" section).
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup:
+    status: done
+    comment: |
+      Entities subscribe to controller events in async_added_to_hass and
+      tear down via async_will_remove_from_hass (ISYEntity._unsubscribers).
+  entity-unique-id: done
+  has-entity-name:
+    status: done
+    comment: |
+      ISYNodeEntity sets _attr_has_entity_name = True; the few entities
+      that carry a complete standalone name (programs, the root-node
+      diagnostic buttons) opt out deliberately.
+  runtime-data:
+    status: done
+    comment: ConfigEntry.runtime_data holds the IsyData container.
+  test-before-configure:
+    status: done
+    comment: config_flow.validate_input opens a short-lived Controller before the entry is created.
+  test-before-setup:
+    status: done
+    comment: |
+      async_setup_entry awaits Controller.connect and raises
+      ConfigEntryNotReady / ConfigEntryAuthFailed on failure.
+  unique-config-entry:
+    status: done
+    comment: The config entry's unique_id is the controller UUID.
+
+  # Silver
+  action-exceptions:
+    status: done
+    comment: |
+      Services wrap NodeCommandError / connection failures in
+      HomeAssistantError (services.py).
+  config-entry-unloading:
+    status: done
+    comment: async_unload_entry stops the controller and unloads platforms.
+  docs-configuration-parameters: todo
+  docs-installation-parameters: todo
+  entity-unavailable:
+    status: todo
+    comment: |
+      Entities only track node.enabled (the enable switch is
+      intentionally always available); availability isn't yet wired to
+      the controller's WebSocket-stream / connection health, so a
+      dropped event stream leaves entities "available" with stale state.
+  integration-owner: done
+  log-when-unavailable: todo
+  parallel-updates: todo
+  reauthentication-flow:
+    status: done
+    comment: config_flow implements async_step_reauth / async_step_reauth_confirm.
+  test-coverage: todo
+
+  # Gold
+  devices: done
+  diagnostics:
+    status: todo
+    comment: Tracked separately as the diagnostics issue.
+  discovery:
+    status: done
+    comment: SSDP (X_IoX_Device:1) + DHCP.
+  discovery-update-info:
+    status: done
+    comment: |
+      _async_set_unique_id_or_update updates the stored host when SSDP /
+      DHCP rediscover a configured controller at a new address.
+  docs-data-update: todo
+  docs-examples: todo
+  docs-known-limitations: todo
+  docs-supported-devices: todo
+  docs-supported-functions: todo
+  docs-troubleshooting: todo
+  docs-use-cases: todo
+  dynamic-devices: todo
+  entity-category:
+    status: done
+    comment: |
+      Aux-control NUMBER/SELECT/BUTTON and the enable switch are
+      EntityCategory.CONFIG; diagnostic readings (ERR, etc.) are
+      EntityCategory.DIAGNOSTIC.
+  entity-device-class: todo
+  entity-disabled-by-default:
+    status: done
+    comment: |
+      Maintenance verbs (WDU "Write Changes") and the ERR
+      communication-error sensor are registry-disabled by default.
+  entity-translations: todo
+  exception-translations: todo
+  icon-translations: todo
+  reconfiguration-flow: todo
+  repair-issues:
+    status: done
+    comment: |
+      Node-lifecycle events (rename / move / enable / etc.) raise a
+      Repair issue prompting an entry reload.
+  stale-devices: todo
+  # Platinum
+  async-dependency: done
+  inject-websession: todo
+  strict-typing:
+    status: todo
+    comment: |
+      pyisyox ships py.typed and the integration is mypy-clean, but the
+      Platinum bar (PEP 561 + full strict typing audit) hasn't been
+      formally verified.

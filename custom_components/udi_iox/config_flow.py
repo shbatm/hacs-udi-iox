@@ -312,7 +312,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
         )
 
 
-class OptionsFlowHandler(config_entries.OptionsFlowWithConfigEntry):
+class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle an option flow for IoX."""
 
     async def async_step_init(
