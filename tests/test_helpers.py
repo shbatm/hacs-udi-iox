@@ -268,6 +268,128 @@ def test_zwave_node_with_no_controllable_is_not_a_switch(isy_data, options, cont
     assert scene_data.nodes[Platform.EVENT] == [scene_node]
 
 
+def test_zwave_switch_with_declared_sends_skips_event(isy_data, options, controller):
+    """A Z-Wave binary-switch nodedef declares ``sends=[DON,DOF]`` but the
+    device only ever emits ``ST`` on the wire (and eisy echoes spurious
+    DON/DOF onto paired endpoints — a ZEN30 relay toggle fires DON/DOF
+    on the dimmer side too). The EVENT entity for those is either dead
+    or misleading, so we don't register one when the node already has a
+    primary HA platform.
+    """
+    from pyisyox.schema.cmd import Command
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
+
+    switch_def = NodeDef(
+        id="UZW000F",
+        family_id="4",
+        instance_id="1",
+        properties={"ST": NodeProperty(id="ST", editor_id="ZW_OFF_ON_UNKNOWN")},
+        cmds=NodeCommands(
+            accepts=[Command(id="DON"), Command(id="DOF"), Command(id="QUERY")],
+            sends=[Command(id="DON"), Command(id="DOF")],
+        ),
+    )
+    rec = make_node_record("ZW003_1", "Smart Plug", family_id="4", nodedef_id="UZW000F")
+    node = make_node(rec, controller)
+    with patch.object(
+        Node, "nodedef", new_callable=lambda: property(lambda _self: switch_def)
+    ):
+        _categorize(isy_data, node, options, controller=controller)
+
+    assert isy_data.nodes[Platform.SWITCH] == [node]
+    assert isy_data.nodes[Platform.EVENT] == []
+    assert "ZW003_1" not in isy_data.node_triggers
+
+
+def test_zwave_config_command_is_not_fanned_out_as_aux(isy_data, options, controller):
+    """Z-Wave ``CONFIG`` (the ``UZW*`` dimmer/switch nodedefs' parameter
+    write surface) takes a ``(NUM, VAL)`` pair editor — but the
+    parameter's *byte size* is a third device-defined arg that doesn't
+    fit either field, so the auto-fan-out slider would drop it. The
+    integration suppresses the entity entirely and routes parameter
+    writes through ``udi_iox.set_zwave_parameter`` instead.
+    """
+    from pyisyox.schema.cmd import Command, CommandParameter
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
+
+    switch_def = NodeDef(
+        id="UZW000F",
+        family_id="4",
+        instance_id="1",
+        properties={"ST": NodeProperty(id="ST", editor_id="ZW_OFF_ON_UNKNOWN")},
+        cmds=NodeCommands(
+            accepts=[
+                Command(id="DON"),
+                Command(id="DOF"),
+                Command(
+                    id="CONFIG",
+                    parameters=[
+                        CommandParameter(editor_id="_107_0_R_0_255"),
+                        CommandParameter(editor_id="ZW_CONFIG"),
+                    ],
+                ),
+                Command(id="QUERY"),
+            ],
+            sends=[Command(id="DON"), Command(id="DOF")],
+        ),
+    )
+    rec = make_node_record("ZW003_1", "Smart Plug", family_id="4", nodedef_id="UZW000F")
+    node = make_node(rec, controller)
+    with patch.object(
+        Node, "nodedef", new_callable=lambda: property(lambda _self: switch_def)
+    ):
+        _categorize(isy_data, node, options, controller=controller)
+
+    config_aux_owners = {
+        n
+        for aux_list in isy_data.aux_properties.values()
+        for n, control in aux_list
+        if control == "CONFIG"
+    }
+    assert node not in config_aux_owners
+
+
+def test_insteon_config_command_still_fans_out(isy_data, options, controller):
+    """The suppression rule is Z-Wave-only — Insteon ``CONFIG`` (rare;
+    legacy, single-byte) stays a slider so we don't regress anything
+    Insteon users already relied on."""
+    from pyisyox.schema.cmd import Command, CommandParameter
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
+
+    insteon_def = NodeDef(
+        id="InsteonWithConfig",
+        family_id="1",
+        instance_id="1",
+        properties={"ST": NodeProperty(id="ST", editor_id="I_BOOL")},
+        cmds=NodeCommands(
+            accepts=[
+                Command(id="DON"),
+                Command(id="DOF"),
+                Command(
+                    id="CONFIG",
+                    parameters=[CommandParameter(editor_id="I_OL")],
+                ),
+            ],
+        ),
+    )
+    rec = make_node_record(
+        "1A 2B 3C 1", "Insteon", family_id="1", nodedef_id="InsteonWithConfig"
+    )
+    node = make_node(rec, controller)
+    with patch.object(
+        Node, "nodedef", new_callable=lambda: property(lambda _self: insteon_def)
+    ):
+        _categorize(isy_data, node, options, controller=controller)
+
+    config_aux_owners = {
+        n
+        for aux_list in isy_data.aux_properties.values()
+        for n, control in aux_list
+        if control == "CONFIG"
+    }
+    assert node in config_aux_owners
+
+
 # --- aux property fan-out ---------------------------------------------
 
 
