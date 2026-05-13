@@ -86,14 +86,16 @@ async def test_aux_on_level_uses_editor_units_both_directions() -> None:
 
 async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
     """IoX variables store a raw integer on the wire; ``precision``
-    declares the implicit decimal shift. The HA number entity speaks
-    *displayed* units (its step / min / max all assume that), so:
+    declares the implicit decimal shift.
 
-    * ``native_value`` divides raw by ``10**precision`` — wire ``50``
-      with prec=1 surfaces as 5.0, not 50.
-    * ``async_set_native_value`` multiplies and rounds — entering 70.5
-      with prec=1 lands raw 705 (not 70, which is what ``int(70.5)``
-      would have given pre-fix).
+    Read side: divide raw by ``10**precision`` — wire ``50`` with
+    prec=1 surfaces as 5.0, not 50. Matches HA Core's isy994
+    ``convert_isy_value_to_hass`` helper.
+
+    Write side: the modern ``POST /api/variables/{type}/{id}``
+    endpoint applies ``* 10**precision`` server-side on store, so
+    pass the *displayed* value through (just round to int, since the
+    JSON body only accepts ints). The controller does the shift.
     """
     from unittest.mock import AsyncMock, patch
 
@@ -146,9 +148,10 @@ async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
     assert value_entity.native_value == 5.0
     assert init_entity.native_value == 7.0
 
-    # Write side: HA sends displayed 70.5 → wire 705 (not int(70.5)=70).
-    # ``async_write_ha_state`` requires a live ``hass`` binding; patch it
-    # out so the entity body runs in isolation.
+    # Write side: pass the displayed value through, rounded to int —
+    # the controller multiplies by 10**precision server-side on store.
+    # ``async_write_ha_state`` requires a live ``hass`` binding; patch
+    # it out so the entity body runs in isolation.
     set_value = AsyncMock()
     set_init = AsyncMock()
     with (
@@ -158,10 +161,15 @@ async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
             ISYVariableNumberEntity, "async_write_ha_state", lambda self: None
         ),
     ):
-        await value_entity.async_set_native_value(70.5)
-        await init_entity.async_set_native_value(0.5)
+        await value_entity.async_set_native_value(70.7)
+        await init_entity.async_set_native_value(5)
 
-    assert set_value.await_args.args == (705,)
+    # 70.7 → round → 71; controller will store 71 * 10 = 710 (display 71.0).
+    # Fractional inputs on prec>0 variables lose decimals here because
+    # the modern POST endpoint accepts integer-only JSON; the
+    # controller does the precision shift on its side.
+    assert set_value.await_args.args == (71,)
+    # Init 5 → wire 5; controller stores 5 * 10 = 50 (display 5.0).
     assert set_init.await_args.args == (5,)
 
 
