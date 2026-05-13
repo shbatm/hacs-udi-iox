@@ -361,19 +361,18 @@ class ISYVariableNumberEntity(NumberEntity):
 
         ``value`` arrives in *displayed* units (HA's slider / number
         widget speaks the same scale as ``native_step``). The modern
-        ``POST /api/variables/{type}/{id}`` endpoint applies the
-        ``* 10**precision`` shift **server-side** when storing — so we
-        send the displayed value as-is (rounded to int, since the
-        endpoint's JSON body only accepts integers). Fractional inputs
-        on ``precision>0`` variables lose decimals here; setting
-        exact-precision values needs the legacy ``/rest/vars/set/...``
-        URL surface (PyISY 3.x convention; not yet wired in pyisyox).
+        ``POST /api/variables/{type}/{id}`` endpoint accepts both
+        ``int`` and ``float`` and applies the ``* 10**precision`` shift
+        server-side when the body is a float — so the displayed value
+        is passed straight through. (Rounding to int here would lose
+        the fractional portion **and** misalign with the controller's
+        precision math: an int body is stored verbatim, no scaling.)
         """
         try:
             if self._init_entity:
-                await self._node.set_init(round(value))
+                await self._node.set_init(value)
             else:
-                await self._node.set_value(round(value))
+                await self._node.set_value(value)
         except Exception as err:  # pylint: disable=broad-except
             raise HomeAssistantError(
                 f"Could not set variable {self._node.address} to {value}: {err}"

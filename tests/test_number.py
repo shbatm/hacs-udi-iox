@@ -93,9 +93,11 @@ async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
     ``convert_isy_value_to_hass`` helper.
 
     Write side: the modern ``POST /api/variables/{type}/{id}``
-    endpoint applies ``* 10**precision`` server-side on store, so
-    pass the *displayed* value through (just round to int, since the
-    JSON body only accepts ints). The controller does the shift.
+    endpoint accepts ``float`` bodies and applies ``* 10**precision``
+    server-side on store, so the displayed value passes through
+    unchanged (the entity must NOT round to int — that would truncate
+    the fraction and the controller would store the int verbatim
+    without scaling, mismatching the displayed-unit contract).
     """
     from unittest.mock import AsyncMock, patch
 
@@ -161,15 +163,17 @@ async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
             ISYVariableNumberEntity, "async_write_ha_state", lambda self: None
         ),
     ):
-        await value_entity.async_set_native_value(70.7)
+        await value_entity.async_set_native_value(70.5)
         await init_entity.async_set_native_value(5)
 
-    # 70.7 → round → 71; controller will store 71 * 10 = 710 (display 71.0).
-    # Fractional inputs on prec>0 variables lose decimals here because
-    # the modern POST endpoint accepts integer-only JSON; the
-    # controller does the precision shift on its side.
-    assert set_value.await_args.args == (71,)
-    # Init 5 → wire 5; controller stores 5 * 10 = 50 (display 5.0).
+    # Float passes through unchanged: pyisyox sends ``{"value": 70.5}``
+    # and the controller applies ``* 10**precision`` on store, persisting
+    # raw 705 (display 70.5). Rounding to int here would truncate the
+    # fraction *and* misalign with the controller's precision math (int
+    # bodies are stored verbatim with no scaling).
+    assert set_value.await_args.args == (70.5,)
+    # Integer input passes through as-is; pyisyox's _coerce_numeric
+    # preserves the int and the controller stores 5 * 10 = 50 (display 5.0).
     assert set_init.await_args.args == (5,)
 
 
