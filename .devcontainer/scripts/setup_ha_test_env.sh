@@ -22,17 +22,25 @@ VENV_PYTHON="${VENV}/bin/python"
 echo "Updating pip, setuptools, and wheel..."
 ${VENV_PYTHON} -m pip install -U pip "setuptools>=70.0" wheel
 
+# Minimum HA version. Local brand assets (custom_components/<domain>/brand/)
+# require the Brands Proxy API, which shipped in HA 2026.3.0 — older HAs
+# fall back to the brands CDN, and the integration ships brand assets locally
+# (not in home-assistant/brands), so an older HA will render the
+# "icon not available" placeholder. Pin the floor so the devcontainer
+# isn't subtly behind feature-wise.
+HA_SPEC="homeassistant[tests]>=2026.3"
+
 echo "Building/pulling wheelhouse for Home Assistant (may take a while first run)..."
 set +e
-${VENV_PYTHON} -m pip wheel --wheel-dir "${WHEEL_DIR}" --pre "homeassistant[tests]" || true
+${VENV_PYTHON} -m pip wheel --wheel-dir "${WHEEL_DIR}" --pre "${HA_SPEC}" || true
 set -e
 
 if [ -n "$(ls -A "${WHEEL_DIR}" 2>/dev/null)" ]; then
     echo "Installing Home Assistant from wheelhouse..."
-    ${VENV_PYTHON} -m pip install --no-index --find-links "${WHEEL_DIR}" --pre "homeassistant[tests]"
+    ${VENV_PYTHON} -m pip install --no-index --find-links "${WHEEL_DIR}" --pre "${HA_SPEC}"
 else
     echo "Installing Home Assistant from PyPI (this may compile wheels)..."
-    ${VENV_PYTHON} -m pip install --pre --prefer-binary "homeassistant[tests]"
+    ${VENV_PYTHON} -m pip install --pre --prefer-binary "${HA_SPEC}"
 fi
 
 # Install pyisyox from local workspace if available
