@@ -27,11 +27,20 @@ from .models import IsyConfigEntry, IsyData
 #: occasionally reuse the verb.
 _IDENTIFY_COMMANDS = frozenset({"BEEP"})
 
-#: Accept-command buttons created disabled by default — low-traffic
-#: maintenance verbs (``WDU`` "Write Changes" commits queued config to
-#: an Insteon device's EEPROM) that most users never press. They stay
-#: discoverable in the entity registry for those who want them.
-_DISABLED_BY_DEFAULT_COMMANDS = frozenset({"WDU"})
+#: Accept-command buttons created disabled by default — verbs that
+#: most users never press from HA, kept discoverable in the entity
+#: registry for those who want them:
+#:  * ``WDU`` "Write Changes" — commits queued config to an Insteon
+#:    device's EEPROM.
+#:  * ``DFON`` / ``DFOF`` "Fast On" / "Fast Off" and the momentary
+#:    paddle-simulation verbs ``BRT`` / ``DIM`` (brighten / dim) and
+#:    ``FDUP`` / ``FDDOWN`` / ``FDSTOP`` (fade up / down / stop) —
+#:    pyisyox's classifier now leaves these out of the light platform
+#:    (it only claims ``DON`` / ``DOF``) so they reach us as buttons;
+#:    they're niche, so don't clutter the device page by default.
+_DISABLED_BY_DEFAULT_COMMANDS = frozenset(
+    {"WDU", "DFON", "DFOF", "BRT", "DIM", "FDUP", "FDDOWN", "FDSTOP"}
+)
 
 
 def _command_label(node: Node, command_id: str) -> str:

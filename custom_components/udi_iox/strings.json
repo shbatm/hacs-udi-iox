@@ -4,20 +4,20 @@
     "step": {
       "user": {
         "data": {
-          "username": "Username",
+          "username": "Universal Devices portal email",
           "host": "URL",
-          "password": "Password",
+          "password": "Universal Devices portal password",
           "verify_ssl": "Verify SSL certificate (leave off for the default self-signed certificate)."
         },
-        "description": "The host entry must be the full URL, e.g., {sample_ip}",
+        "description": "The host entry must be the full URL, e.g., {sample_ip}\n\nSign in with your Universal Devices portal account (the email and password you use at my.isy.io / the Universal Devices portal) — the same account your eisy / Polisy is registered to. Local admin credentials are not supported yet.",
         "title": "Connect to your eisy / Polisy"
       },
       "reauth_confirm": {
-        "description": "The credentials for {host} are no longer valid.",
+        "description": "The Universal Devices portal credentials for {host} are no longer valid.",
         "title": "Reauthenticate your eisy / Polisy",
         "data": {
-          "username": "Username",
-          "password": "Password"
+          "username": "Universal Devices portal email",
+          "password": "Universal Devices portal password"
         }
       }
     },
