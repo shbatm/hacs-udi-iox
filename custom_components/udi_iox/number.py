@@ -335,8 +335,21 @@ class ISYVariableNumberEntity(NumberEntity):
 
     @property
     def native_value(self) -> float | int | None:
-        """Return the state of the variable."""
-        return self._node.init if self._init_entity else self._node.value
+        """Return the displayed (precision-scaled) state of the variable.
+
+        IoX variables store an integer raw value on the wire; the
+        ``precision`` field declares the implicit decimal shift. The
+        entity's ``native_step`` / ``native_min_value`` / ``native_max_value``
+        are computed in displayed units (set up in ``async_setup_entry``),
+        so the read side has to match: ``raw / 10**precision``.
+        """
+        raw = self._node.init if self._init_entity else self._node.value
+        if raw is None:
+            return None
+        precision = self._node.precision or 0
+        if precision <= 0:
+            return raw
+        return raw / (10**precision)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -346,15 +359,19 @@ class ISYVariableNumberEntity(NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Write the variable value via its typed wrapper.
 
-        The wrapper updates its own record on success so the next
-        ``native_value`` read reflects the new state — no separate
-        optimistic mutation needed.
+        ``value`` arrives in *displayed* units (HA's slider / number
+        widget speaks the same scale as ``native_step``). Convert to
+        the raw integer the wire expects via ``round(value * 10**prec)``
+        — ``int(value)`` would silently truncate fractional inputs (a
+        prec=1 entry of 70.5 ended up writing raw 70 instead of 705).
         """
+        precision = self._node.precision or 0
+        raw = round(value * (10**precision)) if precision > 0 else round(value)
         try:
             if self._init_entity:
-                await self._node.set_init(int(value))
+                await self._node.set_init(raw)
             else:
-                await self._node.set_value(int(value))
+                await self._node.set_value(raw)
         except Exception as err:  # pylint: disable=broad-except
             raise HomeAssistantError(
                 f"Could not set variable {self._node.address} to {value}: {err}"
