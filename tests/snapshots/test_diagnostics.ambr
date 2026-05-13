@@ -29,6 +29,7 @@
           'pnode': None,
         }),
       }),
+      'name': '',
       'network_resources': dict({
         '1': dict({
           'address': '1',

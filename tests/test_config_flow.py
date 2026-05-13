@@ -321,6 +321,10 @@ async def test_validate_input_uses_portal_auth(hass) -> None:
         def __init__(self, *args, auth=None, **kwargs):
             captured["auth"] = auth
             self.config = type("C", (), {"uuid": "u"})()
+            #: Mirrors :attr:`pyisyox.Controller.name` — the
+            #: user-assigned root-group label. ``validate_input``
+            #: reads it for the config-entry title.
+            self.name = ""
 
         async def connect(self, *, start_websocket=True):
             pass

@@ -140,6 +140,12 @@ async def validate_input(
             await controller.connect(start_websocket=False)
         try:
             uuid = controller.config.uuid
+            # ``Controller.name`` is the user-assigned label from the
+            # root group on the eisy admin UI (same value PyISY 3.x got
+            # from /rest/config). Prefer it for the entry title so the
+            # integration card shows "Main eisy" rather than the URL
+            # hostname; fall back when the controller hasn't been named.
+            root_name = controller.name
         finally:
             await controller.stop()
     except ISYInvalidAuthError as error:
@@ -149,9 +155,9 @@ async def validate_input(
     except ISYResponseParseError as error:
         raise CannotConnect from error
 
-    title_host = parsed_host.hostname or host
+    title = root_name or parsed_host.hostname or host
     return {
-        "title": title_host,
+        "title": title,
         ISY_CONF_UUID: uuid,
     }
 

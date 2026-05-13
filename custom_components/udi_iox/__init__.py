@@ -146,17 +146,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     return True
 
 
+def _controller_label(controller: Controller, host: str) -> str:
+    """Friendly controller label for HA device names.
+
+    Prefers the user-assigned controller name from
+    :attr:`pyisyox.Controller.name` (the ``<name>`` of the root group
+    on the eisy admin UI) and falls back to the URL hostname when the
+    controller hasn't been named. Used for the hub device, the
+    Variables service device, and the Network service device so all
+    three carry the same friendly prefix.
+    """
+    return controller.name or urlparse(host).hostname or host
+
+
 @callback
 def _async_get_or_create_isy_device_in_registry(
     hass: HomeAssistant, entry: IsyConfigEntry, controller: Controller, host: str
 ) -> None:
     device_registry = dr.async_get(hass)
-    title_host = urlparse(host).hostname or host
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, controller.config.uuid)},
         manufacturer=MANUFACTURER,
-        name=title_host,
+        name=_controller_label(controller, host),
         sw_version=controller.config.version,
         configuration_url=host,
     )
@@ -166,7 +178,6 @@ def _create_service_device_info(
     controller: Controller, host: str, name: str, unique_id: str
 ) -> DeviceInfo:
     """Create device info for IoX service devices (Variables, Network)."""
-    title_host = urlparse(host).hostname or host
     return DeviceInfo(
         identifiers={
             (
@@ -175,7 +186,7 @@ def _create_service_device_info(
             )
         },
         manufacturer=MANUFACTURER,
-        name=f"{title_host} {name}",
+        name=f"{_controller_label(controller, host)} {name}",
         sw_version=controller.config.version,
         configuration_url=host,
         via_device=(DOMAIN, controller.config.uuid),
