@@ -6,7 +6,7 @@ Home Assistant custom component for **Universal Devices eisy / Polisy** controll
 
 ## Legacy Hardware Scope
 
-If you have ISY-994 hardware, use the existing [`hacs-isy994`](https://github.com/shbatm/hacs-isy994) (which stays on `pyisy` 3.x) or HA Core's first-party `isy994` integration. The two integrations register distinct domains and coexist on the same HA instance.
+If you have ISY-994 hardware, use the existing Home Assistant core [`isy994` integration](https://www.home-assistant.io/integrations/isy994/) (which stays on `pyisy` 3.x). The two integrations register distinct domains and coexist on the same HA instance.
 
 ## Why a separate repo
 
@@ -14,7 +14,7 @@ If you have ISY-994 hardware, use the existing [`hacs-isy994`](https://github.co
 
 ## Installation
 
-> **IF YOU ARE USING THE CORE ISY994 INTEGRATION:** You may wish to remove that integration before adding this one. For the large portion of entities that overlap, they will try to get the same `entity_id` and you will end up with everything suffixed with `domain.*_2`. To keep your dashboards intact as much as possible, remove the `isy994` integration, restart HA once (needed for installing this repo anyways) and then add this integration to restore the entities. Any `entity_id` that you manually renamed on the old integration will need to be renamed again.
+> **IF YOU ARE USING THE CORE ISY994 INTEGRATION:** While they can co-exist side-by-side, you may wish to remove that integration before adding this one. For the large portion of entities that overlap, they will try to get the same `entity_id` and you will end up with everything suffixed with `domain.*_2`. To keep your dashboards intact as much as possible, remove the `isy994` integration, restart HA once (needed for installing this repo anyways) and then add this integration to restore the entities. Any `entity_id` that you manually renamed on the old integration will need to be renamed again.
 
 This is a HACS Custom Repository:
 
