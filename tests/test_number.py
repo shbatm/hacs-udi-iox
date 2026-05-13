@@ -82,3 +82,144 @@ async def test_aux_on_level_uses_editor_units_both_directions() -> None:
         await entity.async_set_native_value(75)
 
     assert set_on_level.await_args.args == (75,)
+
+
+async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
+    """IoX variables store a raw integer on the wire; ``precision``
+    declares the implicit decimal shift.
+
+    Read side: divide raw by ``10**precision`` — wire ``50`` with
+    prec=1 surfaces as 5.0, not 50. Matches HA Core's isy994
+    ``convert_isy_value_to_hass`` helper.
+
+    Write side: the modern ``POST /api/variables/{type}/{id}``
+    endpoint accepts ``float`` bodies and applies ``* 10**precision``
+    server-side on store, so the displayed value passes through
+    unchanged (the entity must NOT round to int — that would truncate
+    the fraction and the controller would store the int verbatim
+    without scaling, mismatching the displayed-unit contract).
+    """
+    from unittest.mock import AsyncMock, patch
+
+    from pyisyox.client import VariableRecord
+    from pyisyox.runtime import Variable
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import ISYVariableNumberEntity
+    from tests.builders import make_controller, make_load_result
+
+    controller = make_controller(make_load_result())
+    record = VariableRecord(
+        type_id="2",
+        id="5",
+        name="Temp",
+        value=50,
+        init=70,
+        precision=1,
+    )
+    variable = Variable(record, controller._client)
+    isy_data = IsyData()
+    isy_data.root = controller
+
+    from homeassistant.components.number import NumberEntityDescription
+
+    desc = NumberEntityDescription(
+        key="2.5",
+        name="Temp",
+        native_step=0.1,
+        native_min_value=-1000,
+        native_max_value=1000,
+    )
+    value_entity = ISYVariableNumberEntity(
+        isy_data,
+        variable,
+        unique_id="v",
+        description=desc,
+        device_info=None,  # type: ignore[arg-type]
+    )
+    init_entity = ISYVariableNumberEntity(
+        isy_data,
+        variable,
+        unique_id="vi",
+        description=desc,
+        device_info=None,  # type: ignore[arg-type]
+        init_entity=True,
+    )
+
+    # Read side: raw 50 / 10**1 → 5.0; raw 70 → 7.0.
+    assert value_entity.native_value == 5.0
+    assert init_entity.native_value == 7.0
+
+    # Write side: pass the displayed value through, rounded to int —
+    # the controller multiplies by 10**precision server-side on store.
+    # ``async_write_ha_state`` requires a live ``hass`` binding; patch
+    # it out so the entity body runs in isolation.
+    set_value = AsyncMock()
+    set_init = AsyncMock()
+    with (
+        patch.object(type(variable), "set_value", set_value),
+        patch.object(type(variable), "set_init", set_init),
+        patch.object(
+            ISYVariableNumberEntity, "async_write_ha_state", lambda self: None
+        ),
+    ):
+        await value_entity.async_set_native_value(70.5)
+        await init_entity.async_set_native_value(5)
+
+    # Float passes through unchanged: pyisyox sends ``{"value": 70.5}``
+    # and the controller applies ``* 10**precision`` on store, persisting
+    # raw 705 (display 70.5). Rounding to int here would truncate the
+    # fraction *and* misalign with the controller's precision math (int
+    # bodies are stored verbatim with no scaling).
+    assert set_value.await_args.args == (70.5,)
+    # Integer input passes through as-is; pyisyox's _coerce_numeric
+    # preserves the int and the controller stores 5 * 10 = 50 (display 5.0).
+    assert set_init.await_args.args == (5,)
+
+
+async def test_variable_number_pass_through_when_precision_zero() -> None:
+    """A variable with ``precision=0`` round-trips raw ints — no
+    scaling. Catches the obvious regression where the precision math
+    runs unconditionally and shifts an integer-only variable."""
+    from unittest.mock import AsyncMock, patch
+
+    from pyisyox.client import VariableRecord
+    from pyisyox.runtime import Variable
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import ISYVariableNumberEntity
+    from tests.builders import make_controller, make_load_result
+
+    controller = make_controller(make_load_result())
+    record = VariableRecord(
+        type_id="1", id="3", name="Count", value=42, init=0, precision=0
+    )
+    variable = Variable(record, controller._client)
+    isy_data = IsyData()
+    isy_data.root = controller
+
+    from homeassistant.components.number import NumberEntityDescription
+
+    desc = NumberEntityDescription(
+        key="1.3", name="Count", native_step=1, native_min_value=0, native_max_value=255
+    )
+    entity = ISYVariableNumberEntity(
+        isy_data,
+        variable,
+        unique_id="v",
+        description=desc,
+        device_info=None,  # type: ignore[arg-type]
+    )
+
+    assert entity.native_value == 42  # no scaling
+
+    set_value = AsyncMock()
+    with (
+        patch.object(type(variable), "set_value", set_value),
+        patch.object(
+            ISYVariableNumberEntity, "async_write_ha_state", lambda self: None
+        ),
+    ):
+        await entity.async_set_native_value(99)
+
+    assert set_value.await_args.args == (99,)
