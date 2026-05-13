@@ -37,6 +37,9 @@ from .const import (
     CONF_IGNORE_STRING,
     CONF_RESTORE_LIGHT_STATE,
     CONF_SENSOR_STRING,
+    DEFAULT_ENABLE_NETWORKING,
+    DEFAULT_ENABLE_PROGRAMS,
+    DEFAULT_ENABLE_VARIABLES,
     DEFAULT_IGNORE_STRING,
     DEFAULT_RESTORE_LIGHT_STATE,
     DEFAULT_SENSOR_STRING,
@@ -66,6 +69,47 @@ def _data_schema(schema_input: dict[str, Any]) -> vol.Schema:
             ): bool,
         },
         extra=vol.ALLOW_EXTRA,
+    )
+
+
+def _options_schema(options: Mapping[str, Any]) -> vol.Schema:
+    """Build the options schema with the supplied mapping as defaults.
+
+    Shared between the post-creds setup step (:meth:`ConfigFlow.async_step_options`)
+    and the post-install options flow
+    (:meth:`OptionsFlowHandler.async_step_init`) so the two surfaces can
+    never drift apart. An empty mapping yields the integration's
+    out-of-box defaults.
+    """
+    return vol.Schema(
+        {
+            vol.Optional(
+                CONF_IGNORE_STRING,
+                default=options.get(CONF_IGNORE_STRING, DEFAULT_IGNORE_STRING),
+            ): str,
+            vol.Optional(
+                CONF_SENSOR_STRING,
+                default=options.get(CONF_SENSOR_STRING, DEFAULT_SENSOR_STRING),
+            ): str,
+            vol.Required(
+                CONF_RESTORE_LIGHT_STATE,
+                default=options.get(
+                    CONF_RESTORE_LIGHT_STATE, DEFAULT_RESTORE_LIGHT_STATE
+                ),
+            ): bool,
+            vol.Required(
+                CONF_ENABLE_VARIABLES,
+                default=options.get(CONF_ENABLE_VARIABLES, DEFAULT_ENABLE_VARIABLES),
+            ): bool,
+            vol.Required(
+                CONF_ENABLE_PROGRAMS,
+                default=options.get(CONF_ENABLE_PROGRAMS, DEFAULT_ENABLE_PROGRAMS),
+            ): bool,
+            vol.Required(
+                CONF_ENABLE_NETWORKING,
+                default=options.get(CONF_ENABLE_NETWORKING, DEFAULT_ENABLE_NETWORKING),
+            ): bool,
+        }
     )
 
 
@@ -120,6 +164,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
     def __init__(self) -> None:
         """Initialize the IoX config flow."""
         self.discovered_conf: dict[str, Any] = {}
+        #: Filled by :meth:`async_step_user` after credentials validate;
+        #: carried into :meth:`async_step_options` so the final
+        #: :meth:`async_create_entry` call has both ``data`` and ``options``.
+        self._user_input: dict[str, Any] | None = None
+        self._entry_title: str | None = None
 
     @staticmethod
     @callback
@@ -153,7 +202,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
                     info[ISY_CONF_UUID], raise_on_progress=False
                 )
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(title=info["title"], data=user_input)
+                # Carry the validated credentials into the options step
+                # rather than creating the entry now; this lands the user
+                # on the same configurable surface (sensor strings,
+                # variables/programs/network toggles, light restore) the
+                # post-install options flow exposes, with sensible
+                # defaults preselected — Bronze IQS rule against
+                # creating an entry the user can't tune in the same
+                # flow.
+                self._user_input = user_input
+                self._entry_title = info["title"]
+                return await self.async_step_options()
 
         return self.async_show_form(
             step_id="user",
@@ -162,6 +221,30 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
             description_placeholders={
                 "sample_ip": "https://eisy.local:443",
             },
+        )
+
+    async def async_step_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Second step — confirm/adjust integration options before create.
+
+        Same schema as :meth:`OptionsFlowHandler.async_step_init`; a
+        single click on "Submit" accepts the defaults and creates the
+        entry. The fields are intentionally surfaced here rather than
+        deferred to post-install so users discover the toggles up
+        front instead of finding them after entities are already loaded.
+        """
+        assert self._user_input is not None  # async_step_user gates this
+        if user_input is not None:
+            return self.async_create_entry(
+                title=self._entry_title or "",
+                data=self._user_input,
+                options=user_input,
+            )
+
+        return self.async_show_form(
+            step_id="options",
+            data_schema=_options_schema({}),
         )
 
     async def _async_set_unique_id_or_update(
@@ -320,31 +403,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Handle options flow."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
-
-        options = self.config_entry.options
-        restore_light_state = options.get(
-            CONF_RESTORE_LIGHT_STATE, DEFAULT_RESTORE_LIGHT_STATE
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_options_schema(self.config_entry.options),
         )
-        ignore_string = options.get(CONF_IGNORE_STRING, DEFAULT_IGNORE_STRING)
-        sensor_string = options.get(CONF_SENSOR_STRING, DEFAULT_SENSOR_STRING)
-        enable_variables = options.get(CONF_ENABLE_VARIABLES, True)
-        enable_programs = options.get(CONF_ENABLE_PROGRAMS, True)
-        enable_networking = options.get(CONF_ENABLE_NETWORKING, False)
-
-        options_schema = vol.Schema(
-            {
-                vol.Optional(CONF_IGNORE_STRING, default=ignore_string): str,
-                vol.Optional(CONF_SENSOR_STRING, default=sensor_string): str,
-                vol.Required(
-                    CONF_RESTORE_LIGHT_STATE, default=restore_light_state
-                ): bool,
-                vol.Required(CONF_ENABLE_VARIABLES, default=enable_variables): bool,
-                vol.Required(CONF_ENABLE_PROGRAMS, default=enable_programs): bool,
-                vol.Required(CONF_ENABLE_NETWORKING, default=enable_networking): bool,
-            }
-        )
-
-        return self.async_show_form(step_id="init", data_schema=options_schema)
 
 
 class InvalidHost(exceptions.HomeAssistantError):

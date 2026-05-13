@@ -64,8 +64,34 @@ async def test_user_step_form_renders(hass) -> None:
     assert result["errors"] == {}
 
 
-async def test_user_step_creates_entry(hass) -> None:
-    """Submitting valid user input → CREATE_ENTRY."""
+async def test_user_step_advances_to_options_step(hass) -> None:
+    """Valid credentials no longer CREATE_ENTRY directly — the flow
+    advances to the options step so the user can confirm or tune
+    integration toggles (variables / programs / network / sensor
+    strings) before any entities are created."""
+    flow = await _start_user_flow(hass)
+    with _patch_validate("portal-uuid"):
+        result = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], _build_user_input()
+        )
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "options"
+    # Defaults are visible on the schema so the user can one-click submit.
+    schema = result["data_schema"]
+    defaults = {field.schema: field.default() for field in schema.schema}
+    assert defaults["enable_variables"] is True
+    assert defaults["enable_programs"] is True
+    assert defaults["enable_networking"] is False
+    assert defaults["restore_light_state"] is False
+    assert defaults["sensor_string"] == "sensor"
+    assert defaults["ignore_string"] == "{IGNORE ME}"
+
+
+async def test_options_step_creates_entry_with_data_and_options(hass) -> None:
+    """Submitting the options step lands ``CREATE_ENTRY`` with both
+    credentials in ``data`` and the user's toggles in ``options``, so
+    setup respects the choices immediately rather than waiting for a
+    post-install options-flow visit."""
     flow = await _start_user_flow(hass)
     with (
         _patch_validate("portal-uuid"),
@@ -74,29 +100,55 @@ async def test_user_step_creates_entry(hass) -> None:
             AsyncMock(return_value=True),
         ),
     ):
-        result = await hass.config_entries.flow.async_configure(
+        # Step 1 — credentials → options step.
+        await hass.config_entries.flow.async_configure(
             flow["flow_id"], _build_user_input()
+        )
+        # Step 2 — options (mix of defaults and a non-default toggle).
+        result = await hass.config_entries.flow.async_configure(
+            flow["flow_id"],
+            {
+                "ignore_string": "{IGNORE ME}",
+                "sensor_string": "sensor",
+                "restore_light_state": False,
+                "enable_variables": True,
+                "enable_programs": False,
+                "enable_networking": True,
+            },
         )
         await hass.async_block_till_done()
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_USERNAME] == "admin@example.com"
+    assert result["options"]["enable_programs"] is False
+    assert result["options"]["enable_networking"] is True
 
 
 async def test_unique_id_prevents_duplicate_entries(hass) -> None:
     """A second flow with the same controller uuid aborts as
-    already_configured."""
+    already_configured — the abort fires at the user step (before
+    advancing to the new options step), so a duplicate never wastes
+    the user's time tuning toggles for an entry that won't be created."""
     setup_patch = patch(
         "custom_components.udi_iox.async_setup_entry",
         AsyncMock(return_value=True),
     )
-    # First entry succeeds.
+    options_input = {
+        "ignore_string": "{IGNORE ME}",
+        "sensor_string": "sensor",
+        "restore_light_state": False,
+        "enable_variables": True,
+        "enable_programs": True,
+        "enable_networking": False,
+    }
+    # First entry: walk through both steps so CREATE_ENTRY fires.
     flow1 = await _start_user_flow(hass)
     with _patch_validate("dup-uuid"), setup_patch:
         await hass.config_entries.flow.async_configure(
             flow1["flow_id"], _build_user_input()
         )
+        await hass.config_entries.flow.async_configure(flow1["flow_id"], options_input)
         await hass.async_block_till_done()
-    # Second flow with the same uuid → abort.
+    # Second flow with the same uuid → abort at the user step.
     flow2 = await _start_user_flow(hass)
     with _patch_validate("dup-uuid"), setup_patch:
         result = await hass.config_entries.flow.async_configure(
