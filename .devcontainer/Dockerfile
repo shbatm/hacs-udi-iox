@@ -27,9 +27,12 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/b
 
 # Create a prebuilt venv at /opt/venv with the uv-managed Python 3.14 so
 # the postCreate scripts have pip available without bootstrapping it at
-# container runtime (avoids PEP 668 issues).
-RUN uv venv --python 3.14 /opt/venv \
-    && /opt/venv/bin/python -m pip install -U pip "setuptools>=70.0" wheel || true
+# container runtime (avoids PEP 668 issues). ``--seed`` is required —
+# uv venvs are pip-less by default, but the existing setup scripts call
+# ``/opt/venv/bin/python -m pip install ...`` directly, so seed with
+# pip / setuptools / wheel for compatibility.
+RUN uv venv --seed --python 3.14 /opt/venv \
+    && /opt/venv/bin/python -m pip install -U pip "setuptools>=70.0" wheel
 
 # Make sure the venv, uv-python dir, and workspace directories are
 # writable by the non-root 'vscode' user so the container user can
