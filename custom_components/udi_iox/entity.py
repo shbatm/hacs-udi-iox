@@ -48,16 +48,9 @@ def _resolve_device_info(
 ) -> DeviceInfo | None:
     """Return the DeviceInfo this entity should attach to.
 
-    Lookup order:
-
-    1. ``node.address`` — every node that has its own DeviceInfo (root
-       nodes AND node-server plugin children, per ``_has_own_device``)
-       is keyed here. Plugin children are kept as separate HA devices
-       to match the eisy UI's per-sensor cards instead of folding
-       every Flume sensor's aux into one shared device.
-    2. ``node.primary_address`` — native sub-nodes (KeypadLinc sub-
-       buttons, FanLinc fan-vs-light sides) fall through to their
-       physical primary's DeviceInfo.
+    1. ``node.address`` — nodes with their own DeviceInfo (roots +
+       node-server plugin children).
+    2. ``node.primary_address`` — sub-nodes inherit the primary's.
     """
     info = devices.get(node.address)
     if info is not None:
@@ -68,15 +61,7 @@ def _resolve_device_info(
 
 
 def node_status_int(node: Node) -> int | None:
-    """Read ``node.status`` as a scalar int (or ``None`` when unknown).
-
-    pyisyox 6 exposes ``Node.status`` as a structured
-    :class:`NodePropertyValue` so callers can also reach uom/formatted.
-    HA platforms only ever want the numeric value — this helper does
-    the unwrap and coerces the string-encoded value to int. Callers
-    that want a float, the formatted string, or the uom should still
-    reach for ``node.status.value`` / ``.formatted`` / ``.uom`` directly.
-    """
+    """Read ``node.status`` as a scalar int (or ``None`` when unknown)."""
     prop = node.status
     if prop is None or not prop.value or prop.value == ISY_VALUE_UNKNOWN:
         return None
@@ -89,14 +74,9 @@ def node_status_int(node: Node) -> int | None:
 def _strip_parent_prefix(name: str, parent_name: str | None) -> str:
     """Strip a parent device's name from the front of a sub-node label.
 
-    ISY users commonly label sub-nodes as ``"<device> <suffix>"`` (e.g.
-    ``"Hallway Keypad B"`` under ``"Hallway Keypad"``). With
-    ``has_entity_name=True`` Home Assistant prepends the device name
-    when rendering the friendly name, so the entity name itself only
-    needs to carry the suffix — otherwise the device name appears
-    twice (``"Hallway Keypad Hallway Keypad B"``). When the sub-node
-    name doesn't start with the parent's name, returns it unchanged so
-    the user's intent is preserved.
+    ``"Hallway Keypad B"`` under device ``"Hallway Keypad"`` → ``"B"``;
+    HA prepends the device name via ``has_entity_name``, so leaving the
+    full prefix doubles it (``"Hallway Keypad Hallway Keypad B"``).
     """
     if parent_name and name.startswith(parent_name):
         return name[len(parent_name) :].lstrip(" -_:.") or name
@@ -119,20 +99,7 @@ class ISYEntity(Entity):
         device_info: DeviceInfo | None = None,
         unique_id: str | None = None,
     ) -> None:
-        """Initialize the entity.
-
-        Args:
-            isy_data: Runtime data carrier — used to reach the central
-                event-dispatch registry on
-                :class:`controller_events.IsyControllerEvents` and the
-                controller uuid for unique-id construction.
-            node: The runtime Node / Group / Folder / record this entity
-                wraps.
-            device_info: Optional pre-built DeviceInfo. Defaults to a
-                stub identified by the controller uuid.
-            unique_id: Override for the entity's unique_id. Defaults to
-                ``f"{controller.uuid}_{node.address}"``.
-        """
+        """Initialize the entity. ``unique_id`` defaults to ``{uuid}_{address}``."""
         self._isy_data = isy_data
         self._node = node
         self._attr_name = getattr(node, "name", "") or ""
@@ -362,14 +329,7 @@ class ISYNodeEntity(ISYEntity):
         }
 
     async def async_send_node_command(self, command: str) -> None:
-        """Respond to an entity service command call.
-
-        The legacy v3 ``send_node_command`` service mapped friendly
-        names ("brighten", "fast_off") onto Node helper methods. v6
-        unifies on Node.send_command — translate friendly names to the
-        canonical IoX command id, validate against the node's accept
-        set, then let the editor codec validate the parameters.
-        """
+        """Translate friendly name → IoX command id, validate, send."""
         # Reverse the friendly-name → IoX-id map.
         friendly_to_id = {v: k for k, v in COMMAND_FRIENDLY_NAME.items()}
         cmd_id = friendly_to_id.get(command, command)

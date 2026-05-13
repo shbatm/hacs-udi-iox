@@ -1,17 +1,4 @@
-"""IoX services.
-
-* ``send_node_command`` — friendly-named entity command, dispatched
-  through :meth:`ISYNodeEntity.async_send_node_command`. The command id
-  is validated against the node's nodedef accept set before it's sent.
-* ``get_node_commands`` — response-only entity service returning the
-  node's accepted-command vocabulary (wire ids + friendly names), read
-  just-in-time from the nodedef.
-* ``send_program_command`` — runs a verb (run, run_then, run_else,
-  stop, enable, disable, …) against an IoX program or folder.
-
-Per-network-resource fire-triggers are handled by the button platform
-(``button.<resource_name>``), not a domain-level service.
-"""
+"""IoX services: node command dispatch, program verbs, Z-Wave parameters."""
 
 from __future__ import annotations
 
@@ -72,15 +59,7 @@ VALID_NODE_COMMANDS = [
     "fast_on",
     "query",
 ]
-#: Service verbs are 1:1 with the snake-case method names on
-#: ``pyisyox.Program``. Derived from the upstream ``ProgramCommand``
-#: StrEnum so new pyisyox verbs surface here automatically without
-#: having to maintain a parallel list. Dispatch happens via
-#: ``getattr(program, command)`` — the snake-case → camelCase wire
-#: mapping lives entirely in pyisyox.
 VALID_PROGRAM_COMMANDS = [member.name.lower() for member in ProgramCommand]
-#: Folders only support the subset shared by ``_ProgramBase``;
-#: the rest raise AttributeError on a folder.
 FOLDER_COMMANDS = frozenset({"run", "stop", "enable", "disable"})
 
 
@@ -131,16 +110,9 @@ def async_get_entities(
 ) -> dict[str, Entity]:
     """Collect every udi_iox entity across all platforms, keyed by entity_id.
 
-    ``entity_service_call`` wants a ``dict[str, Entity]`` (or a callable
-    returning one); handing it the raw platform list it used to accept
-    now raises ``AttributeError: 'list' object has no attribute 'get'``.
-
-    ``supports`` narrows the result to entities exposing a given method
-    — node-targeted services (``send_node_command``, ``get_node_commands``,
-    ``set_zwave_parameter``, etc.) only live on the ``ISYNodeEntity``
-    branch, so a user targeting a scene/group entity should get a
-    "no entities matched" failure from the service-call layer rather
-    than an opaque ``AttributeError`` inside ``_handle_entity_call``.
+    ``supports`` narrows to entities exposing the named method, so
+    targeting (e.g.) a scene/group with a node-only service yields
+    "no entities matched" rather than an opaque AttributeError.
     """
     entities: dict[str, Entity] = {}
     for platform in async_get_platforms(hass, DOMAIN):
@@ -160,10 +132,6 @@ def _select_isy_data(hass: HomeAssistant, isy_name: str | None):
         isy_data = entry.runtime_data
         if isy_data is None:
             continue
-        # The legacy isy_name knob targeted by ISY display name; in v6
-        # ControllerConfig has no name field, so the user passes the
-        # uuid (preferred) or we accept any value to mean "first
-        # match" if there's only one entry.
         if isy_name and isy_name != isy_data.uuid:
             continue
         yield entry, isy_data
@@ -176,20 +144,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
     if existing_services and any(
         service in INTEGRATION_SERVICES for service in existing_services
     ):
-        # Already registered for an earlier entry; the services live for
-        # the lifetime of the integration.
         return
 
     async def async_send_program_command(call: ServiceCall) -> None:
-        """Send a verb (``run`` / ``run_then`` / ``enable`` / …) to a
-        program or folder by id or name.
+        """Send a verb to a program or folder by id or name.
 
-        Resolution order: id wins over name when both are supplied;
-        name lookup is exact-match against ``Program.name`` (programs
-        preferred over folders). Folder targets are restricted to the
-        subset of verbs ``ProgramFolder`` exposes — the others raise
-        a targeted ``HomeAssistantError`` rather than an opaque
-        ``AttributeError``.
+        Id wins over name; name lookup is exact-match (programs before
+        folders). Folder targets are restricted to ``FOLDER_COMMANDS``.
         """
         address = call.data.get(CONF_ADDRESS)
         name = call.data.get(CONF_NAME)
@@ -226,7 +187,6 @@ def async_setup_services(hass: HomeAssistant) -> None:
                         f"No program or folder named {name!r} on this controller"
                     )
 
-            # Folders only support the subset shared by _ProgramBase.
             if target.address in folders and command not in FOLDER_COMMANDS:
                 raise HomeAssistantError(
                     f"Folder {target.address} does not support command {command!r}"
@@ -317,11 +277,3 @@ def async_setup_services(hass: HomeAssistant) -> None:
         service_func=_async_get_zwave_parameter,
         supports_response=SupportsResponse.OPTIONAL,
     )
-
-
-# Compat shim — lock.py still imports this. The function is a no-op
-# while Z-Wave user-code services are unsupported; lock.py keeps the
-# call so the platform's setup_entry doesn't change shape later.
-@callback
-def async_setup_lock_services(hass: HomeAssistant) -> None:
-    """No-op placeholder for Z-Wave lock services."""
