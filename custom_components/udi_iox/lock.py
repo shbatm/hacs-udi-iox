@@ -107,8 +107,18 @@ class ISYLockProgramEntity(ISYProgramEntity, LockEntity):
 
     async def async_lock(self, **kwargs: Any) -> None:
         """Run the actions program's ``then`` clause to lock."""
-        await self._actions.run_then()
+        try:
+            await self._actions.run_then()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to lock program {self._node.address}: {err}"
+            ) from err
 
     async def async_unlock(self, **kwargs: Any) -> None:
         """Run the actions program's ``else`` clause to unlock."""
-        await self._actions.run_else()
+        try:
+            await self._actions.run_else()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to unlock program {self._node.address}: {err}"
+            ) from err

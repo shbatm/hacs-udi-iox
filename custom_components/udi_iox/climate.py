@@ -22,9 +22,10 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Node
+from pyisyox import Node, NodeCommandError
 from pyisyox.constants import (
     CMD_CLIMATE_FAN_SETTING,
     CMD_CLIMATE_MODE,
@@ -100,13 +101,6 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         # reported yet.
         status = self._node.status
         self._uom = status.uom if status is not None else ""
-        self._hvac_action: str | None = None
-        self._hvac_mode: str | None = None
-        self._fan_mode: str | None = None
-        self._temp_unit = None
-        self._current_humidity = 0
-        self._target_temp_low = 0
-        self._target_temp_high = 0
 
     @property
     def temperature_unit(self) -> str:
@@ -211,32 +205,38 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
                 target_temp_high = target_temp
             if self.hvac_mode == HVACMode.HEAT:
                 target_temp_low = target_temp
-        if target_temp_low is not None:
-            # The set_climate_setpoint_* wrappers handle precision via the
-            # editor codec — pass the float directly so half-degree
-            # setpoints round-trip correctly (was a v3 bug where casting
-            # to int dropped the fractional component).
-            await self._node.set_climate_setpoint_heat(target_temp_low)
-            # Presumptive setting--event stream will correct if cmd fails:
-            self._target_temp_low = target_temp_low
-        if target_temp_high is not None:
-            await self._node.set_climate_setpoint_cool(target_temp_high)
-            # Presumptive setting--event stream will correct if cmd fails:
-            self._target_temp_high = target_temp_high
+        try:
+            if target_temp_low is not None:
+                # The set_climate_setpoint_* wrappers handle precision via
+                # the editor codec — pass the float directly so half-degree
+                # setpoints round-trip correctly.
+                await self._node.set_climate_setpoint_heat(target_temp_low)
+            if target_temp_high is not None:
+                await self._node.set_climate_setpoint_cool(target_temp_high)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to set temperature on {self._node.address}: {err}"
+            ) from err
         self.async_write_ha_state()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set new target fan mode."""
         _LOGGER.debug("Requested fan mode %s", fan_mode)
-        await self._node.set_fan_mode(HA_FAN_TO_ISY[fan_mode])
-        # Presumptive setting--event stream will correct if cmd fails:
-        self._fan_mode = fan_mode
+        try:
+            await self._node.set_fan_mode(HA_FAN_TO_ISY[fan_mode])
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to set fan mode on {self._node.address}: {err}"
+            ) from err
         self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         _LOGGER.debug("Requested operation mode %s", hvac_mode)
-        await self._node.set_climate_mode(HA_HVAC_TO_ISY[hvac_mode])
-        # Presumptive setting--event stream will correct if cmd fails:
-        self._hvac_mode = hvac_mode
+        try:
+            await self._node.set_climate_mode(HA_HVAC_TO_ISY[hvac_mode])
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to set HVAC mode on {self._node.address}: {err}"
+            ) from err
         self.async_write_ha_state()

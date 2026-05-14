@@ -125,3 +125,53 @@ async def test_enable_switch_always_available_and_tracks_record() -> None:
     record.enabled = True  # e.g. re-enabled from the admin console
     assert entity.available is True
     assert entity.is_on is True
+
+
+async def test_enable_switch_translates_set_enabled_failure() -> None:
+    """A failure on ``Node.set_enabled`` (broad-except: the set-enabled
+    path can raise anything from the transport) becomes
+    HomeAssistantError with verb-appropriate messaging."""
+    from unittest.mock import AsyncMock, patch
+
+    import pytest
+    from homeassistant.components.switch import SwitchDeviceClass
+    from homeassistant.const import EntityCategory
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox.constants import TAG_ENABLED
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.switch import (
+        ISYEnableSwitchEntity,
+        ISYSwitchEntityDescription,
+    )
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYEnableSwitchEntity(
+        isy_data,
+        node=node,
+        control=TAG_ENABLED,
+        unique_id="x_enabled",
+        description=ISYSwitchEntityDescription(
+            key=TAG_ENABLED,
+            device_class=SwitchDeviceClass.SWITCH,
+            name="Enabled",
+            entity_category=EntityCategory.CONFIG,
+        ),
+        device_info=None,
+    )
+    with patch.object(
+        type(node), "set_enabled", AsyncMock(side_effect=RuntimeError("boom"))
+    ):
+        with pytest.raises(HomeAssistantError, match="Unable to enable device"):
+            await entity.async_turn_on()
+        with pytest.raises(HomeAssistantError, match="Unable to disable device"):
+            await entity.async_turn_off()

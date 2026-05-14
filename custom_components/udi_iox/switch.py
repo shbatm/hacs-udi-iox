@@ -173,11 +173,21 @@ class ISYSwitchProgramEntity(ISYProgramEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Run the actions program's ``then`` clause."""
-        await self._actions.run_then()
+        try:
+            await self._actions.run_then()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to turn on switch program {self._node.address}: {err}"
+            ) from err
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Run the actions program's ``else`` clause."""
-        await self._actions.run_else()
+        try:
+            await self._actions.run_else()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to turn off switch program {self._node.address}: {err}"
+            ) from err
 
 
 class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):

@@ -139,7 +139,17 @@ class ISYCoverProgramEntity(ISYProgramEntity, CoverEntity):
         return self._node.status
 
     async def async_open_cover(self, **kwargs: Any) -> None:
-        await self._actions.run_then()
+        try:
+            await self._actions.run_then()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to open cover program {self._node.address}: {err}"
+            ) from err
 
     async def async_close_cover(self, **kwargs: Any) -> None:
-        await self._actions.run_else()
+        try:
+            await self._actions.run_else()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to close cover program {self._node.address}: {err}"
+            ) from err
