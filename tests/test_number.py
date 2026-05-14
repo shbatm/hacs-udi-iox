@@ -37,7 +37,7 @@ async def test_aux_on_level_uses_editor_units_both_directions() -> None:
     through (``set_on_level(75)`` → pyisyox sends ``/cmd/OL/75/51``)."""
     from unittest.mock import AsyncMock, patch
 
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.constants import PROP_ON_LEVEL
     from pyisyox.testing import (
         make_controller,
@@ -377,7 +377,7 @@ async def test_aux_readback_handles_unparseable_value() -> None:
     from unittest.mock import patch
 
     from homeassistant.components.number import NumberEntityDescription
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.schema.cmd import Command
     from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
     from pyisyox.testing import (
@@ -596,22 +596,24 @@ async def test_backlight_memory_write_filter() -> None:
         device_info=None,
     )
 
-    class StubEvent:
-        memory = BACKLIGHT_MEMORY_FILTER["memory"]
-        cmd1 = BACKLIGHT_MEMORY_FILTER["cmd1"]
-        value = 64  # mid-range raw
+    from types import SimpleNamespace
+
+    def _frame(value: object, cmd1: str | None = None) -> SimpleNamespace:
+        """Build a frame stub with the backlight memory address + value."""
+        return SimpleNamespace(
+            memory=BACKLIGHT_MEMORY_FILTER["memory"],
+            cmd1=cmd1 if cmd1 is not None else BACKLIGHT_MEMORY_FILTER["cmd1"],
+            value=value,
+        )
 
     with patch.object(ISYBacklightNumberEntity, "async_write_ha_state", lambda s: None):
-        entity._on_memory_write(StubEvent())  # type: ignore[arg-type]
+        entity._on_memory_write(_frame(64))  # type: ignore[arg-type]
         assert entity.native_value == 50  # 64/127 ≈ 50%
 
         # Same address but wrong cmd1 → ignored.
-        StubEvent.cmd1 = "DEAD"
-        entity._on_memory_write(StubEvent())  # type: ignore[arg-type]
+        entity._on_memory_write(_frame(64, cmd1="DEAD"))  # type: ignore[arg-type]
         assert entity.native_value == 50  # unchanged
 
         # Missing raw value → ignored.
-        StubEvent.cmd1 = BACKLIGHT_MEMORY_FILTER["cmd1"]
-        StubEvent.value = None  # type: ignore[assignment]
-        entity._on_memory_write(StubEvent())  # type: ignore[arg-type]
+        entity._on_memory_write(_frame(None))  # type: ignore[arg-type]
         assert entity.native_value == 50

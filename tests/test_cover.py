@@ -61,7 +61,7 @@ async def test_cover_entities(
 async def test_cover_attrs_unknown_status_yields_none() -> None:
     """When the node has no usable status the cover reports neither
     position nor closed-state."""
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -94,7 +94,7 @@ async def test_cover_attrs_unknown_status_yields_none() -> None:
 
 async def test_cover_attrs_byte_range_scales_to_percent() -> None:
     """A UOM-100 (raw byte 0-255) status scales to a 0-100 position."""
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -127,7 +127,7 @@ async def test_cover_attrs_byte_range_scales_to_percent() -> None:
 
 async def test_cover_attrs_percent_status_clamped() -> None:
     """A UOM-51 percent status is clamped into [0, 100]."""
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,

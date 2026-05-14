@@ -36,7 +36,7 @@ async def test_lock_attrs_unknown_status_yields_none() -> None:
     """Status absent → is_locked is None."""
     from unittest.mock import AsyncMock, patch
 
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -70,7 +70,7 @@ async def test_lock_attrs_track_value_to_state_mapping() -> None:
     """ST=100 → locked True; ST=0 → locked False; other → None."""
     from unittest.mock import patch
 
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,

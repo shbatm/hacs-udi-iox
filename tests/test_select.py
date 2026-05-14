@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -32,14 +34,6 @@ async def test_select_entities(
 # --- Direct entity tests (cover up the non-snapshot logic) ---
 
 
-def _isy_data_with(controller):
-    from custom_components.udi_iox.models import IsyData
-
-    data = IsyData()
-    data.root = controller
-    return data
-
-
 async def test_select_options_ramp_rate_path() -> None:
     """PROP_RAMP_RATE always returns the bespoke ramp-rate option list."""
     from pyisyox.constants import PROP_RAMP_RATE
@@ -54,14 +48,14 @@ async def test_select_options_ramp_rate_path() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     assert _select_options(isy_data, node, PROP_RAMP_RATE) == RAMP_RATE_OPTIONS
 
 
 async def test_select_options_falls_back_to_uom_to_states() -> None:
     """When the editor has no names, fall back to UOM_TO_STATES via the
     property's UOM."""
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -83,7 +77,7 @@ async def test_select_options_falls_back_to_uom_to_states() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
 
     options = _select_options(isy_data, node, "X")
     assert options  # non-empty
@@ -92,7 +86,7 @@ async def test_select_options_falls_back_to_uom_to_states() -> None:
 
 async def test_select_options_returns_empty_when_unresolvable() -> None:
     """No ramp-rate, no editor names, no UOM_TO_STATES match → empty list."""
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -113,7 +107,7 @@ async def test_select_options_returns_empty_when_unresolvable() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     assert _select_options(isy_data, node, "Y") == []
 
 
@@ -123,7 +117,8 @@ async def test_ramp_rate_select_entity_round_trip() -> None:
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.components.select import SelectEntityDescription
-    from pyisyox import Node, NodePropertyValue
+    from pyisyox import Node
+    from pyisyox.client import NodePropertyValue
     from pyisyox.constants import PROP_RAMP_RATE
     from pyisyox.testing import (
         make_controller,
@@ -148,7 +143,7 @@ async def test_ramp_rate_select_entity_round_trip() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYRampRateSelectEntity(
         isy_data=isy_data,
         node=node,
@@ -168,7 +163,7 @@ async def test_ramp_rate_select_entity_round_trip() -> None:
 async def test_ramp_rate_select_handles_unknown_state() -> None:
     """A missing / unparsable RR value yields current_option None."""
     from homeassistant.components.select import SelectEntityDescription
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.constants import PROP_RAMP_RATE
     from pyisyox.testing import (
         make_controller,
@@ -193,7 +188,7 @@ async def test_ramp_rate_select_handles_unknown_state() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYRampRateSelectEntity(
         isy_data=isy_data,
         node=node,
@@ -223,7 +218,7 @@ async def test_aux_index_select_writeonly_optimistic_round_trip() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYAuxControlIndexSelectEntity(
         isy_data=isy_data,
         node=node,
@@ -265,7 +260,7 @@ async def test_aux_index_select_translates_node_command_error() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYAuxControlIndexSelectEntity(
         isy_data=isy_data,
         node=node,
@@ -302,7 +297,7 @@ async def test_backlight_select_translates_error_and_updates_option() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Switch"), controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYBacklightSelectEntity(
         isy_data=isy_data,
         node=node,
@@ -351,7 +346,7 @@ async def test_backlight_memory_write_filter() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Switch"), controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYBacklightSelectEntity(
         isy_data=isy_data,
         node=node,
@@ -367,32 +362,33 @@ async def test_backlight_memory_write_filter() -> None:
         uom="25", min=0, max=2, names={0: "Off", 1: "On 1", 2: "On 2"}
     )
 
-    class StubEvent:
-        memory = BACKLIGHT_MEMORY_FILTER["memory"]
-        cmd1 = BACKLIGHT_MEMORY_FILTER["cmd1"]
-        value = 1
+    from types import SimpleNamespace
+
+    def _frame(value: object, cmd1: str | None = None) -> SimpleNamespace:
+        return SimpleNamespace(
+            memory=BACKLIGHT_MEMORY_FILTER["memory"],
+            cmd1=cmd1 if cmd1 is not None else BACKLIGHT_MEMORY_FILTER["cmd1"],
+            value=value,
+        )
 
     with (
         patch.object(entity, "_editor_range_for", return_value=editor_range),
         patch.object(ISYBacklightSelectEntity, "async_write_ha_state", lambda s: None),
     ):
-        entity._on_memory_write(StubEvent())  # type: ignore[arg-type]
+        entity._on_memory_write(_frame(1))  # type: ignore[arg-type]
     assert entity.current_option == "On 1"
 
     # Wrong cmd1 → no change.
-    StubEvent.cmd1 = "DEAD"
     with patch.object(entity, "_editor_range_for", return_value=editor_range):
-        entity._on_memory_write(StubEvent())  # type: ignore[arg-type]
+        entity._on_memory_write(_frame(1, cmd1="DEAD"))  # type: ignore[arg-type]
     assert entity.current_option == "On 1"
 
     # Unmappable raw → ignored.
-    StubEvent.cmd1 = BACKLIGHT_MEMORY_FILTER["cmd1"]
-    StubEvent.value = 99
     with (
         patch.object(entity, "_editor_range_for", return_value=editor_range),
         patch.object(ISYBacklightSelectEntity, "async_write_ha_state", lambda s: None),
     ):
-        entity._on_memory_write(StubEvent())  # type: ignore[arg-type]
+        entity._on_memory_write(_frame(99))  # type: ignore[arg-type]
     assert entity.current_option == "On 1"
 
 
@@ -402,7 +398,7 @@ async def test_index_select_resolves_via_editor_names() -> None:
     from unittest.mock import patch
 
     from homeassistant.components.select import SelectEntityDescription
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.schema.cmd import Command
     from pyisyox.schema.editor import EditorRange
     from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
@@ -426,7 +422,7 @@ async def test_index_select_resolves_via_editor_names() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     nodedef = NodeDef(
         id="X",
         family_id="1",

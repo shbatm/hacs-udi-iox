@@ -57,7 +57,7 @@ async def test_sensor_entity_target_and_native_value() -> None:
     the formatted value for unitless string types, and the numeric
     value when a UOM lets HA infer one."""
     from homeassistant.components.sensor import SensorEntityDescription
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -114,7 +114,7 @@ async def test_sensor_native_value_resolves_options_dict() -> None:
     """When the entity has an enum options_dict, native_value resolves
     the raw int to the friendly string."""
     from homeassistant.components.sensor import SensorEntityDescription
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -152,7 +152,7 @@ async def test_sensor_native_value_uses_formatted_for_string_types() -> None:
     """For string/index types without a native unit, the formatted
     display string is returned as native_value."""
     from homeassistant.components.sensor import SensorEntityDescription
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,

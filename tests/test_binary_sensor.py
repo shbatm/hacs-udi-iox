@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -30,14 +32,6 @@ async def test_binary_sensor_entities(
 
 
 # --- Direct entity tests (lift binary_sensor.py coverage) ---
-
-
-def _isy_data_with(controller):
-    from custom_components.udi_iox.models import IsyData
-
-    data = IsyData()
-    data.root = controller
-    return data
 
 
 async def test_detect_device_type_and_class_insteon_matches_known_prefix() -> None:
@@ -82,10 +76,14 @@ async def test_detect_device_type_and_class_unknown_returns_none() -> None:
 
 
 async def test_binary_sensor_entity_basic_is_on() -> None:
-    """ISYBinarySensorEntity.is_on falls back to bool(value): None →
-    None, anything truthy (incl. raw int 0 vs "0" — see below) → True
-    for non-empty strings."""
-    from pyisyox import NodePropertyValue
+    """ISYBinarySensorEntity.is_on falls back to ``bool(value)``: ``None``
+    → ``None`` (unknown), and every other value goes through Python's
+    truthiness — so ``0`` → False and ``1`` → True. The "string 0 is
+    truthy" wrinkle isn't relevant here because the wire-shape
+    classifier only constructs raw-int ``ST`` for the binary-sensor
+    family; the string case is exercised in the wire-coerce tests
+    over in ``test_helpers.py``."""
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -113,7 +111,7 @@ async def test_binary_sensor_entity_basic_is_on() -> None:
             },
         )
         node = make_node(record, controller)
-        isy_data = _isy_data_with(controller)
+        isy_data = isy_data_for(controller)
         entity = ISYBinarySensorEntity(
             isy_data,
             node=node,
@@ -146,7 +144,7 @@ async def test_insteon_binary_sensor_handlers_drive_state() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Door"), controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYInsteonBinarySensorEntity(
         isy_data,
         node=node,
@@ -191,7 +189,7 @@ async def test_insteon_binary_sensor_inverts_for_light_and_moisture() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Leak"), controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     for cls in (BinarySensorDeviceClass.MOISTURE, BinarySensorDeviceClass.LIGHT):
         entity = ISYInsteonBinarySensorEntity(
             isy_data, node=node, device_class=cls, device_info=None
@@ -235,7 +233,7 @@ async def test_insteon_binary_sensor_negative_node_attachment() -> None:
     sub = make_node(
         make_node_record("A 2", "Negative", parent_address="A 1"), controller
     )
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYInsteonBinarySensorEntity(
         isy_data,
         node=main,
@@ -257,7 +255,7 @@ async def test_insteon_binary_sensor_on_update_recovers_unknown() -> None:
     from unittest.mock import patch
 
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -280,7 +278,7 @@ async def test_insteon_binary_sensor_on_update_recovers_unknown() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYInsteonBinarySensorEntity(
         isy_data,
         node=node,
@@ -311,7 +309,7 @@ async def test_binary_sensor_program_entity_reads_status() -> None:
     status = Program(
         make_program_record("0001", "Status", status=True), controller._client
     )
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     entity = ISYBinarySensorProgramEntity(isy_data, "Door", status)
     assert entity.is_on is True
 
@@ -339,7 +337,7 @@ async def test_heartbeat_entity_handles_heartbeat_and_timer(hass) -> None:
     controller = make_controller(make_load_result())
     main = make_node(make_node_record("A 1", "Sensor"), controller)
     sub = make_node(make_node_record("A 4", "HB", parent_address="A 1"), controller)
-    isy_data = _isy_data_with(controller)
+    isy_data = isy_data_for(controller)
     parent = ISYInsteonBinarySensorEntity(
         isy_data,
         node=main,

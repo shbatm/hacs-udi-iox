@@ -183,7 +183,7 @@ async def test_enable_switch_translates_set_enabled_failure() -> None:
 async def test_switch_entity_is_on_reflects_status() -> None:
     """ISYSwitchEntity.is_on is True for any non-zero status, False for
     zero, and None when the status is unparsable."""
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,

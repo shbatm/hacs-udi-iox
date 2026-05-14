@@ -144,7 +144,7 @@ async def test_set_fan_mode_translates_node_command_error() -> None:
 
 def _make_thermostat(controller, **prop_overrides):
     """Build a thermostat node with a configurable property bag."""
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import make_node, make_node_record
 
     defaults = {
@@ -224,7 +224,7 @@ async def test_climate_reads_basic_state(hass) -> None:
 async def test_climate_unknown_states_fallback(hass) -> None:
     """Missing or none-valued properties yield sensible defaults."""
     from homeassistant.components.climate import FAN_OFF, HVACMode
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -267,7 +267,7 @@ async def test_climate_unknown_states_fallback(hass) -> None:
 async def test_climate_temperature_unit_celsius(hass) -> None:
     """UOM_ISY_CELSIUS on the UOM property yields the Celsius unit."""
     from homeassistant.const import UnitOfTemperature
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
@@ -295,6 +295,7 @@ async def test_climate_set_temperature_uses_correct_setpoint_per_mode(hass) -> N
 
     from homeassistant.const import ATTR_TEMPERATURE
     from pyisyox import Node
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
@@ -307,14 +308,27 @@ async def test_climate_set_temperature_uses_correct_setpoint_per_mode(hass) -> N
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     entity.hass = hass
 
+    # HEAT branch — CLIMD value=1 ("Heat") is the _make_thermostat default.
     set_heat = AsyncMock()
     with (
         patch.object(Node, "set_climate_setpoint_heat", new=set_heat),
         patch.object(ISYThermostatEntity, "async_write_ha_state", lambda s: None),
     ):
-        # HEAT mode → ATTR_TEMPERATURE goes to heat setpoint.
         await entity.async_set_temperature(**{ATTR_TEMPERATURE: 70})
     set_heat.assert_awaited_once_with(70)
+
+    # COOL branch — flip CLIMD to "Cool" (value=2 on the modes editor)
+    # and assert ATTR_TEMPERATURE routes to set_climate_setpoint_cool.
+    node._record.properties["CLIMD"] = NodePropertyValue(
+        id="CLIMD", value="2", formatted="Cool", uom="67", name="Mode"
+    )
+    set_cool = AsyncMock()
+    with (
+        patch.object(Node, "set_climate_setpoint_cool", new=set_cool),
+        patch.object(ISYThermostatEntity, "async_write_ha_state", lambda s: None),
+    ):
+        await entity.async_set_temperature(**{ATTR_TEMPERATURE: 76})
+    set_cool.assert_awaited_once_with(76)
 
 
 async def test_climate_set_fan_mode_success_path(hass) -> None:
@@ -341,4 +355,5 @@ async def test_climate_set_fan_mode_success_path(hass) -> None:
         patch.object(ISYThermostatEntity, "async_write_ha_state", lambda s: None),
     ):
         await entity.async_set_fan_mode(FAN_AUTO)
-    set_fan.assert_awaited_once()
+    # FAN_AUTO maps through HA_FAN_TO_ISY to the wire string "auto".
+    set_fan.assert_awaited_once_with("auto")

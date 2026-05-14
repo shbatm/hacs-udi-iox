@@ -38,7 +38,7 @@ async def test_fanlinc_speed_driven_by_st_editor() -> None:
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.util.percentage import ordered_list_item_to_percentage
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.constants import CMD_OFF, CMD_ON
     from pyisyox.testing import (
         make_controller,
@@ -90,7 +90,8 @@ async def test_set_percentage_translates_node_command_error() -> None:
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.exceptions import HomeAssistantError
-    from pyisyox import NodeCommandError, NodePropertyValue
+    from pyisyox import NodeCommandError
+    from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
         make_load_result,

@@ -22,7 +22,8 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.const import Platform
-from pyisyox import Node, NodePropertyValue
+from pyisyox import Node
+from pyisyox.client import NodePropertyValue
 from pyisyox.testing import (
     make_classified_node_record,
     make_controller,
@@ -209,7 +210,7 @@ def test_zwave_node_with_no_controllable_is_not_a_switch(isy_data, options, cont
     Insteon SWITCH default — it gets only its readings (an energy meter:
     ST/TPW sensors). A Central-Scene controller (accepts QUERY only,
     *sends* the press verbs) gets an EVENT entity, no switch."""
-    from pyisyox import NodePropertyValue
+    from pyisyox.client import NodePropertyValue
     from pyisyox.schema.cmd import Command
     from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
 

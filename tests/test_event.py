@@ -124,7 +124,7 @@ async def test_event_on_lifecycle_only_acts_on_node_enabled_for_this_address() -
     entity._attr_available = True
 
     with patch.object(type(entity), "async_write_ha_state", lambda self: None):
-        # Other address → ignored.
+        # Other address → ignored; availability stays True.
         entity._on_lifecycle(
             NodeLifecycleEvent(
                 action=NodeLifecycleAction.NODE_ENABLED.value,
@@ -133,7 +133,9 @@ async def test_event_on_lifecycle_only_acts_on_node_enabled_for_this_address() -
                 seqnum=0,
             )
         )
-        # Other verb → ignored.
+        assert entity._attr_available is True
+
+        # Other verb → ignored; availability stays True.
         entity._on_lifecycle(
             NodeLifecycleEvent(
                 action="NN",
@@ -142,7 +144,10 @@ async def test_event_on_lifecycle_only_acts_on_node_enabled_for_this_address() -
                 seqnum=0,
             )
         )
-        # Matching enable verb → updates availability.
+        assert entity._attr_available is True
+
+        # Matching enable verb → updates availability from the node's
+        # current enabled flag.
         entity._node._record.enabled = False
         entity._on_lifecycle(
             NodeLifecycleEvent(
