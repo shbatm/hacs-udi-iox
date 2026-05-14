@@ -30,6 +30,7 @@ from .const import (
     VARIABLE_PLATFORMS,
 )
 from .event import EVENT_BUTTON_UNIQUE_ID_SUFFIX
+from .program_device import program_device_unique_ids
 
 if TYPE_CHECKING:
     from .controller_events import IsyControllerEvents
@@ -53,6 +54,12 @@ class IsyData:
     # plugin's ``cmds.sends`` verbs). Consumed by ``event.py`` to derive
     # each entity's ``event_types``.
     node_triggers: dict[str, list[Command]]
+    # Programs surfaced as their own HA devices — every program *outside*
+    # the legacy ``HA.<platform>/<name>/{status,actions}`` switch
+    # convention. Each one fans out into one binary sensor, one running
+    # sensor, three timestamp sensors, two switches, an event entity, and
+    # five buttons. See ``program_device.py``.
+    program_devices: list[Program]
     controller_events: IsyControllerEvents
 
     def __init__(self) -> None:
@@ -66,6 +73,7 @@ class IsyData:
         self.net_resources = []
         self.devices = {}
         self.node_triggers = {}
+        self.program_devices = []
 
     @property
     def uuid(self) -> str:
@@ -131,6 +139,11 @@ class IsyData:
                     f"{self.uid_base(node)}{EVENT_BUTTON_UNIQUE_ID_SUFFIX}",
                 )
             )
+
+        # Per-program-device entity fan-out: each surfaced program adds
+        # one binary sensor + four sensors + two switches + five buttons
+        # + one event entity under its own HA device.
+        current_unique_ids |= program_device_unique_ids(self)
 
         return current_unique_ids
 

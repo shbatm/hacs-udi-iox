@@ -513,6 +513,29 @@ def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> Non
             )
 
 
+def _categorize_program_devices(
+    isy_data: IsyData, programs: dict[str, Program], program_prefix: str
+) -> None:
+    """Collect every program *outside* the legacy switch convention.
+
+    The ``HA.<platform>/<name>/{status,actions}`` folder layout is the
+    pyisy 3.x "virtual device" pattern (see Home Assistant's `isy994`
+    docs). Programs that follow it are already covered by the
+    platform-specific surfaces in :func:`_categorize_programs` — we
+    leave those untouched. Every *other* program (manually written
+    automation, scheduler, scene helper, …) was previously invisible to
+    HA; this collection drives the rich per-program device fan-out.
+    """
+    legacy_prefixes = tuple(
+        f"{program_prefix}{platform}/" for platform in PROGRAM_PLATFORMS
+    )
+    for program in programs.values():
+        path = program.path or ""
+        if any(prefix in path for prefix in legacy_prefixes):
+            continue
+        isy_data.program_devices.append(program)
+
+
 def _categorize_variables(
     isy_data: IsyData, variables: dict[str, dict[str, Variable]]
 ) -> None:

@@ -22,6 +22,14 @@ from pyisyox.constants import TAG_ENABLED, Protocol
 
 from .const import CONF_NETWORK, DOMAIN
 from .models import IsyConfigEntry, IsyData
+from .program_device import (
+    PROGRAM_RUN_BUTTON_SUFFIX,
+    PROGRAM_RUN_ELSE_BUTTON_SUFFIX,
+    PROGRAM_RUN_IF_BUTTON_SUFFIX,
+    PROGRAM_RUN_THEN_BUTTON_SUFFIX,
+    PROGRAM_STOP_BUTTON_SUFFIX,
+    ISYProgramDeviceEntity,
+)
 
 #: Plugin-defined accept commands whose semantics are "make the device
 #: announce itself" — tag the button with ``ButtonDeviceClass.IDENTIFY``
@@ -138,7 +146,24 @@ async def async_setup_entry(
         )
     )
 
-    async_add_entities(entities)
+    program_buttons: list[
+        ISYProgramRunButton
+        | ISYProgramRunThenButton
+        | ISYProgramRunElseButton
+        | ISYProgramRunIfButton
+        | ISYProgramStopButton
+    ] = []
+    for program in isy_data.program_devices:
+        program_dev = device_info.get(f"program_{program.address}")
+        if program_dev is None:
+            continue
+        program_buttons.append(ISYProgramRunButton(isy_data, program, program_dev))
+        program_buttons.append(ISYProgramRunThenButton(isy_data, program, program_dev))
+        program_buttons.append(ISYProgramRunElseButton(isy_data, program, program_dev))
+        program_buttons.append(ISYProgramRunIfButton(isy_data, program, program_dev))
+        program_buttons.append(ISYProgramStopButton(isy_data, program, program_dev))
+
+    async_add_entities([*entities, *program_buttons])
 
 
 class ISYNodeButtonEntity(ButtonEntity):
@@ -325,3 +350,131 @@ class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
             raise HomeAssistantError(
                 f"Unable to run network resource {self._node.name}: {err}"
             ) from err
+
+
+class _ISYProgramButtonBase(ISYProgramDeviceEntity, ButtonEntity):
+    """Shared scaffolding for the per-program-device manual run buttons.
+
+    Each subclass binds one verb on :class:`pyisyox.Program` (``run``,
+    ``run_then``, ``run_else``, ``run_if``, ``stop``) and translates
+    failures to :class:`HomeAssistantError`.
+    """
+
+    _verb: str = ""
+    _verb_label: str = ""
+
+    def __init__(
+        self, isy_data, program, device_info, *, suffix: str, translation_key: str
+    ) -> None:
+        super().__init__(
+            isy_data,
+            program,
+            device_info,
+            suffix=suffix,
+            translation_key=translation_key,
+        )
+
+    async def async_press(self) -> None:
+        """Invoke the bound program verb."""
+        method: Callable | None = getattr(self._node, self._verb, None)
+        if method is None:
+            raise HomeAssistantError(
+                f"Program {self._node.address} has no verb {self._verb!r}"
+            )
+        try:
+            await method()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to {self._verb_label} program {self._node.address}: {err}"
+            ) from err
+
+
+class ISYProgramRunButton(_ISYProgramButtonBase):
+    """Run the program (controller invokes whichever clause its ``if`` decides)."""
+
+    _verb = "run"
+    _verb_label = "run"
+    _attr_translation_key = "program_run"
+    _attr_icon = "mdi:play"
+
+    def __init__(self, isy_data, program, device_info) -> None:
+        super().__init__(
+            isy_data,
+            program,
+            device_info,
+            suffix=PROGRAM_RUN_BUTTON_SUFFIX,
+            translation_key="program_run",
+        )
+
+
+class ISYProgramRunThenButton(_ISYProgramButtonBase):
+    """Force the program's ``then`` clause."""
+
+    _verb = "run_then"
+    _verb_label = "run then-clause of"
+    _attr_translation_key = "program_run_then"
+    _attr_icon = "mdi:play-circle"
+
+    def __init__(self, isy_data, program, device_info) -> None:
+        super().__init__(
+            isy_data,
+            program,
+            device_info,
+            suffix=PROGRAM_RUN_THEN_BUTTON_SUFFIX,
+            translation_key="program_run_then",
+        )
+
+
+class ISYProgramRunElseButton(_ISYProgramButtonBase):
+    """Force the program's ``else`` clause."""
+
+    _verb = "run_else"
+    _verb_label = "run else-clause of"
+    _attr_translation_key = "program_run_else"
+    _attr_icon = "mdi:play-circle-outline"
+
+    def __init__(self, isy_data, program, device_info) -> None:
+        super().__init__(
+            isy_data,
+            program,
+            device_info,
+            suffix=PROGRAM_RUN_ELSE_BUTTON_SUFFIX,
+            translation_key="program_run_else",
+        )
+
+
+class ISYProgramRunIfButton(_ISYProgramButtonBase):
+    """Re-evaluate the program's ``if`` condition without running clauses."""
+
+    _verb = "run_if"
+    _verb_label = "re-evaluate"
+    _attr_translation_key = "program_run_if"
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:refresh"
+
+    def __init__(self, isy_data, program, device_info) -> None:
+        super().__init__(
+            isy_data,
+            program,
+            device_info,
+            suffix=PROGRAM_RUN_IF_BUTTON_SUFFIX,
+            translation_key="program_run_if",
+        )
+
+
+class ISYProgramStopButton(_ISYProgramButtonBase):
+    """Stop a currently running program."""
+
+    _verb = "stop"
+    _verb_label = "stop"
+    _attr_translation_key = "program_stop"
+    _attr_icon = "mdi:stop"
+
+    def __init__(self, isy_data, program, device_info) -> None:
+        super().__init__(
+            isy_data,
+            program,
+            device_info,
+            suffix=PROGRAM_STOP_BUTTON_SUFFIX,
+            translation_key="program_stop",
+        )

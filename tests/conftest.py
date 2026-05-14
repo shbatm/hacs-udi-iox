@@ -222,9 +222,31 @@ def populated_controller():
         path="HA.binary_sensor/Front Door Open/status",
         status=True,
     )
+    # A program *outside* the legacy HA.<platform>/<name>/{status,actions}
+    # folder convention — used to exercise the per-program-device fan-out
+    # (binary sensor + four sensors + two switches + five buttons).
+    # ``make_program_record`` doesn't yet expose the rich runtime fields
+    # (running / run_at_startup / *_time); set them via ``replace`` here
+    # until the upstream helper grows kwargs for them.
+    from dataclasses import replace as _dc_replace
+
+    sunset_lights = _dc_replace(
+        make_program_record(
+            "0010",
+            "Sunset Lights",
+            path="Lighting/Sunset Lights",
+            status=True,
+            enabled=True,
+        ),
+        run_at_startup=False,
+        running="idle",
+        last_run_time="2026-05-13T18:42:11.000Z",
+        last_finish_time="2026-05-13T18:42:13.000Z",
+        next_scheduled_run_time="2026-05-14T18:42:00.000Z",
+    )
     programs = {
         record.address: record
-        for record in (switch_status, switch_actions, binary_status)
+        for record in (switch_status, switch_actions, binary_status, sunset_lights)
     }
 
     # --- Network resources ---------------------------------------------

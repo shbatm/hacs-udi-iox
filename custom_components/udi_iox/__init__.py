@@ -34,13 +34,20 @@ from .const import (
     CONF_ENABLE_PROGRAMS,
     CONF_ENABLE_VARIABLES,
     CONF_NETWORK,
+    DEFAULT_PROGRAM_STRING,
     DOMAIN,
     MANUFACTURER,
     PLATFORMS,
 )
 from .controller_events import IsyControllerEvents
-from .helpers import _categorize_nodes, _categorize_programs, _categorize_variables
+from .helpers import (
+    _categorize_nodes,
+    _categorize_program_devices,
+    _categorize_programs,
+    _categorize_variables,
+)
 from .models import IsyConfigEntry, IsyData
+from .program_device import program_device_info
 from .services import async_setup_services
 from .util import _async_cleanup_registry_entries
 
@@ -108,6 +115,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
 
     if enable_programs and controller.programs:
         _categorize_programs(isy_data, controller.programs)
+        _categorize_program_devices(
+            isy_data, controller.programs, program_prefix=DEFAULT_PROGRAM_STRING
+        )
+        for program in isy_data.program_devices:
+            isy_data.devices[f"program_{program.address}"] = program_device_info(
+                controller, program, host
+            )
 
     if enable_variables and controller.variables:
         _categorize_variables(isy_data, controller.variables)

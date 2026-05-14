@@ -67,6 +67,26 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "program_status": { "name": "Status" }
+    },
+    "sensor": {
+      "program_running": { "name": "Running" },
+      "program_last_run": { "name": "Last run" },
+      "program_last_finish": { "name": "Last finish" },
+      "program_next_scheduled": { "name": "Next scheduled run" }
+    },
+    "switch": {
+      "program_enable": { "name": "Enabled" },
+      "program_run_at_startup": { "name": "Run at startup" }
+    },
+    "button": {
+      "program_run": { "name": "Run" },
+      "program_run_then": { "name": "Run then" },
+      "program_run_else": { "name": "Run else" },
+      "program_run_if": { "name": "Re-evaluate" },
+      "program_stop": { "name": "Stop" }
+    },
     "event": {
       "button": {
         "state_attributes": {
