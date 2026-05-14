@@ -49,10 +49,9 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.trigger import TriggerActionType, TriggerInfo
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.util import slugify
 
 from .const import DOMAIN
-from .event import EVENT_BUTTON_UNIQUE_ID_SUFFIX
+from .event import EVENT_BUTTON_UNIQUE_ID_SUFFIX, event_type_for_command
 
 if TYPE_CHECKING:
     from .models import IsyData
@@ -102,9 +101,7 @@ def _event_entries_for_device(
         commands = isy_data.node_triggers.get(address)
         if not commands:
             continue
-        types = list(
-            dict.fromkeys(slugify(cmd.name) or cmd.id.lower() for cmd in commands)
-        )
+        types = list(dict.fromkeys(event_type_for_command(cmd) for cmd in commands))
         if types:
             yield entry, address, types
 
@@ -169,6 +166,14 @@ async def async_attach_trigger(
     def _state_changed(event: Event[EventStateChangedData]) -> None:
         new_state = event.data["new_state"]
         if new_state is None:
+            return
+        # Skip transitions out of "unavailable" — those happen on WS
+        # reconnect when the EventEntity restores its prior timestamp +
+        # event_type; not a real press. "unknown" is allowed because
+        # that's the entity's pre-first-press state on a fresh reload,
+        # and the first real press transitions out of it.
+        old_state = event.data["old_state"]
+        if old_state is not None and old_state.state == "unavailable":
             return
         if new_state.attributes.get("event_type") != target_type:
             return

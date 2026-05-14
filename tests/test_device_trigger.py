@@ -112,28 +112,88 @@ async def test_attach_trigger_fires_on_matching_event_type(
     )
     await hass.async_block_till_done()
 
-    # Two consecutive 'on' presses — both must fire (this is the
-    # specific behavior HA's state-trigger doesn't give us).
-    for _ in range(2):
+    # Two consecutive 'on' presses — both must fire (real EventEntity
+    # advances the timestamp on each press; this is the specific
+    # behaviour HA's state-trigger drops on identical event_type).
+    for ts in ("2026-05-14T18:00:00+00:00", "2026-05-14T18:00:01+00:00"):
         hass.states.async_set(
             entity_id,
-            "2026-05-14T18:00:00+00:00",
+            ts,
             {"event_type": "on", "event_types": ["on", "off"]},
-            force_update=True,
         )
         await hass.async_block_till_done()
 
     # Then a non-matching press — must not fire.
     hass.states.async_set(
         entity_id,
-        "2026-05-14T18:00:01+00:00",
+        "2026-05-14T18:00:02+00:00",
         {"event_type": "off", "event_types": ["on", "off"]},
-        force_update=True,
     )
     await hass.async_block_till_done()
 
     fired = [c for c in service_calls if c.domain == "test"]
     assert len(fired) == 2
+
+
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
+async def test_attach_trigger_does_not_fire_on_reconnect(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    service_calls: list[ServiceCall],
+) -> None:
+    """A WS reconnect (unavailable → known) must not re-fire the last press."""
+    from homeassistant.const import STATE_UNAVAILABLE
+
+    entity_id = "event.hallway_light_hallway_button_b"
+    device = _device_for_event_entity(hass, entity_id)
+    assert device is not None
+
+    assert await async_setup_component(
+        hass,
+        AUTOMATION_DOMAIN,
+        {
+            AUTOMATION_DOMAIN: [
+                {
+                    "trigger": [
+                        {
+                            CONF_PLATFORM: "device",
+                            CONF_DOMAIN: DOMAIN,
+                            CONF_DEVICE_ID: device.id,
+                            "entity_id": entity_id,
+                            CONF_TYPE: "on",
+                        }
+                    ],
+                    "action": {"service": "test.automation"},
+                }
+            ]
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Real press — should fire.
+    hass.states.async_set(
+        entity_id,
+        "2026-05-14T18:00:00+00:00",
+        {"event_type": "on", "event_types": ["on", "off"]},
+        force_update=True,
+    )
+    await hass.async_block_till_done()
+
+    # WS drops → entity goes unavailable.
+    hass.states.async_set(entity_id, STATE_UNAVAILABLE, {})
+    await hass.async_block_till_done()
+
+    # WS reconnects → entity restores its prior state + event_type — NOT a press.
+    hass.states.async_set(
+        entity_id,
+        "2026-05-14T18:00:00+00:00",
+        {"event_type": "on", "event_types": ["on", "off"]},
+        force_update=True,
+    )
+    await hass.async_block_till_done()
+
+    fired = [c for c in service_calls if c.domain == "test"]
+    assert len(fired) == 1, "reconnect must not re-fire the last press"
 
 
 @pytest.mark.usefixtures("entity_registry_enabled_by_default")

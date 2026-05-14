@@ -18,6 +18,7 @@ from pyisyox import (
     Variable,
 )
 from pyisyox.constants import Protocol
+from pyisyox.schema.nodedef import Command
 
 from .const import (
     CONF_NETWORK,
@@ -51,7 +52,7 @@ class IsyData:
     # ids the node emits (native Insteon press/fast/fade verbs, or a PG3
     # plugin's ``cmds.sends`` verbs). Consumed by ``event.py`` to derive
     # each entity's ``event_types``.
-    node_triggers: dict[str, list[str]]
+    node_triggers: dict[str, list[Command]]
     controller_events: IsyControllerEvents
 
     def __init__(self) -> None:
