@@ -468,24 +468,13 @@ def _categorize_nodes(
         # broken switch / light (DON not accepted on the wire), so
         # skip it and route the node onto EVENT if it sends verbs.
         #
-        # Different shape: ``RelayLampSwitch_ADV`` / ``KeypadRelay_ADV``
-        # / ``RelayLampSwitchLED_ADV`` / etc. *do* accept DON/DOF
-        # (classifier returns SWITCH) but they're sub-buttons on a
-        # multi-button physical paddle whose LED is *scene-controlled*
-        # on real Insteon hardware — pointing DON directly at the
-        # sub-button address doesn't reliably toggle the LED
-        # (the controller drives it via the parent scene's
-        # member-status logic). A direct switch entity would mislead
-        # the user, so suppress the SWITCH primary too. Sub-address
-        # dimmers (``DimmerLampSwitch_ADV`` paddles that genuinely
-        # control a load) classify as LIGHT and fall through — those
-        # are real load surfaces, not buttons.
-        is_subnode_button = (
-            primary == Platform.SWITCH
-            and node.primary_address is not None
-            and node.protocol == Protocol.INSTEON
-        )
-        if primary is None or is_subnode_button:
+        # If a sub-address nodedef *does* accept DON/DOF — e.g.
+        # ``RelayLampSwitch_ADV`` (2477S On/Off Switch),
+        # ``KeypadRelay_ADV`` (6/8-button keypad load),
+        # ``RelayLampSwitchLED_ADV`` (InLineLinc) — we trust it: those
+        # are real load controllers and surface as proper switches.
+        # The nodedef is the source of truth.
+        if primary is None:
             if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
                 _register_event_node(isy_data, node, _node_trigger_commands(node))
             continue

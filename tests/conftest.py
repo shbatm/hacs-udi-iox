@@ -114,11 +114,12 @@ def populated_controller():
     sub_button = make_node_record(
         "AA AA AA 2",
         "Hallway Button B",
-        # ``RelayLampSwitch_ADV`` is a non-dimmable keypad sub-button —
-        # primary classifies to SWITCH; the consumer's
-        # ``_categorize_nodes`` then suppresses it as a KeypadLinc-style
-        # sub-button and routes it to EVENT instead.
-        nodedef_id="RelayLampSwitch_ADV",
+        # ``KeypadButton_ADV`` is the real LED-only KeypadLinc Dimmer
+        # sub-button shape: accepts is just QUERY/BL/WDU (no DON), so
+        # pyisyox's classifier returns no controllable platform and the
+        # consumer routes it to EVENT only — exactly what we want for
+        # a button that fires presses but has no load to toggle.
+        nodedef_id="KeypadButton_ADV",
         pnode=light_root.address,
     )
     switch_root = make_node_record(

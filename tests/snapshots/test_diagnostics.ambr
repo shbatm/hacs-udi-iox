@@ -83,7 +83,7 @@
           'flag': 0,
           'instance_id': '1',
           'name': 'Hallway Button B',
-          'nodedef_id': 'RelayLampSwitch_ADV',
+          'nodedef_id': 'KeypadButton_ADV',
           'parent_address': None,
           'pnode': 'AA AA AA 1',
           'properties': dict({
