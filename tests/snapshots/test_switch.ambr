@@ -385,7 +385,7 @@
     'state': 'off',
   })
 # ---
-# name: test_switch_entities[switch.sunset_lights-entry]
+# name: test_switch_entities[switch.sunset_lights_enabled-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -397,7 +397,7 @@
     'disabled_by': None,
     'domain': 'switch',
     'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'switch.sunset_lights',
+    'entity_id': 'switch.sunset_lights_enabled',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -409,7 +409,7 @@
     }),
     'original_device_class': None,
     'original_icon': 'mdi:script-text-outline',
-    'original_name': None,
+    'original_name': 'Enabled',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
@@ -418,21 +418,21 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_switch_entities[switch.sunset_lights-state]
+# name: test_switch_entities[switch.sunset_lights_enabled-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights',
+      'friendly_name': 'Sunset Lights Enabled',
       'icon': 'mdi:script-text-outline',
     }),
     'context': <ANY>,
-    'entity_id': 'switch.sunset_lights',
+    'entity_id': 'switch.sunset_lights_enabled',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'on',
   })
 # ---
-# name: test_switch_entities[switch.sunset_lights_2-entry]
+# name: test_switch_entities[switch.sunset_lights_run_at_startup-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -444,7 +444,7 @@
     'disabled_by': None,
     'domain': 'switch',
     'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'switch.sunset_lights_2',
+    'entity_id': 'switch.sunset_lights_run_at_startup',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -456,7 +456,7 @@
     }),
     'original_device_class': None,
     'original_icon': 'mdi:restart',
-    'original_name': None,
+    'original_name': 'Run at startup',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
@@ -465,14 +465,14 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_switch_entities[switch.sunset_lights_2-state]
+# name: test_switch_entities[switch.sunset_lights_run_at_startup-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights',
+      'friendly_name': 'Sunset Lights Run at startup',
       'icon': 'mdi:restart',
     }),
     'context': <ANY>,
-    'entity_id': 'switch.sunset_lights_2',
+    'entity_id': 'switch.sunset_lights_run_at_startup',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

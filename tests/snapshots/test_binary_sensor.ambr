@@ -49,7 +49,7 @@
     'state': 'on',
   })
 # ---
-# name: test_binary_sensor_entities[binary_sensor.sunset_lights-entry]
+# name: test_binary_sensor_entities[binary_sensor.sunset_lights_status-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -61,7 +61,7 @@
     'disabled_by': None,
     'domain': 'binary_sensor',
     'entity_category': None,
-    'entity_id': 'binary_sensor.sunset_lights',
+    'entity_id': 'binary_sensor.sunset_lights_status',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -73,7 +73,7 @@
     }),
     'original_device_class': None,
     'original_icon': 'mdi:script-text-outline',
-    'original_name': None,
+    'original_name': 'Status',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
@@ -82,14 +82,14 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_binary_sensor_entities[binary_sensor.sunset_lights-state]
+# name: test_binary_sensor_entities[binary_sensor.sunset_lights_status-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights',
+      'friendly_name': 'Sunset Lights Status',
       'icon': 'mdi:script-text-outline',
     }),
     'context': <ANY>,
-    'entity_id': 'binary_sensor.sunset_lights',
+    'entity_id': 'binary_sensor.sunset_lights_status',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
