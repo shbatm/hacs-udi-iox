@@ -206,8 +206,7 @@ class ISYNodeButtonEntity(ButtonEntity):
         user doesn't fire a command at a controller we can't observe.
         Silver ``entity-unavailable`` rule.
         """
-        events = getattr(self._isy_data, "controller_events", None)
-        if events is not None and not events.ws_connected:
+        if not self._isy_data.controller_events.ws_connected:
             return False
         return self._node_enabled
 
@@ -234,9 +233,6 @@ class ISYNodeButtonEntity(ButtonEntity):
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:
         """Update availability when the controller toggles the node."""
-        # Belt-and-suspenders — async_added_to_hass only subscribes for Node.
-        if not isinstance(self._node, Node):
-            return
         if event.node_address != self._node.address:
             return
         if event.action != NodeLifecycleAction.NODE_ENABLED:
