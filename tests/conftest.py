@@ -11,6 +11,10 @@ from __future__ import annotations
 
 import sys
 import types
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from custom_components.udi_iox.models import IsyData
 
 # Compatibility shims for older Home Assistant versions installed alongside
 # ``pytest_homeassistant_custom_component``. ``service_info.{dhcp,ssdp}`` were
@@ -258,6 +262,21 @@ def populated_controller():
 # restrict which platforms are forwarded, then depend on ``init_integration``
 # which builds + sets up a ``MockConfigEntry``.
 # ---------------------------------------------------------------------------
+
+
+def isy_data_for(controller) -> IsyData:
+    """Build a minimal :class:`IsyData` carrier with ``root`` pinned.
+
+    Direct-entity unit tests instantiate entities by hand (without
+    going through ``async_setup_entry``) and only need an ``IsyData``
+    that knows about its controller. Centralised here so test files
+    don't each re-define an inline three-line helper.
+    """
+    from custom_components.udi_iox.models import IsyData
+
+    data = IsyData()
+    data.root = controller
+    return data
 
 
 @pytest.fixture

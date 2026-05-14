@@ -235,7 +235,7 @@ def _detect_device_type_and_class(
     node: Node,
 ) -> tuple[BinarySensorDeviceClass | None, str | None]:
     try:
-        device_type = node.type_
+        device_type = node.type
     except AttributeError:
         # The type attribute didn't exist in the ISY's API response
         return (None, None)
