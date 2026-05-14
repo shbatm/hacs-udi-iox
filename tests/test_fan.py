@@ -83,3 +83,46 @@ async def test_fanlinc_speed_driven_by_st_editor() -> None:
         (CMD_ON, 25),
         (CMD_OFF,),
     ]
+
+
+async def test_set_percentage_translates_node_command_error() -> None:
+    """A controller-side rejection on speed-set becomes HomeAssistantError."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import NodeCommandError, NodePropertyValue
+
+    from custom_components.udi_iox.fan import ISYFanEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    record = make_node_record(
+        "EE EE EE 2",
+        "FanLinc Motor",
+        nodedef_id="FanLincMotor",
+        type_="1.46.0.0",
+        properties={
+            "ST": NodePropertyValue(
+                id="ST", value="0", formatted="Off", uom="51", name="Status"
+            )
+        },
+    )
+    node = make_node(record, controller)
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYFanEntity(isy_data, node=node, device_info=None)
+    with patch.object(
+        type(node),
+        "send_command",
+        new=AsyncMock(side_effect=NodeCommandError("nope")),
+    ):
+        with pytest.raises(HomeAssistantError, match="Unable to set fan speed"):
+            await entity.async_set_percentage(50)
+        with pytest.raises(HomeAssistantError, match="Unable to turn off fan"):
+            await entity.async_turn_off()

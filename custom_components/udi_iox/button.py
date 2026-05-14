@@ -7,12 +7,14 @@ from collections.abc import Callable
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from pyisyox import (
     Controller,
     NetworkResource,
     Node,
+    NodeCommandError,
     NodeLifecycleAction,
     NodeLifecycleEvent,
 )
@@ -205,10 +207,15 @@ class ISYNodeQueryButtonEntity(ISYNodeButtonEntity):
 
     async def async_press(self) -> None:
         """Press the button."""
-        if isinstance(self._node, Controller):
-            await self._node.refresh()
-        else:
-            await self._node.send_command("QUERY")
+        try:
+            if isinstance(self._node, Controller):
+                await self._node.refresh()
+            else:
+                await self._node.send_command("QUERY")
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to query {self._attr_name or 'controller'}: {err}"
+            ) from err
 
 
 class ISYNodeBeepButtonEntity(ISYNodeButtonEntity):
@@ -220,7 +227,12 @@ class ISYNodeBeepButtonEntity(ISYNodeButtonEntity):
 
     async def async_press(self) -> None:
         """Press the button."""
-        await self._node.send_command("BEEP")
+        try:
+            await self._node.send_command("BEEP")
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to beep node {self._node.address}: {err}"
+            ) from err
 
 
 class ISYNodeCommandButtonEntity(ISYNodeButtonEntity):
@@ -265,7 +277,12 @@ class ISYNodeCommandButtonEntity(ISYNodeButtonEntity):
 
     async def async_press(self) -> None:
         """Press the button — send the verb with no arguments."""
-        await self._node.send_command(self._command_id)
+        try:
+            await self._node.send_command(self._command_id)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to send {self._command_id} to {self._node.address}: {err}"
+            ) from err
 
 
 class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
@@ -277,4 +294,9 @@ class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
     async def async_press(self) -> None:
         """Fire the network resource (HTTP / TCP / UDP trigger
         configured on the controller)."""
-        await self._node.run()
+        try:
+            await self._node.run()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to run network resource {self._node.name}: {err}"
+            ) from err

@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.percentage import (
@@ -17,7 +18,7 @@ from homeassistant.util.percentage import (
     percentage_to_ranged_value,
     ranged_value_to_percentage,
 )
-from pyisyox import Node, Program
+from pyisyox import Node, NodeCommandError, Program
 from pyisyox.constants import CMD_OFF, CMD_ON, PROP_STATUS
 
 from .entity import (
@@ -135,14 +136,23 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
 
     async def async_set_percentage(self, percentage: int) -> None:
         """Set the fan to a speed percentage."""
-        if percentage == 0:
-            await self._node.send_command(CMD_OFF)
-            return
-        if self._ordered_speeds is not None:
-            value = percentage_to_ordered_list_item(self._ordered_speeds, percentage)
-        else:
-            value = math.ceil(percentage_to_ranged_value(self._speed_range, percentage))
-        await self._node.send_command(CMD_ON, value)
+        try:
+            if percentage == 0:
+                await self._node.send_command(CMD_OFF)
+                return
+            if self._ordered_speeds is not None:
+                value = percentage_to_ordered_list_item(
+                    self._ordered_speeds, percentage
+                )
+            else:
+                value = math.ceil(
+                    percentage_to_ranged_value(self._speed_range, percentage)
+                )
+            await self._node.send_command(CMD_ON, value)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to set fan speed on {self._node.address}: {err}"
+            ) from err
 
     async def async_turn_on(
         self,
@@ -155,7 +165,12 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Send the turn off command."""
-        await self._node.send_command(CMD_OFF)
+        try:
+            await self._node.send_command(CMD_OFF)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to turn off fan {self._node.address}: {err}"
+            ) from err
 
 
 class ISYFanProgramEntity(ISYProgramEntity, FanEntity):
@@ -180,8 +195,18 @@ class ISYFanProgramEntity(ISYProgramEntity, FanEntity):
         **kwargs: Any,
     ) -> None:
         """Run the actions program's ``then`` clause."""
-        await self._actions.run_then()
+        try:
+            await self._actions.run_then()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to turn on fan program {self._node.address}: {err}"
+            ) from err
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Run the actions program's ``else`` clause."""
-        await self._actions.run_else()
+        try:
+            await self._actions.run_else()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to turn off fan program {self._node.address}: {err}"
+            ) from err

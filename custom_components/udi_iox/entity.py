@@ -334,7 +334,12 @@ class ISYNodeEntity(ISYEntity):
         friendly_to_id = {v: k for k, v in COMMAND_FRIENDLY_NAME.items()}
         cmd_id = friendly_to_id.get(command, command)
         self._validate_command(cmd_id)
-        await self._node.send_command(cmd_id)
+        try:
+            await self._node.send_command(cmd_id)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to send {cmd_id} to {self._node.address}: {err}"
+            ) from err
 
     async def async_send_raw_node_command(
         self,
@@ -351,7 +356,12 @@ class ISYNodeEntity(ISYEntity):
         """
         self._validate_command(command)
         params = (value,) if value is not None else ()
-        await self._node.send_command(command, *params)
+        try:
+            await self._node.send_command(command, *params)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to send {command} to {self._node.address}: {err}"
+            ) from err
 
     async def async_get_zwave_parameter(self, parameter: int) -> dict[str, int]:
         """Z-Wave parameter read.

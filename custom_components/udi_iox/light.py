@@ -7,13 +7,14 @@ from typing import Any
 from homeassistant.components.light import ColorMode, LightEntity
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from pyisyox import Node, NodeCommandError
 from pyisyox.constants import CMD_OFF, CMD_ON
 
-from .const import _LOGGER, CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
+from .const import CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
 from .editor_classification import resolve_editor
 from .entity import (
     ISYNodeEntity,
@@ -92,7 +93,9 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
         try:
             await self._node.send_command(CMD_OFF)
         except NodeCommandError as err:
-            _LOGGER.debug("Unable to turn off light: %s", err)
+            raise HomeAssistantError(
+                f"Unable to turn off light {self._node.address}: {err}"
+            ) from err
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:
@@ -137,7 +140,9 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
             else:
                 await self._node.send_command(CMD_ON, brightness)
         except NodeCommandError as err:
-            _LOGGER.debug("Unable to turn on light: %s", err)
+            raise HomeAssistantError(
+                f"Unable to turn on light {self._node.address}: {err}"
+            ) from err
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

@@ -147,3 +147,35 @@ async def test_turn_on_scales_brightness_for_multirange_zwave_editor() -> None:
         await entity.async_turn_on(brightness=138)  # 138/255 → 54 %
 
     assert send_command.call_args_list[0].args == ("DON", 54)
+
+
+async def test_turn_on_translates_node_command_error_to_homeassistanterror() -> None:
+    """A controller-side rejection (NodeCommandError) becomes a
+    HomeAssistantError so HA shows the user a clear failure popup
+    instead of silently no-op'ing (was previously logged at DEBUG)."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Node, NodeCommandError
+
+    from custom_components.udi_iox.light import ISYLightEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Dimmer"), controller)
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYLightEntity(isy_data, node, restore_light_state=False)
+    with patch.object(
+        Node, "send_command", new=AsyncMock(side_effect=NodeCommandError("nope"))
+    ):
+        with pytest.raises(HomeAssistantError, match="Unable to turn on light"):
+            await entity.async_turn_on()
+        with pytest.raises(HomeAssistantError, match="Unable to turn off light"):
+            await entity.async_turn_off()

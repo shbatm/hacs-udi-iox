@@ -396,3 +396,27 @@ async def test_async_get_zwave_parameter_returns_parsed_dict(
 
     get_param.assert_awaited_once_with(24)
     assert result == parsed
+
+
+async def test_send_node_command_translates_node_command_error(
+    service_controller,
+) -> None:
+    """A controller-side rejection on the service surface becomes
+    HomeAssistantError (was previously unhandled, surfacing as a raw
+    NodeCommandError to the calling automation)."""
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import NodeCommandError
+
+    node = next(iter(service_controller.nodes.values()))
+    entity = _bare_node_entity(node)
+
+    assert "BEEP" in {c.id for c in node.nodedef.cmds.accepts}
+    with patch.object(
+        type(node),
+        "send_command",
+        new=AsyncMock(side_effect=NodeCommandError("nope")),
+    ):
+        with pytest.raises(HomeAssistantError, match="Unable to send BEEP"):
+            await entity.async_send_node_command("beep")
+        with pytest.raises(HomeAssistantError, match="Unable to send BEEP"):
+            await entity.async_send_raw_node_command("BEEP")
