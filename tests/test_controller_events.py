@@ -356,26 +356,6 @@ def test_stop_clears_registries(events):
     assert events._variable_listeners == {}
 
 
-# --- HA bus event firing ----------------------------------------------
-
-
-async def test_on_event_fires_udi_iox_control_on_bus(hass, events, event_controller):
-    """Property events also fan out to the HA bus as udi_iox_control —
-    the legacy automation surface that downstream automations key on."""
-    fired: list = []
-    hass.bus.async_listen("udi_iox_control", lambda evt: fired.append(evt.data))
-
-    fire_event(
-        event_controller, _event(node_address="addr", control="ST", action="100")
-    )
-    await hass.async_block_till_done()
-
-    assert len(fired) == 1
-    assert fired[0]["control"] == "ST"
-    assert fired[0]["action"] == "100"
-    assert fired[0]["node_address"] == "addr"
-
-
 # --- lifecycle repair issue ------------------------------------------
 
 

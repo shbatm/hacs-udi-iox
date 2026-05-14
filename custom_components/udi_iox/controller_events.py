@@ -18,11 +18,9 @@ is enough to matter.)
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import asdict, is_dataclass
 from xml.etree import ElementTree as ET
 
 import homeassistant.helpers.device_registry as dr
-import homeassistant.helpers.entity_registry as er
 import homeassistant.helpers.issue_registry as ir
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later
@@ -36,7 +34,7 @@ from pyisyox import (
 )
 from pyisyox.constants import EventStreamStatus
 
-from .const import _LOGGER, DOMAIN, EVENT_UDI_IOX_CONTROL
+from .const import _LOGGER, DOMAIN
 from .models import IsyData
 
 ISSUE_LIFECYCLE_RELOAD = "lifecycle_reload_required"
@@ -94,7 +92,6 @@ class IsyControllerEvents:
         self.hass = hass
         self.entry_id = entry_id
         self.dev_reg = dr.async_get(hass)
-        self.entity_reg = er.async_get(hass)
         controller: Controller = isy_data.root
 
         # Per-(address, control) registry. control == None matches every
@@ -312,14 +309,11 @@ class IsyControllerEvents:
 
     @callback
     def _on_event(self, event: Event) -> None:
-        """Dispatch a property event to entity listeners + the HA bus.
+        """Dispatch a property event to entity listeners.
 
         Order:
-        1. Fire ``udi_iox_control`` on the HA bus (matches the legacy
-           ``isy994_control`` surface so existing automations keep
-           working).
-        2. Invoke every listener registered for ``(address, control)``.
-        3. Invoke every wildcard listener registered for
+        1. Invoke every listener registered for ``(address, control)``.
+        2. Invoke every wildcard listener registered for
            ``(address, None)``.
         """
         if not event.node_address:
@@ -338,21 +332,6 @@ class IsyControllerEvents:
             return
 
         address = event.node_address
-        unique_id = f"{self.isy_data.uuid}_{address}"
-        platform = self.isy_data.node_event_unique_ids.get(unique_id)
-        entity_id = (
-            self.entity_reg.async_get_entity_id(platform, DOMAIN, unique_id)
-            if platform
-            else None
-        )
-        payload = (
-            asdict(event)
-            if is_dataclass(event) and not isinstance(event, type)
-            else {"event": repr(event)}
-        )
-        self.hass.bus.async_fire(
-            EVENT_UDI_IOX_CONTROL, {"entity_id": entity_id, **payload}
-        )
 
         # Per-control listeners
         for listener in tuple(self._node_listeners.get((address, event.control), ())):

@@ -134,25 +134,5 @@ class IsyData:
 
         return current_unique_ids
 
-    @property
-    def node_event_unique_ids(self) -> dict[str, Platform]:
-        """Return all the unique ids to use for node events."""
-        current_unique_ids: dict[str, Platform] = {}
-
-        # Structure and prefixes here must match what's added in __init__ and helpers
-        for platform in NODE_PLATFORMS:
-            for node in self.nodes[platform]:
-                current_unique_ids[self.uid_base(node)] = platform
-
-        for node in self.nodes[Platform.EVENT]:
-            current_unique_ids[
-                f"{self.uid_base(node)}{EVENT_BUTTON_UNIQUE_ID_SUFFIX}"
-            ] = Platform.EVENT
-
-        for group in self.groups:
-            current_unique_ids[self.uid_base(group)] = Platform.SWITCH
-
-        return current_unique_ids
-
 
 type IsyConfigEntry = ConfigEntry[IsyData]
