@@ -152,6 +152,7 @@ class ISYEntity(Entity):
         ``log-when-unavailable`` warning is emitted once per transition
         from :class:`IsyControllerEvents._on_ws_status`.
         """
+        # getattr — unit tests build IsyData() without wiring the dispatcher.
         events = getattr(self._isy_data, "controller_events", None)
         if events is not None and not events.ws_connected:
             return False

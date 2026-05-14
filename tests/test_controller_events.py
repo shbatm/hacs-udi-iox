@@ -517,3 +517,35 @@ async def test_ws_repeat_disconnect_frames_dont_reschedule_timer(hass, events):
     assert handle_2 is handle_1  # same cancel callable — not rearmed
 
     events.stop()  # avoid the lingering-timer guard
+
+
+async def test_stop_cancels_pending_ws_disconnect_timer(hass, events):
+    """``stop()`` must cancel any pending unavailable-flip timer —
+    otherwise a config-entry reload would still trigger a stale
+    unavailable signal seconds later against the new dispatcher."""
+    from pyisyox.constants import EventStreamStatus
+
+    seen: list[bool] = []
+    events.subscribe_ws_status(seen.append)
+
+    events._on_ws_status(EventStreamStatus.LOST_CONNECTION)
+    assert events._ws_disconnect_timer is not None
+
+    events.stop()
+    assert events._ws_disconnect_timer is None
+
+    # Advance the clock well past the debounce window — the cancelled
+    # timer must NOT fire.
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.udi_iox.controller_events import (
+        WS_UNAVAILABLE_DEBOUNCE_SECONDS,
+    )
+
+    future = dt_util.utcnow() + timedelta(seconds=WS_UNAVAILABLE_DEBOUNCE_SECONDS + 1)
+    async_fire_time_changed(hass, future)
+    await hass.async_block_till_done()
+
+    assert seen == []  # listener cleared by stop(); no signal fanned out

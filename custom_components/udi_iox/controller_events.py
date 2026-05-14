@@ -285,11 +285,11 @@ class IsyControllerEvents:
         """Whether the event stream is currently up.
 
         Entities AND this with their own enabled state to decide
-        availability. Initialised optimistically (``True`` if the
-        controller's WS isn't constructed yet, else its live
-        ``connected`` flag) so entities don't briefly flicker
-        unavailable during startup before the first status frame
-        lands.
+        availability. Seeded from the WS's current ``connected`` flag
+        at construction (or ``True`` when there's no WS — test
+        fixtures opt out of the upgrade); if construction races the
+        initial handshake, the first CONNECTED frame fans out
+        through ``_on_ws_status`` and entities re-render.
         """
         return self._ws_connected
 
@@ -522,6 +522,8 @@ class IsyControllerEvents:
     def _fire_ws_unavailable(self, _now: object) -> None:
         """Debounce timer fired without a reconnect — flip unavailable."""
         self._ws_disconnect_timer = None
+        # Re-check: cancelling an already-queued callback doesn't pull
+        # it off the loop, so a CONNECTED frame may have raced us.
         if not self._ws_connected:
             return
         self._ws_connected = False
@@ -533,6 +535,7 @@ class IsyControllerEvents:
         )
         self._fan_out_ws_status(False)
 
+    @callback
     def _fan_out_ws_status(self, connected: bool) -> None:
         """Invoke every subscribed WS-status listener."""
         for listener in tuple(self._ws_status_listeners):

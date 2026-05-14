@@ -207,6 +207,7 @@ class ISYNodeButtonEntity(ButtonEntity):
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:
         """Update availability when the controller toggles the node."""
+        # Belt-and-suspenders — async_added_to_hass only subscribes for Node.
         if not isinstance(self._node, Node):
             return
         if event.node_address != self._node.address:
