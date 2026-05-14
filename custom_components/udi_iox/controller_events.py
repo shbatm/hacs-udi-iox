@@ -18,7 +18,6 @@ is enough to matter.)
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import asdict, is_dataclass
 from xml.etree import ElementTree as ET
 
 import homeassistant.helpers.device_registry as dr
@@ -36,7 +35,7 @@ from pyisyox import (
 )
 from pyisyox.constants import EventStreamStatus
 
-from .const import _LOGGER, DOMAIN, EVENT_UDI_IOX_CONTROL
+from .const import _LOGGER, DOMAIN
 from .models import IsyData
 
 ISSUE_LIFECYCLE_RELOAD = "lifecycle_reload_required"
@@ -338,21 +337,6 @@ class IsyControllerEvents:
             return
 
         address = event.node_address
-        unique_id = f"{self.isy_data.uuid}_{address}"
-        platform = self.isy_data.node_event_unique_ids.get(unique_id)
-        entity_id = (
-            self.entity_reg.async_get_entity_id(platform, DOMAIN, unique_id)
-            if platform
-            else None
-        )
-        payload = (
-            asdict(event)
-            if is_dataclass(event) and not isinstance(event, type)
-            else {"event": repr(event)}
-        )
-        self.hass.bus.async_fire(
-            EVENT_UDI_IOX_CONTROL, {"entity_id": entity_id, **payload}
-        )
 
         # Per-control listeners
         for listener in tuple(self._node_listeners.get((address, event.control), ())):

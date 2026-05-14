@@ -88,8 +88,6 @@ DEFAULT_ENABLE_NETWORKING = False
 KEY_ACTIONS = "actions"
 KEY_STATUS = "status"
 
-EVENT_UDI_IOX_CONTROL = "udi_iox_control"
-
 NODE_PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.CLIMATE,
