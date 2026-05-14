@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -19,7 +19,8 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Node, NodePropertyValue
+from homeassistant.util import dt as dt_util
+from pyisyox import Node, NodePropertyValue, Program
 from pyisyox.constants import (
     COMMAND_FRIENDLY_NAME,
     PROP_BATTERY_LEVEL,
@@ -46,6 +47,13 @@ from .const import (
 from .entity import ISYNodeEntity, _resolve_device_info
 from .helpers import convert_isy_value_to_hass
 from .models import IsyConfigEntry, IsyData
+from .program_device import (
+    PROGRAM_LAST_FINISH_SENSOR_SUFFIX,
+    PROGRAM_LAST_RUN_SENSOR_SUFFIX,
+    PROGRAM_NEXT_SCHEDULED_SENSOR_SUFFIX,
+    PROGRAM_RUNNING_SENSOR_SUFFIX,
+    ISYProgramDeviceEntity,
+)
 
 # Disable general purpose and redundant sensors by default
 AUX_DISABLED_BY_DEFAULT_MATCH = ["DO"]
@@ -303,6 +311,15 @@ async def async_setup_entry(
         )
         entities.append(entity)
 
+    for program in isy_data.program_devices:
+        device_info = devices.get(f"program_{program.address}")
+        if device_info is None:
+            continue
+        entities.append(ISYProgramRunningSensor(isy_data, program, device_info))
+        entities.append(ISYProgramLastRunSensor(isy_data, program, device_info))
+        entities.append(ISYProgramLastFinishSensor(isy_data, program, device_info))
+        entities.append(ISYProgramNextScheduledSensor(isy_data, program, device_info))
+
     async_add_entities(entities)
 
 
@@ -368,3 +385,102 @@ class ISYSensorEntity(ISYNodeEntity, SensorEntity):
 
         assert isinstance(value, int | float)
         return value
+
+
+def _parse_iox_timestamp(raw: str | None):
+    """Parse an IoX ISO 8601 timestamp into a tz-aware ``datetime``.
+
+    pyisyox surfaces timestamps as the wire string (``"2026-05-10T..."``)
+    rather than parsing eagerly; we do it here so timestamp sensors
+    expose a real ``datetime``. Returns ``None`` on missing or
+    unparsable input — the wire payload omits these fields when the
+    program has never run / has no schedule.
+    """
+    if not raw:
+        return None
+    try:
+        parsed = dt_util.parse_datetime(raw)
+    except (TypeError, ValueError):
+        return None
+    if parsed is None:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt_util.UTC)
+
+
+class ISYProgramRunningSensor(ISYProgramDeviceEntity, SensorEntity):
+    """Free-form runtime state from the program (``idle`` / ``running then`` / …)."""
+
+    _attr_translation_key = "program_running"
+    _attr_icon = "mdi:run"
+
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
+        """Initialize the running-state sensor."""
+        super().__init__(
+            isy_data, program, device_info, suffix=PROGRAM_RUNNING_SENSOR_SUFFIX
+        )
+
+    @property
+    def native_value(self) -> str | None:
+        """Current ``running`` field from the program."""
+        return self._node.running
+
+
+class _ISYProgramTimestampSensor(ISYProgramDeviceEntity, SensorEntity):
+    """Shared logic for the three timestamp sensors on a program device."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_registry_enabled_default = False
+
+    # Subclasses must override; declared without a default so a missing
+    # override surfaces immediately as a mypy / runtime AttributeError
+    # rather than silently calling ``getattr(node, "")``.
+    _source_attr: ClassVar[str]
+
+    @property
+    def native_value(self):
+        """Parsed timestamp value off the program's record."""
+        return _parse_iox_timestamp(getattr(self._node, self._source_attr))
+
+
+class ISYProgramLastRunSensor(_ISYProgramTimestampSensor):
+    """``Program.last_run_time`` as a timestamp sensor."""
+
+    _attr_translation_key = "program_last_run"
+    _source_attr = "last_run_time"
+
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
+        super().__init__(
+            isy_data, program, device_info, suffix=PROGRAM_LAST_RUN_SENSOR_SUFFIX
+        )
+
+
+class ISYProgramLastFinishSensor(_ISYProgramTimestampSensor):
+    """``Program.last_finish_time`` as a timestamp sensor."""
+
+    _attr_translation_key = "program_last_finish"
+    _source_attr = "last_finish_time"
+
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
+        super().__init__(
+            isy_data, program, device_info, suffix=PROGRAM_LAST_FINISH_SENSOR_SUFFIX
+        )
+
+
+class ISYProgramNextScheduledSensor(_ISYProgramTimestampSensor):
+    """``Program.next_scheduled_run_time`` as a timestamp sensor."""
+
+    _attr_translation_key = "program_next_scheduled"
+    _source_attr = "next_scheduled_run_time"
+
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
+        super().__init__(
+            isy_data, program, device_info, suffix=PROGRAM_NEXT_SCHEDULED_SENSOR_SUFFIX
+        )

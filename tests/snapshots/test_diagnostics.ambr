@@ -18583,6 +18583,20 @@
           'running': None,
           'status': True,
         }),
+        '0010': dict({
+          'address': '0010',
+          'enabled': True,
+          'is_folder': False,
+          'last_finish_time': '2026-05-13T18:42:13.000Z',
+          'last_run_time': '2026-05-13T18:42:11.000Z',
+          'name': 'Sunset Lights',
+          'next_scheduled_run_time': '2026-05-14T18:42:00.000Z',
+          'parent_address': None,
+          'path': 'Lighting/Sunset Lights',
+          'run_at_startup': False,
+          'running': 'idle',
+          'status': True,
+        }),
       }),
       'variables': dict({
         '1': dict({

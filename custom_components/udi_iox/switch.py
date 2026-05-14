@@ -27,6 +27,11 @@ from .entity import (
     node_status_int,
 )
 from .models import IsyConfigEntry, IsyData
+from .program_device import (
+    PROGRAM_ENABLE_SWITCH_SUFFIX,
+    PROGRAM_RUN_AT_STARTUP_SWITCH_SUFFIX,
+    ISYProgramDeviceEntity,
+)
 
 PARALLEL_UPDATES = 0
 
@@ -76,6 +81,15 @@ async def async_setup_entry(
 
     for name, status, actions in isy_data.programs[Platform.SWITCH]:
         entities.append(ISYSwitchProgramEntity(isy_data, name, status, actions))
+
+    for program in isy_data.program_devices:
+        program_device_info = device_info.get(f"program_{program.address}")
+        if program_device_info is None:
+            continue
+        entities.append(ISYProgramEnableSwitch(isy_data, program, program_device_info))
+        entities.append(
+            ISYProgramRunAtStartupSwitch(isy_data, program, program_device_info)
+        )
 
     for node, control in isy_data.aux_properties[Platform.SWITCH]:
         # Currently only used for enable switches, will need to be updated for
@@ -262,3 +276,80 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
                 f"Unable to {verb} device {self._node.address}: {err}"
             ) from err
         self.async_write_ha_state()
+
+
+class ISYProgramEnableSwitch(ISYProgramDeviceEntity, SwitchEntity):
+    """Enable / disable the program on the controller."""
+
+    _attr_translation_key = "program_enable"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:script-text-outline"
+
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
+        super().__init__(
+            isy_data, program, device_info, suffix=PROGRAM_ENABLE_SWITCH_SUFFIX
+        )
+
+    @property
+    def is_on(self) -> bool | None:
+        """``True`` when the program is enabled on the controller."""
+        return self._node.enabled
+
+    async def async_turn_on(self, **_kwargs: Any) -> None:
+        """Enable the program."""
+        try:
+            await self._node.enable()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to enable program {self._node.address}: {err}"
+            ) from err
+
+    async def async_turn_off(self, **_kwargs: Any) -> None:
+        """Disable the program."""
+        try:
+            await self._node.disable()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to disable program {self._node.address}: {err}"
+            ) from err
+
+
+class ISYProgramRunAtStartupSwitch(ISYProgramDeviceEntity, SwitchEntity):
+    """Toggle the program's "run at startup" flag."""
+
+    _attr_translation_key = "program_run_at_startup"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:restart"
+
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
+        super().__init__(
+            isy_data, program, device_info, suffix=PROGRAM_RUN_AT_STARTUP_SWITCH_SUFFIX
+        )
+
+    @property
+    def is_on(self) -> bool | None:
+        """``True`` when the program is set to auto-run on boot."""
+        return self._node.run_at_startup
+
+    async def async_turn_on(self, **_kwargs: Any) -> None:
+        """Set the run-at-startup flag."""
+        try:
+            await self._node.enable_run_at_startup()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to enable run-at-startup for {self._node.address}: {err}"
+            ) from err
+
+    async def async_turn_off(self, **_kwargs: Any) -> None:
+        """Clear the run-at-startup flag."""
+        try:
+            await self._node.disable_run_at_startup()
+        except Exception as err:  # pylint: disable=broad-except
+            raise HomeAssistantError(
+                f"Unable to disable run-at-startup for {self._node.address}: {err}"
+            ) from err

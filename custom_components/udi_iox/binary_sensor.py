@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
-from pyisyox import Event, Node
+from pyisyox import Event, Node, Program
 from pyisyox.constants import (
     CMD_OFF,
     CMD_ON,
@@ -49,6 +49,10 @@ from .entity import (
     node_status_int,
 )
 from .models import IsyConfigEntry, IsyData
+from .program_device import (
+    PROGRAM_BINARY_STATUS_SUFFIX,
+    ISYProgramDeviceEntity,
+)
 
 DEVICE_PARENT_REQUIRED = [
     BinarySensorDeviceClass.OPENING,
@@ -216,6 +220,14 @@ async def async_setup_entry(
 
     for name, status, _ in isy_data.programs[Platform.BINARY_SENSOR]:
         entities.append(ISYBinarySensorProgramEntity(isy_data, name, status))
+
+    for program in isy_data.program_devices:
+        device_info = devices.get(f"program_{program.address}")
+        if device_info is None:
+            continue
+        entities.append(
+            ISYProgramDeviceStatusBinarySensor(isy_data, program, device_info)
+        )
 
     for node, control in isy_data.aux_properties[Platform.BINARY_SENSOR]:
         _LOGGER.debug("Loading %s %s", node.name, COMMAND_FRIENDLY_NAME.get(control))
@@ -584,3 +596,32 @@ class ISYBinarySensorProgramEntity(ISYProgramEntity, BinarySensorEntity):
     def is_on(self) -> bool:
         """Get whether the program's last evaluation was True."""
         return self._node.status
+
+
+class ISYProgramDeviceStatusBinarySensor(ISYProgramDeviceEntity, BinarySensorEntity):
+    """The program's last-evaluation result, exposed as a binary sensor.
+
+    Mirrors what the legacy ``ISYBinarySensorProgramEntity`` does for
+    ``HA.binary_sensor/<name>/status`` programs, but here the program
+    is a first-class device (rather than a name-and-status pair under
+    the controller hub).
+    """
+
+    _attr_translation_key = "program_status"
+    _attr_icon = "mdi:script-text-outline"
+
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
+        """Initialize the program-status binary sensor."""
+        super().__init__(
+            isy_data,
+            program,
+            device_info,
+            suffix=PROGRAM_BINARY_STATUS_SUFFIX,
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """The program's last-evaluation result."""
+        return bool(self._node.status)

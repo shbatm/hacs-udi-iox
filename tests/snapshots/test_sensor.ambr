@@ -285,3 +285,191 @@
     'state': '0',
   })
 # ---
+# name: test_sensor_entities[sensor.sunset_lights-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.sunset_lights',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:run',
+    'original_name': None,
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': 'program_running',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_0010_running',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_entities[sensor.sunset_lights-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Sunset Lights',
+      'icon': 'mdi:run',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.sunset_lights',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'idle',
+  })
+# ---
+# name: test_sensor_entities[sensor.sunset_lights_2-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.sunset_lights_2',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': None,
+    'original_name': None,
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': 'program_last_run',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_0010_last_run',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_entities[sensor.sunset_lights_2-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'timestamp',
+      'friendly_name': 'Sunset Lights',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.sunset_lights_2',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2026-05-13T18:42:11+00:00',
+  })
+# ---
+# name: test_sensor_entities[sensor.sunset_lights_3-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.sunset_lights_3',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': None,
+    'original_name': None,
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': 'program_last_finish',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_0010_last_finish',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_entities[sensor.sunset_lights_3-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'timestamp',
+      'friendly_name': 'Sunset Lights',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.sunset_lights_3',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2026-05-13T18:42:13+00:00',
+  })
+# ---
+# name: test_sensor_entities[sensor.sunset_lights_4-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': set({
+    }),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'sensor',
+    'entity_category': None,
+    'entity_id': 'sensor.sunset_lights_4',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'options': dict({
+    }),
+    'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
+    'original_icon': None,
+    'original_name': None,
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'supported_features': 0,
+    'translation_key': 'program_next_scheduled',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_0010_next_scheduled',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_sensor_entities[sensor.sunset_lights_4-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'device_class': 'timestamp',
+      'friendly_name': 'Sunset Lights',
+    }),
+    'context': <ANY>,
+    'entity_id': 'sensor.sunset_lights_4',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': '2026-05-14T18:42:00+00:00',
+  })
+# ---

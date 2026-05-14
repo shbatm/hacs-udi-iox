@@ -119,6 +119,18 @@ PROGRAM_PLATFORMS = [
 ROOT_NODE_PLATFORMS = [Platform.BUTTON]
 VARIABLE_PLATFORMS = [Platform.NUMBER, Platform.SENSOR]
 
+# Platforms used by the rich per-program HA device that surfaces every
+# program outside the legacy ``HA.<platform>/<name>/{status,actions}``
+# folder convention. One device per program; the program's status,
+# running state, schedule timestamps, manual run/stop controls, and
+# enable/auto-run toggles each get their own entity.
+PROGRAM_DEVICE_PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
+
 # Platforms that classify in parallel with NODE_PLATFORMS — a node placed in
 # one of these still falls through to its primary platform classification.
 NODE_PARALLEL_PLATFORMS = [Platform.EVENT]
@@ -129,6 +141,7 @@ PLATFORMS = {
     *NODE_AUX_PROP_PLATFORMS,
     *NODE_PARALLEL_PLATFORMS,
     *PROGRAM_PLATFORMS,
+    *PROGRAM_DEVICE_PLATFORMS,
     *ROOT_NODE_PLATFORMS,
     *VARIABLE_PLATFORMS,
 }
