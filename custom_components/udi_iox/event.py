@@ -50,7 +50,7 @@ EVENT_BUTTON_UNIQUE_ID_SUFFIX = "_button"
 _BUTTON_SHAPED_VERBS = frozenset({CMD_ON, CMD_OFF})
 
 
-def _event_type(command: Command) -> str:
+def event_type_for_command(command: Command) -> str:
     """Slug for a sent command — its name if it has one, else the wire id."""
     return slugify(command.name) or command.id.lower()
 
@@ -99,7 +99,7 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
         # dict first dedupes any commands that slug to the same value
         # while preserving first-seen order for ``event_types``.
         self._event_type_by_control: dict[str, str] = {
-            cmd.id: _event_type(cmd) for cmd in triggers
+            cmd.id: event_type_for_command(cmd) for cmd in triggers
         }
         self._attr_event_types = list(
             dict.fromkeys(self._event_type_by_control.values())
