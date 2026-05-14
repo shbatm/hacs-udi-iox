@@ -522,10 +522,6 @@ class IsyControllerEvents:
     def _fire_ws_unavailable(self, _now: object) -> None:
         """Debounce timer fired without a reconnect — flip unavailable."""
         self._ws_disconnect_timer = None
-        # Re-check: cancelling an already-queued callback doesn't pull
-        # it off the loop, so a CONNECTED frame may have raced us.
-        if not self._ws_connected:
-            return
         self._ws_connected = False
         _LOGGER.warning(
             "IoX event stream did not reconnect within %ds — entities "
