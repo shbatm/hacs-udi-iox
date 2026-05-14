@@ -1,7 +1,7 @@
 """Shared fixtures for the udi_iox test suite.
 
 Tests drive a real :class:`pyisyox.Controller` (with its HTTP-side
-client coroutines stubbed) via the factories in :mod:`tests.builders`.
+client coroutines stubbed) via the factories in :mod:`pyisyox.testing`.
 The fixtures here wire that controller up against an HA-side
 ``MockConfigEntry`` and forward only the platforms a given test wants
 to exercise.
@@ -42,6 +42,15 @@ from homeassistant.const import (  # noqa: E402
 )
 from homeassistant.core import HomeAssistant  # noqa: E402
 from pyisyox.client import NodePropertyValue  # noqa: E402
+from pyisyox.testing import (  # noqa: E402
+    make_controller,
+    make_group_record,
+    make_load_result,
+    make_network_resource_record,
+    make_node_record,
+    make_program_record,
+    make_variable_record,
+)
 from pytest_homeassistant_custom_component.common import (  # noqa: E402
     MockConfigEntry,
 )
@@ -51,15 +60,6 @@ from custom_components.udi_iox.const import (  # noqa: E402
     CONF_ENABLE_PROGRAMS,
     CONF_ENABLE_VARIABLES,
     DOMAIN,
-)
-from tests.builders import (  # noqa: E402
-    make_controller,
-    make_group_record,
-    make_load_result,
-    make_network_resource_record,
-    make_node_record,
-    make_program_record,
-    make_variable_record,
 )
 
 pytest_plugins = "pytest_homeassistant_custom_component"

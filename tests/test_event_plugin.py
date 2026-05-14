@@ -3,7 +3,7 @@
 The bundled ``eisy6_profile.json`` is a stock-eisy capture with no PG3
 plugins, so this fixture grafts a synthetic ``PluginTriggerSource``
 nodedef (``cmds.sends = [DOORBELL_PRESS, MOTION_ON]``, no accepts) at
-runtime via ``tests.builders.make_trigger_plugin_load_result``.
+runtime via ``pyisyox.testing.make_trigger_plugin_load_result``.
 
 Pins: a plugin node with sent verbs but no controllable platform flows
 through ``pyisyox.classify`` → ``ClassificationResult.triggers`` →
@@ -17,16 +17,15 @@ import pytest
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from pyisyox.testing import (
+    make_controller,
+    make_plugin_trigger_node_record,
+    make_trigger_plugin_load_result,
+)
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     SnapshotAssertion,
     snapshot_platform,
-)
-
-from tests.builders import (
-    make_controller,
-    make_plugin_trigger_node_record,
-    make_trigger_plugin_load_result,
 )
 
 

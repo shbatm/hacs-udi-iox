@@ -8,7 +8,7 @@ Pins behavior that's invisible from a single function read:
 - plugin nodedefs falling through to pyisyox.classify
 
 The tests build real :class:`pyisyox.Node` instances via
-:mod:`tests.builders` — introspection (``is_thermostat`` / ``is_lock`` /
+:mod:`pyisyox.testing` — introspection (``is_thermostat`` / ``is_lock`` /
 ``is_dimmable`` / ``is_fan``) flows through the real nodedef + editor
 codec from the bundled anonymized eisy6 profile, so a pyisyox API change
 fails these tests instead of drifting silently.
@@ -23,10 +23,7 @@ from unittest.mock import patch
 import pytest
 from homeassistant.const import Platform
 from pyisyox import Node, NodePropertyValue
-
-from custom_components.udi_iox.helpers import _categorize_nodes, _categorize_programs
-from custom_components.udi_iox.models import IsyData
-from tests.builders import (
+from pyisyox.testing import (
     make_classified_node_record,
     make_controller,
     make_load_result,
@@ -35,6 +32,9 @@ from tests.builders import (
     make_program,
     make_program_record,
 )
+
+from custom_components.udi_iox.helpers import _categorize_nodes, _categorize_programs
+from custom_components.udi_iox.models import IsyData
 
 
 @pytest.fixture
@@ -524,12 +524,13 @@ def test_node_server_children_get_own_device_info(isy_data, options, controller)
     avoids "Current"/"Leak Detected" name collisions when siblings
     share aux property labels.
     """
-    from custom_components.udi_iox.const import DOMAIN
-    from tests.builders import (
+    from pyisyox.testing import (
         PLUGIN_COVER_FAMILY_ID,
         PLUGIN_COVER_INSTANCE_ID,
         PLUGIN_COVER_NODEDEF_ID,
     )
+
+    from custom_components.udi_iox.const import DOMAIN
 
     controller_record = make_node_record(
         "n100_controller",
@@ -593,7 +594,7 @@ def test_node_server_controller_no_comms_error_sensor(isy_data, options, control
     integration must not synthesise a perpetually-Unavailable
     ``device_communication_errors`` sensor for it.
     """
-    from tests.builders import (
+    from pyisyox.testing import (
         PLUGIN_COVER_FAMILY_ID,
         PLUGIN_COVER_INSTANCE_ID,
         PLUGIN_COVER_NODEDEF_ID,
@@ -633,7 +634,7 @@ def test_plugin_dimmer_aux_commands_classified_by_editor(isy_data, options):
     bounds) → SELECT; the generic ``INTEGER`` editor → NUMBER. The node
     itself routes onto LIGHT via the classifier's controllable.
     """
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_dimmer_plugin_load_result,
         make_node,

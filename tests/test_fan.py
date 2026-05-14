@@ -40,15 +40,15 @@ async def test_fanlinc_speed_driven_by_st_editor() -> None:
     from homeassistant.util.percentage import ordered_list_item_to_percentage
     from pyisyox import NodePropertyValue
     from pyisyox.constants import CMD_OFF, CMD_ON
-
-    from custom_components.udi_iox.fan import ISYFanEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.fan import ISYFanEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -91,15 +91,15 @@ async def test_set_percentage_translates_node_command_error() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import NodeCommandError, NodePropertyValue
-
-    from custom_components.udi_iox.fan import ISYFanEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.fan import ISYFanEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -136,10 +136,10 @@ async def test_fan_program_translates_run_failure() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Program
+    from pyisyox.testing import make_controller, make_load_result, make_program_record
 
     from custom_components.udi_iox.fan import ISYFanProgramEntity
     from custom_components.udi_iox.models import IsyData
-    from tests.builders import make_controller, make_load_result, make_program_record
 
     controller = make_controller(make_load_result())
     status = Program(make_program_record("0001", "Status"), controller._client)

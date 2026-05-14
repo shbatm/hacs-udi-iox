@@ -6,7 +6,7 @@ fan-out, variable event payload extraction, unsubscribe semantics,
 and exception isolation between listeners.
 
 Driven against a real :class:`pyisyox.Controller` (built via
-``tests.builders``); synthetic :class:`Event` / :class:`NodeLifecycleEvent`
+``pyisyox.testing``); synthetic :class:`Event` / :class:`NodeLifecycleEvent`
 instances are fanned out via the dispatcher's internal listener lists.
 pyisyox's own suite covers parser → dispatcher correctness; here we
 exercise the consumer's dispatch logic on top of the real wire shapes.
@@ -19,17 +19,17 @@ from unittest.mock import MagicMock
 import pytest
 from homeassistant.helpers import issue_registry as ir
 from pyisyox import Event, NodeLifecycleEvent
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
-
-from custom_components.udi_iox.const import DOMAIN
-from custom_components.udi_iox.controller_events import IsyControllerEvents
-from custom_components.udi_iox.models import IsyData
-from tests.builders import (
+from pyisyox.testing import (
     fire_event,
     fire_lifecycle,
     make_controller,
     make_load_result,
 )
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+from custom_components.udi_iox.const import DOMAIN
+from custom_components.udi_iox.controller_events import IsyControllerEvents
+from custom_components.udi_iox.models import IsyData
 
 
 def _event(

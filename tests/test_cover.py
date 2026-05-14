@@ -5,7 +5,7 @@ accepts ``FDUP`` / ``FDDOWN`` / ``FDSTOP`` *without* ``DON`` / ``DOF``
 (otherwise pyisyox's classifier picks light or switch). The bundled
 ``eisy6_profile.json`` is a real anonymized capture of a stock eisy
 which has no PG3 plugins, so cover-test fixtures inject a synthetic
-plugin slot at runtime via ``tests.builders.make_cover_load_result``.
+plugin slot at runtime via ``pyisyox.testing.make_cover_load_result``.
 
 Pin: ``Platform.COVER`` entity creation flowing through the real
 ``pyisyox.classify`` → ``ControllablePlatform.COVER`` →
@@ -18,16 +18,15 @@ import pytest
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from pyisyox.testing import (
+    make_controller,
+    make_cover_load_result,
+    make_plugin_cover_node_record,
+)
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     SnapshotAssertion,
     snapshot_platform,
-)
-
-from tests.builders import (
-    make_controller,
-    make_cover_load_result,
-    make_plugin_cover_node_record,
 )
 
 

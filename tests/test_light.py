@@ -38,15 +38,15 @@ async def test_turn_on_sets_brightness_via_don_level_parameter() -> None:
     from pyisyox import Node
     from pyisyox.schema.cmd import Command, CommandParameter
     from pyisyox.schema.nodedef import NodeCommands, NodeDef
-
-    from custom_components.udi_iox.light import ISYLightEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.light import ISYLightEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
@@ -100,15 +100,15 @@ async def test_turn_on_scales_brightness_for_multirange_zwave_editor() -> None:
     from pyisyox import Node
     from pyisyox.schema.cmd import Command, CommandParameter
     from pyisyox.schema.nodedef import NodeCommands, NodeDef
-
-    from custom_components.udi_iox.light import ISYLightEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.light import ISYLightEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
@@ -157,15 +157,15 @@ async def test_turn_on_translates_node_command_error_to_homeassistanterror() -> 
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.light import ISYLightEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.light import ISYLightEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Dimmer"), controller)
