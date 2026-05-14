@@ -172,17 +172,31 @@ class ISYNodeButtonEntity(ButtonEntity):
 
     @property
     def available(self) -> bool:
-        """Return entity availability."""
+        """Return entity availability.
+
+        Combines node-enabled (for node-backed buttons) with WS health —
+        a dropped event stream marks every button unavailable so the
+        user doesn't fire a command at a controller we can't observe.
+        Silver ``entity-unavailable`` rule.
+        """
+        events = getattr(self._isy_data, "controller_events", None)
+        if events is not None and not events.ws_connected:
+            return False
         return self._node_enabled
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to lifecycle events for availability tracking."""
+        """Subscribe to lifecycle + WS-status events for availability tracking."""
+        events = self._isy_data.controller_events
+        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
         if not isinstance(self._node, Node):
             # NetworkResource and system-query buttons aren't nodes.
             return
-        self._unsubscribers.append(
-            self._isy_data.controller_events.subscribe_lifecycle(self._on_lifecycle)
-        )
+        self._unsubscribers.append(events.subscribe_lifecycle(self._on_lifecycle))
+
+    @callback
+    def _on_ws_status(self, connected: bool) -> None:
+        """Refresh state on WS flip so ``available`` re-renders."""
+        self.async_write_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         """Unsubscribe from controller events."""
@@ -193,6 +207,7 @@ class ISYNodeButtonEntity(ButtonEntity):
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:
         """Update availability when the controller toggles the node."""
+        # Belt-and-suspenders — async_added_to_hass only subscribes for Node.
         if not isinstance(self._node, Node):
             return
         if event.node_address != self._node.address:

@@ -19,6 +19,7 @@ from unittest.mock import MagicMock
 import pytest
 from homeassistant.helpers import issue_registry as ir
 from pyisyox import Event, NodeLifecycleEvent
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.controller_events import IsyControllerEvents
@@ -442,3 +443,109 @@ def test_reload_lifecycle_skipped_when_no_entry_id(hass, events, event_controlle
     creating a malformed Repair card."""
     fire_lifecycle(event_controller, _lifecycle(action="ND", node_address="aa"))
     assert _reload_issue(hass) is None
+
+
+# --- WS-status / entity-unavailable ----------------------------------------
+
+
+async def test_ws_disconnect_debounced_then_recovers_without_flip(hass, events):
+    """A brief disconnect that recovers inside the 90 s window must NOT
+    flip entities to unavailable — listeners stay silent, ws_connected
+    stays True."""
+    from pyisyox.constants import EventStreamStatus
+
+    seen: list[bool] = []
+    events.subscribe_ws_status(seen.append)
+    assert events.ws_connected is True
+
+    events._on_ws_status(EventStreamStatus.LOST_CONNECTION)
+    # Timer scheduled, but ws_connected stays True until it fires.
+    assert events.ws_connected is True
+    assert seen == []
+
+    events._on_ws_status(EventStreamStatus.CONNECTED)
+    assert events.ws_connected is True
+    # No transition ever surfaced — entities never went unavailable.
+    assert seen == []
+
+
+async def test_ws_disconnect_past_debounce_flips_unavailable(hass, events):
+    """If the disconnect outlasts the 90 s window, the timer fires,
+    ws_connected flips to False, and every listener is notified once."""
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+    from pyisyox.constants import EventStreamStatus
+
+    from custom_components.udi_iox.controller_events import (
+        WS_UNAVAILABLE_DEBOUNCE_SECONDS,
+    )
+
+    seen: list[bool] = []
+    events.subscribe_ws_status(seen.append)
+
+    events._on_ws_status(EventStreamStatus.LOST_CONNECTION)
+    assert events.ws_connected is True
+    assert seen == []
+
+    # Advance HA's clock past the debounce window.
+    future = dt_util.utcnow() + timedelta(seconds=WS_UNAVAILABLE_DEBOUNCE_SECONDS + 1)
+    async_fire_time_changed(hass, future)
+    await hass.async_block_till_done()
+
+    assert events.ws_connected is False
+    assert seen == [False]
+
+    # Subsequent reconnect flips back instantly.
+    events._on_ws_status(EventStreamStatus.CONNECTED)
+    assert events.ws_connected is True
+    assert seen == [False, True]
+
+
+async def test_ws_repeat_disconnect_frames_dont_reschedule_timer(hass, events):
+    """Multiple non-CONNECTED frames during a slow reconnect mustn't
+    push the unavailable deadline back — once the timer is armed it
+    counts down without restarts."""
+    from pyisyox.constants import EventStreamStatus
+
+    events._on_ws_status(EventStreamStatus.LOST_CONNECTION)
+    handle_1 = events._ws_disconnect_timer
+    assert handle_1 is not None
+
+    events._on_ws_status(EventStreamStatus.RECONNECTING)
+    handle_2 = events._ws_disconnect_timer
+    assert handle_2 is handle_1  # same cancel callable — not rearmed
+
+    events.stop()  # avoid the lingering-timer guard
+
+
+async def test_stop_cancels_pending_ws_disconnect_timer(hass, events):
+    """``stop()`` must cancel any pending unavailable-flip timer —
+    otherwise a config-entry reload would still trigger a stale
+    unavailable signal seconds later against the new dispatcher."""
+    from pyisyox.constants import EventStreamStatus
+
+    seen: list[bool] = []
+    events.subscribe_ws_status(seen.append)
+
+    events._on_ws_status(EventStreamStatus.LOST_CONNECTION)
+    assert events._ws_disconnect_timer is not None
+
+    events.stop()
+    assert events._ws_disconnect_timer is None
+
+    # Advance the clock well past the debounce window — the cancelled
+    # timer must NOT fire.
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.udi_iox.controller_events import (
+        WS_UNAVAILABLE_DEBOUNCE_SECONDS,
+    )
+
+    future = dt_util.utcnow() + timedelta(seconds=WS_UNAVAILABLE_DEBOUNCE_SECONDS + 1)
+    async_fire_time_changed(hass, future)
+    await hass.async_block_till_done()
+
+    assert seen == []  # listener cleared by stop(); no signal fanned out
