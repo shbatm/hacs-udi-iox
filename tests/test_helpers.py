@@ -182,6 +182,28 @@ def test_load_without_sent_verbs_skips_event(isy_data, options, controller):
     assert "AA BB CC 1" not in isy_data.node_triggers
 
 
+def test_remotelinc_button_no_primary_entity_routes_to_event_only(
+    isy_data, options, controller
+):
+    """``RemoteLinc2_ADV`` is a battery-powered scene-button sub-node:
+    nodedef accepts only ``WDU`` so ``classify().controllable is None``.
+    Synthesising a primary entity would yield a broken switch / light
+    (DON would not be accepted), so the node must end up EVENT-only.
+    Regression for the user-reported bug where a paired RemoteLinc2
+    surfaced as 8 broken light entities."""
+    node = _node(
+        controller,
+        "3E FF 1F 7",
+        nodedef_id="RemoteLinc2_ADV",
+        pnode="3E FF 1F 1",
+    )
+    _categorize(isy_data, node, options, controller=controller)
+
+    assert isy_data.nodes[Platform.LIGHT] == []
+    assert isy_data.nodes[Platform.SWITCH] == []
+    assert isy_data.nodes[Platform.EVENT] == [node]
+
+
 def test_subbutton_non_insteon_not_suppressed(isy_data, options, controller):
     """The sub-button rule is Insteon-specific; Z-Wave sub-nodes (rare
     but real on multi-endpoint devices) shouldn't be silently dropped.

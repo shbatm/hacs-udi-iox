@@ -99,17 +99,40 @@ def _has_own_device(node: Node) -> bool:
     return node.primary_address is None or node.protocol == Protocol.NODE_SERVER
 
 
-def _primary_platform_for_native(node: Node) -> Platform:
-    """Pick the HA platform for a native (Insteon/Z-Wave/Zigbee) node."""
+def _primary_platform_for_native(
+    node: Node, result: ClassificationResult | None
+) -> Platform | None:
+    """Pick the HA platform for a native (Insteon/Z-Wave/Zigbee) node.
+
+    The type-introspection helpers (``is_thermostat`` / ``is_lock`` /
+    ``is_fan``) win first — they read the Insteon type triple, which
+    the nodedef-only classifier can't see (a DoorLock nodedef looks
+    like SWITCH-shaped at the cmds level; only the type ``111.5.0.0``
+    proves it's a lock). Everything else routes through the
+    classifier's ``controllable`` decision so nodes with no
+    controllable surface (RemoteLinc2_ADV scene buttons, IMETER_SOLO
+    energy meters, …) correctly resolve to **no primary entity**
+    rather than a broken switch / light entity. ``None`` means
+    "register only as EVENT (if it sends verbs) and on aux platforms";
+    callers handle that fallthrough.
+
+    The defensive ``result is None → SWITCH`` branch preserves the
+    historical behavior on a nodedef-not-yet-loaded race so the
+    integration doesn't drop a node it can't classify.
+    """
     if node.is_thermostat:
         return Platform.CLIMATE
     if node.is_lock:
         return Platform.LOCK
     if node.is_fan:
         return Platform.FAN
-    if node.is_dimmable:
-        return Platform.LIGHT
-    return Platform.SWITCH
+    if result is None:
+        # Nodedef not loaded yet — keep the historical SWITCH default
+        # rather than dropping the node entirely.
+        return Platform.SWITCH
+    if result.controllable is None:
+        return None
+    return _CONTROLLABLE_TO_HA_PLATFORM.get(result.controllable, Platform.SWITCH)
 
 
 def _classify_node(controller: Controller, node: Node) -> ClassificationResult | None:
@@ -431,19 +454,26 @@ def _categorize_nodes(
                 _register_event_node(isy_data, node, _node_trigger_commands(node))
             continue
 
-        # Native Insteon nodes: type-based introspection for the primary.
-        primary = _primary_platform_for_native(node)
+        # Native Insteon nodes: classifier-driven primary with
+        # type-introspection-first overrides for thermostat/lock/fan.
+        primary = _primary_platform_for_native(node, result)
 
-        # KeypadLinc-style sub-buttons (LED-only sub-nodes that fall
-        # through ``_primary_platform_for_native`` to SWITCH) don't
-        # control a load — only their own LED. Surface them as EVENT
-        # only, drop the would-be switch entity (and its aux commands).
+        # No primary platform: nodedef has no controllable surface at
+        # all (RemoteLinc2 scene buttons, IMETER_SOLO energy meters,
+        # PIR2844 motion sensors without on/off). Synthesising one
+        # would yield a broken entity (DON would not be accepted), so
+        # skip it and route the node onto EVENT if it sends verbs.
+        # KeypadLinc-style sub-buttons (``_ADV`` LED-only secondaries
+        # under a primary) classify as SWITCH because the LED itself
+        # accepts DON/DOF — the LED isn't a "load" most users want to
+        # toggle from HA, so suppress those primaries too and keep
+        # them on EVENT only.
         is_subnode_button = (
-            node.primary_address is not None
-            and primary == Platform.SWITCH
+            primary == Platform.SWITCH
+            and node.primary_address is not None
             and node.protocol == Protocol.INSTEON
         )
-        if is_subnode_button:
+        if primary is None or is_subnode_button:
             if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
                 _register_event_node(isy_data, node, _node_trigger_commands(node))
             continue
