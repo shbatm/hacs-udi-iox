@@ -134,23 +134,48 @@ def test_default_native_classifies_as_switch(isy_data, options, controller):
 # --- sub-button suppression -------------------------------------------
 
 
-def test_subbutton_with_parent_suppresses_switch_keeps_event(
-    isy_data, options, controller
-):
-    """KeypadLinc-style sub-button: primary_address set, classifies
-    as SWITCH, Insteon — must end up EVENT-only."""
-    node = _node(controller, "AA BB CC 2", target="subbutton", pnode="AA BB CC 1")
+def test_keypadbutton_subbutton_routes_to_event_only(isy_data, options, controller):
+    """A KeypadLinc Dimmer LED-only sub-button (``KeypadButton_ADV``)
+    has accepts = QUERY/BL/WDU — no DON. The classifier returns no
+    controllable platform, so the consumer routes it to EVENT only,
+    never as a switch / light. This is the "no controllable surface"
+    suppression path."""
+    node = _node(
+        controller, "AA BB CC 2", nodedef_id="KeypadButton_ADV", pnode="AA BB CC 1"
+    )
     _categorize(isy_data, node, options, controller=controller)
 
     assert isy_data.nodes[Platform.SWITCH] == []
+    assert isy_data.nodes[Platform.LIGHT] == []
+    assert isy_data.nodes[Platform.EVENT] == [node]
+
+
+def test_subbutton_relay_paddle_keeps_switch_classification(
+    isy_data, options, controller
+):
+    """A 2477S On/Off Switch sub-node (``RelayLampSwitch_ADV``) IS a
+    real load controller — accepts DON/DOF — and must surface as
+    SWITCH + EVENT, not be suppressed. Trust the nodedef rather than
+    second-guessing whether ``primary_address is not None`` means
+    "sub-button" — the only thing that matters is whether the device
+    actually accepts on/off commands."""
+    node = _node(
+        controller,
+        "AA BB CC 2",
+        nodedef_id="RelayLampSwitch_ADV",
+        pnode="AA BB CC 1",
+    )
+    _categorize(isy_data, node, options, controller=controller)
+
+    assert isy_data.nodes[Platform.SWITCH] == [node]
     assert isy_data.nodes[Platform.EVENT] == [node]
 
 
 def test_subbutton_dimmer_paddle_keeps_light_classification(
     isy_data, options, controller
 ):
-    """A dimmable sub-node (BRT/DIM accept commands) is a real load
-    surface, not a button — keep primary=LIGHT + parallel=EVENT."""
+    """A dimmable sub-node (``DimmerLampSwitch_ADV``) is a real load
+    surface — keep primary=LIGHT + parallel=EVENT."""
     node = _node(controller, "AA BB CC 2", target="subdimmer", pnode="AA BB CC 1")
     _categorize(isy_data, node, options, controller=controller)
 
@@ -180,6 +205,28 @@ def test_load_without_sent_verbs_skips_event(isy_data, options, controller):
     assert isy_data.nodes[Platform.SWITCH] == [node]
     assert isy_data.nodes[Platform.EVENT] == []
     assert "AA BB CC 1" not in isy_data.node_triggers
+
+
+def test_remotelinc_button_no_primary_entity_routes_to_event_only(
+    isy_data, options, controller
+):
+    """``RemoteLinc2_ADV`` is a battery-powered scene-button sub-node:
+    nodedef accepts only ``WDU`` so ``classify().controllable is None``.
+    Synthesising a primary entity would yield a broken switch / light
+    (DON would not be accepted), so the node must end up EVENT-only.
+    Regression for the user-reported bug where a paired RemoteLinc2
+    surfaced as 8 broken light entities."""
+    node = _node(
+        controller,
+        "3E FF 1F 7",
+        nodedef_id="RemoteLinc2_ADV",
+        pnode="3E FF 1F 1",
+    )
+    _categorize(isy_data, node, options, controller=controller)
+
+    assert isy_data.nodes[Platform.LIGHT] == []
+    assert isy_data.nodes[Platform.SWITCH] == []
+    assert isy_data.nodes[Platform.EVENT] == [node]
 
 
 def test_subbutton_non_insteon_not_suppressed(isy_data, options, controller):
