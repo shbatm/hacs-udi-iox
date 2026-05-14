@@ -175,3 +175,116 @@ async def test_enable_switch_translates_set_enabled_failure() -> None:
             await entity.async_turn_on()
         with pytest.raises(HomeAssistantError, match="Unable to disable device"):
             await entity.async_turn_off()
+
+
+# --- Coverage fillers: switch/group/program entity behaviours ---
+
+
+async def test_switch_entity_is_on_reflects_status() -> None:
+    """ISYSwitchEntity.is_on is True for any non-zero status, False for
+    zero, and None when the status is unparsable."""
+    from pyisyox import NodePropertyValue
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.switch import ISYSwitchEntity
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    isy_data = IsyData()
+    isy_data.root = controller
+
+    for raw, expected in [("100", True), ("0", False), (None, None)]:
+        record = make_node_record(
+            "A 1",
+            "Lamp",
+            properties={
+                "ST": NodePropertyValue(
+                    id="ST", value=raw, formatted="", uom="100", name="Status"
+                )
+            },
+        )
+        node = make_node(record, controller)
+        entity = ISYSwitchEntity(isy_data, node=node, device_info=None)
+        assert entity.is_on is expected, f"raw={raw}"
+
+
+async def test_switch_turn_on_off_success_paths() -> None:
+    """Successful turn_on / turn_off dispatch the expected wire command."""
+    from unittest.mock import AsyncMock, patch
+
+    from pyisyox import Node
+    from pyisyox.constants import CMD_OFF, CMD_ON
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.switch import ISYSwitchEntity
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Lamp"), controller)
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYSwitchEntity(isy_data, node=node, device_info=None)
+
+    send_command = AsyncMock()
+    with patch.object(Node, "send_command", new=send_command):
+        await entity.async_turn_on()
+        await entity.async_turn_off()
+    assert [c.args for c in send_command.await_args_list] == [(CMD_ON,), (CMD_OFF,)]
+
+
+async def test_switch_program_entity_round_trip() -> None:
+    """Program switch: is_on reads status program; turn_on / turn_off
+    delegate to actions program; both translate failures + success."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Program
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.switch import ISYSwitchProgramEntity
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_program_record,
+    )
+
+    controller = make_controller(make_load_result())
+    status = Program(
+        make_program_record("0001", "Status", status=True), controller._client
+    )
+    actions = Program(make_program_record("0002", "Actions"), controller._client)
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYSwitchProgramEntity(isy_data, "Scene", status, actions)
+
+    assert entity.is_on is True
+
+    with (
+        patch.object(
+            Program, "run_then", new=AsyncMock(side_effect=RuntimeError("boom"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to turn on switch program"),
+    ):
+        await entity.async_turn_on()
+    with (
+        patch.object(
+            Program, "run_else", new=AsyncMock(side_effect=RuntimeError("boom"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to turn off switch program"),
+    ):
+        await entity.async_turn_off()
+
+    with patch.object(Program, "run_then", new=AsyncMock()):
+        await entity.async_turn_on()
+    with patch.object(Program, "run_else", new=AsyncMock()):
+        await entity.async_turn_off()
