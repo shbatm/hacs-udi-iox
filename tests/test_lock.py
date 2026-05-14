@@ -37,15 +37,15 @@ async def test_lock_attrs_unknown_status_yields_none() -> None:
     from unittest.mock import AsyncMock, patch
 
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.lock import ISYLockEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.lock import ISYLockEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -71,15 +71,15 @@ async def test_lock_attrs_track_value_to_state_mapping() -> None:
     from unittest.mock import patch
 
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.lock import ISYLockEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.lock import ISYLockEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     isy_data = IsyData()
@@ -108,15 +108,15 @@ async def test_lock_secure_translates_node_command_errors() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.lock import ISYLockEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.lock import ISYLockEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("L 1", "Door"), controller)
@@ -143,15 +143,15 @@ async def test_lock_zwave_user_code_services_reject() -> None:
     """Both Z-Wave user-code services raise HomeAssistantError — these
     paths exist for service-API compatibility but aren't implemented."""
     from homeassistant.exceptions import HomeAssistantError
-
-    from custom_components.udi_iox.lock import ISYLockEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.lock import ISYLockEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("L 1", "Door"), controller)
@@ -170,10 +170,10 @@ async def test_lock_program_entity() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Program
+    from pyisyox.testing import make_controller, make_load_result, make_program_record
 
     from custom_components.udi_iox.lock import ISYLockProgramEntity
     from custom_components.udi_iox.models import IsyData
-    from tests.builders import make_controller, make_load_result, make_program_record
 
     controller = make_controller(make_load_result())
     status = Program(

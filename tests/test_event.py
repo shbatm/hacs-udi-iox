@@ -35,10 +35,10 @@ async def test_event_entities(
 def _build_event_entity(controller):
     """Build a fully-wired ISYButtonEvent for direct unit testing."""
     from pyisyox.schema.cmd import Command
+    from pyisyox.testing import make_node, make_node_record
 
     from custom_components.udi_iox.event import ISYButtonEvent
     from custom_components.udi_iox.models import IsyData
-    from tests.builders import make_node, make_node_record
 
     record = make_node_record("AA AA AA 1", "Button")
     node = make_node(record, controller)
@@ -53,8 +53,7 @@ async def test_event_on_control_fires_matching_event_type() -> None:
     from unittest.mock import patch
 
     from pyisyox import Event
-
-    from tests.builders import make_controller, make_load_result
+    from pyisyox.testing import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     entity = _build_event_entity(controller)
@@ -87,8 +86,7 @@ async def test_event_on_control_ignores_unknown_verb() -> None:
     from unittest.mock import patch
 
     from pyisyox import Event
-
-    from tests.builders import make_controller, make_load_result
+    from pyisyox.testing import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     entity = _build_event_entity(controller)
@@ -119,8 +117,7 @@ async def test_event_on_lifecycle_only_acts_on_node_enabled_for_this_address() -
     from unittest.mock import patch
 
     from pyisyox import NodeLifecycleAction, NodeLifecycleEvent
-
-    from tests.builders import make_controller, make_load_result
+    from pyisyox.testing import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     entity = _build_event_entity(controller)

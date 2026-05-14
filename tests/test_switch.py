@@ -184,15 +184,15 @@ async def test_switch_entity_is_on_reflects_status() -> None:
     """ISYSwitchEntity.is_on is True for any non-zero status, False for
     zero, and None when the status is unparsable."""
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.switch import ISYSwitchEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.switch import ISYSwitchEntity
 
     controller = make_controller(make_load_result())
     isy_data = IsyData()
@@ -219,15 +219,15 @@ async def test_switch_turn_on_off_success_paths() -> None:
 
     from pyisyox import Node
     from pyisyox.constants import CMD_OFF, CMD_ON
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.switch import ISYSwitchEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.switch import ISYSwitchEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
@@ -249,14 +249,14 @@ async def test_switch_program_entity_round_trip() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Program
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.switch import ISYSwitchProgramEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_program_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.switch import ISYSwitchProgramEntity
 
     controller = make_controller(make_load_result())
     status = Program(

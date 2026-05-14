@@ -44,14 +44,14 @@ async def test_detect_device_type_and_class_insteon_matches_known_prefix() -> No
     """An Insteon type matching one of BINARY_SENSOR_DEVICE_TYPES_ISY's
     prefixes returns its device_class + the raw type string."""
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-
-    from custom_components.udi_iox.binary_sensor import _detect_device_type_and_class
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.binary_sensor import _detect_device_type_and_class
 
     controller = make_controller(make_load_result())
     # Type 16.x.x.x is Insteon motion (TYPE_INSTEON_MOTION starts with "16.").
@@ -64,13 +64,14 @@ async def test_detect_device_type_and_class_insteon_matches_known_prefix() -> No
 
 async def test_detect_device_type_and_class_unknown_returns_none() -> None:
     """An unrecognised Insteon type returns (None, type)."""
-    from custom_components.udi_iox.binary_sensor import _detect_device_type_and_class
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.binary_sensor import _detect_device_type_and_class
 
     controller = make_controller(make_load_result())
     record = make_node_record("A 1", "Mystery", type_="99.99.99.99")
@@ -85,14 +86,14 @@ async def test_binary_sensor_entity_basic_is_on() -> None:
     None, anything truthy (incl. raw int 0 vs "0" — see below) → True
     for non-empty strings."""
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.binary_sensor import ISYBinarySensorEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.binary_sensor import ISYBinarySensorEntity
 
     controller = make_controller(make_load_result())
     # value=None → is_on None; value=1 → True; value=0 → False.
@@ -132,15 +133,15 @@ async def test_insteon_binary_sensor_handlers_drive_state() -> None:
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
     from pyisyox import Event
     from pyisyox.constants import CMD_OFF, CMD_ON
-
-    from custom_components.udi_iox.binary_sensor import (
-        ISYInsteonBinarySensorEntity,
-    )
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
+    )
+
+    from custom_components.udi_iox.binary_sensor import (
+        ISYInsteonBinarySensorEntity,
     )
 
     controller = make_controller(make_load_result())
@@ -177,15 +178,15 @@ async def test_insteon_binary_sensor_inverts_for_light_and_moisture() -> None:
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
     from pyisyox import Event
     from pyisyox.constants import CMD_ON
-
-    from custom_components.udi_iox.binary_sensor import (
-        ISYInsteonBinarySensorEntity,
-    )
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
+    )
+
+    from custom_components.udi_iox.binary_sensor import (
+        ISYInsteonBinarySensorEntity,
     )
 
     controller = make_controller(make_load_result())
@@ -217,16 +218,16 @@ async def test_insteon_binary_sensor_negative_node_attachment() -> None:
     from unittest.mock import MagicMock
 
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
-
-    from custom_components.udi_iox.binary_sensor import (
-        ISYBinarySensorHeartbeat,
-        ISYInsteonBinarySensorEntity,
-    )
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
+    )
+
+    from custom_components.udi_iox.binary_sensor import (
+        ISYBinarySensorHeartbeat,
+        ISYInsteonBinarySensorEntity,
     )
 
     controller = make_controller(make_load_result())
@@ -257,15 +258,15 @@ async def test_insteon_binary_sensor_on_update_recovers_unknown() -> None:
 
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.binary_sensor import (
-        ISYInsteonBinarySensorEntity,
-    )
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
+    )
+
+    from custom_components.udi_iox.binary_sensor import (
+        ISYInsteonBinarySensorEntity,
     )
 
     controller = make_controller(make_load_result())
@@ -300,11 +301,11 @@ async def test_insteon_binary_sensor_on_update_recovers_unknown() -> None:
 async def test_binary_sensor_program_entity_reads_status() -> None:
     """Program-driven binary sensors expose the status program's bool."""
     from pyisyox import Program
+    from pyisyox.testing import make_controller, make_load_result, make_program_record
 
     from custom_components.udi_iox.binary_sensor import (
         ISYBinarySensorProgramEntity,
     )
-    from tests.builders import make_controller, make_load_result, make_program_record
 
     controller = make_controller(make_load_result())
     status = Program(
@@ -323,16 +324,16 @@ async def test_heartbeat_entity_handles_heartbeat_and_timer(hass) -> None:
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
     from pyisyox import Event
     from pyisyox.constants import CMD_ON
-
-    from custom_components.udi_iox.binary_sensor import (
-        ISYBinarySensorHeartbeat,
-        ISYInsteonBinarySensorEntity,
-    )
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
+    )
+
+    from custom_components.udi_iox.binary_sensor import (
+        ISYBinarySensorHeartbeat,
+        ISYInsteonBinarySensorEntity,
     )
 
     controller = make_controller(make_load_result())

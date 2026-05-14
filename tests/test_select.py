@@ -43,14 +43,14 @@ def _isy_data_with(controller):
 async def test_select_options_ramp_rate_path() -> None:
     """PROP_RAMP_RATE always returns the bespoke ramp-rate option list."""
     from pyisyox.constants import PROP_RAMP_RATE
-
-    from custom_components.udi_iox.select import RAMP_RATE_OPTIONS, _select_options
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.select import RAMP_RATE_OPTIONS, _select_options
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
@@ -62,14 +62,14 @@ async def test_select_options_falls_back_to_uom_to_states() -> None:
     """When the editor has no names, fall back to UOM_TO_STATES via the
     property's UOM."""
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.select import _select_options
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.select import _select_options
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -93,14 +93,14 @@ async def test_select_options_falls_back_to_uom_to_states() -> None:
 async def test_select_options_returns_empty_when_unresolvable() -> None:
     """No ramp-rate, no editor names, no UOM_TO_STATES match → empty list."""
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.select import _select_options
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.select import _select_options
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -125,16 +125,16 @@ async def test_ramp_rate_select_entity_round_trip() -> None:
     from homeassistant.components.select import SelectEntityDescription
     from pyisyox import Node, NodePropertyValue
     from pyisyox.constants import PROP_RAMP_RATE
-
-    from custom_components.udi_iox.select import (
-        RAMP_RATE_OPTIONS,
-        ISYRampRateSelectEntity,
-    )
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
+    )
+
+    from custom_components.udi_iox.select import (
+        RAMP_RATE_OPTIONS,
+        ISYRampRateSelectEntity,
     )
 
     controller = make_controller(make_load_result())
@@ -170,16 +170,16 @@ async def test_ramp_rate_select_handles_unknown_state() -> None:
     from homeassistant.components.select import SelectEntityDescription
     from pyisyox import NodePropertyValue
     from pyisyox.constants import PROP_RAMP_RATE
-
-    from custom_components.udi_iox.select import (
-        RAMP_RATE_OPTIONS,
-        ISYRampRateSelectEntity,
-    )
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
+    )
+
+    from custom_components.udi_iox.select import (
+        RAMP_RATE_OPTIONS,
+        ISYRampRateSelectEntity,
     )
 
     controller = make_controller(make_load_result())
@@ -212,14 +212,14 @@ async def test_aux_index_select_writeonly_optimistic_round_trip() -> None:
 
     from homeassistant.components.select import SelectEntityDescription
     from pyisyox import Node
-
-    from custom_components.udi_iox.select import ISYAuxControlIndexSelectEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.select import ISYAuxControlIndexSelectEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
@@ -254,14 +254,14 @@ async def test_aux_index_select_translates_node_command_error() -> None:
     from homeassistant.components.select import SelectEntityDescription
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.select import ISYAuxControlIndexSelectEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.select import ISYAuxControlIndexSelectEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
@@ -291,14 +291,14 @@ async def test_backlight_select_translates_error_and_updates_option() -> None:
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
     from pyisyox.constants import CMD_BACKLIGHT
-
-    from custom_components.udi_iox.select import ISYBacklightSelectEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.select import ISYBacklightSelectEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Switch"), controller)
@@ -339,15 +339,15 @@ async def test_backlight_memory_write_filter() -> None:
     from homeassistant.components.select import SelectEntityDescription
     from pyisyox.constants import CMD_BACKLIGHT
     from pyisyox.schema.editor import EditorRange
-
-    from custom_components.udi_iox.const import BACKLIGHT_MEMORY_FILTER
-    from custom_components.udi_iox.select import ISYBacklightSelectEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.const import BACKLIGHT_MEMORY_FILTER
+    from custom_components.udi_iox.select import ISYBacklightSelectEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Switch"), controller)
@@ -406,14 +406,14 @@ async def test_index_select_resolves_via_editor_names() -> None:
     from pyisyox.schema.cmd import Command
     from pyisyox.schema.editor import EditorRange
     from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
-
-    from custom_components.udi_iox.select import ISYAuxControlIndexSelectEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.select import ISYAuxControlIndexSelectEntity
 
     controller = make_controller(make_load_result())
     record = make_node_record(

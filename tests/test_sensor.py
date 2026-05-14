@@ -58,15 +58,15 @@ async def test_sensor_entity_target_and_native_value() -> None:
     value when a UOM lets HA infer one."""
     from homeassistant.components.sensor import SensorEntityDescription
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.sensor import ISYSensorEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.sensor import ISYSensorEntity
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -115,15 +115,15 @@ async def test_sensor_native_value_resolves_options_dict() -> None:
     the raw int to the friendly string."""
     from homeassistant.components.sensor import SensorEntityDescription
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.sensor import ISYSensorEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.sensor import ISYSensorEntity
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -153,15 +153,15 @@ async def test_sensor_native_value_uses_formatted_for_string_types() -> None:
     display string is returned as native_value."""
     from homeassistant.components.sensor import SensorEntityDescription
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.sensor import ISYSensorEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.sensor import ISYSensorEntity
 
     controller = make_controller(make_load_result())
     record = make_node_record(

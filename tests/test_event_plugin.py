@@ -1,9 +1,10 @@
 """Snapshot test for EVENT entities derived from a PG3 plugin's cmds.sends.
 
-The bundled ``eisy6_profile.json`` is a stock-eisy capture with no PG3
-plugins, so this fixture grafts a synthetic ``PluginTriggerSource``
-nodedef (``cmds.sends = [DOORBELL_PRESS, MOTION_ON]``, no accepts) at
-runtime via ``pyisyox.testing.make_trigger_plugin_load_result``.
+The eisy6 profile bundled inside ``pyisyox.testing`` is a stock-eisy
+capture with no PG3 plugins, so this fixture grafts a synthetic
+``PluginTriggerSource`` nodedef (``cmds.sends = [DOORBELL_PRESS,
+MOTION_ON]``, no accepts) at runtime via
+``pyisyox.testing.make_trigger_plugin_load_result``.
 
 Pins: a plugin node with sent verbs but no controllable platform flows
 through ``pyisyox.classify`` → ``ClassificationResult.triggers`` →

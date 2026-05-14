@@ -145,8 +145,7 @@ async def test_set_fan_mode_translates_node_command_error() -> None:
 def _make_thermostat(controller, **prop_overrides):
     """Build a thermostat node with a configurable property bag."""
     from pyisyox import NodePropertyValue
-
-    from tests.builders import make_node, make_node_record
+    from pyisyox.testing import make_node, make_node_record
 
     defaults = {
         "ST": NodePropertyValue(
@@ -199,10 +198,10 @@ async def test_climate_reads_basic_state(hass) -> None:
     thermostat in Fahrenheit."""
     from homeassistant.components.climate import FAN_AUTO, HVACAction, HVACMode
     from homeassistant.const import UnitOfTemperature
+    from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
     from custom_components.udi_iox.models import IsyData
-    from tests.builders import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     node = _make_thermostat(controller)
@@ -226,15 +225,15 @@ async def test_climate_unknown_states_fallback(hass) -> None:
     """Missing or none-valued properties yield sensible defaults."""
     from homeassistant.components.climate import FAN_OFF, HVACMode
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.climate import ISYThermostatEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
@@ -269,11 +268,11 @@ async def test_climate_temperature_unit_celsius(hass) -> None:
     """UOM_ISY_CELSIUS on the UOM property yields the Celsius unit."""
     from homeassistant.const import UnitOfTemperature
     from pyisyox import NodePropertyValue
+    from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
     from custom_components.udi_iox.const import UOM_ISY_CELSIUS
     from custom_components.udi_iox.models import IsyData
-    from tests.builders import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     node = _make_thermostat(
@@ -296,10 +295,10 @@ async def test_climate_set_temperature_uses_correct_setpoint_per_mode(hass) -> N
 
     from homeassistant.const import ATTR_TEMPERATURE
     from pyisyox import Node
+    from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
     from custom_components.udi_iox.models import IsyData
-    from tests.builders import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     node = _make_thermostat(controller)
@@ -324,10 +323,10 @@ async def test_climate_set_fan_mode_success_path(hass) -> None:
 
     from homeassistant.components.climate import FAN_AUTO
     from pyisyox import Node
+    from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
     from custom_components.udi_iox.models import IsyData
-    from tests.builders import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     node = _make_thermostat(controller)

@@ -230,14 +230,15 @@ async def test_variable_number_pass_through_when_precision_zero() -> None:
 
 async def test_number_description_fallback_without_editor() -> None:
     """No editor + no hand-tuned override → HA defaults (0-100, step 1)."""
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.number import _number_description
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import _number_description
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
@@ -258,15 +259,15 @@ async def test_aux_on_level_set_translates_node_command_error() -> None:
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
     from pyisyox.constants import PROP_ON_LEVEL
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
@@ -297,15 +298,15 @@ async def test_aux_writeonly_control_uses_send_command_and_is_optimistic() -> No
 
     from homeassistant.components.number import NumberEntityDescription
     from pyisyox import Node
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
@@ -339,15 +340,15 @@ async def test_aux_writeonly_set_translates_node_command_error() -> None:
     from homeassistant.components.number import NumberEntityDescription
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
@@ -379,15 +380,15 @@ async def test_aux_readback_handles_unparseable_value() -> None:
     from pyisyox import NodePropertyValue
     from pyisyox.schema.cmd import Command
     from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -428,10 +429,10 @@ async def test_variable_native_value_handles_none() -> None:
     """A variable without a value yields None (no division attempted)."""
     from homeassistant.components.number import NumberEntityDescription
     from pyisyox import Variable
+    from pyisyox.testing import make_controller, make_load_result, make_variable_record
 
     from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
-    from tests.builders import make_controller, make_load_result, make_variable_record
 
     controller = make_controller(make_load_result())
     record = make_variable_record("1", "1", "MyVar", precision=2)
@@ -456,10 +457,10 @@ async def test_variable_change_filter_routes_value_and_init_separately() -> None
 
     from homeassistant.components.number import NumberEntityDescription
     from pyisyox import Variable
+    from pyisyox.testing import make_controller, make_load_result, make_variable_record
 
     from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
-    from tests.builders import make_controller, make_load_result, make_variable_record
 
     controller = make_controller(make_load_result())
     record = make_variable_record("1", "1", "MyVar")
@@ -499,10 +500,10 @@ async def test_variable_set_native_value_translates_error() -> None:
     from homeassistant.components.number import NumberEntityDescription
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Variable
+    from pyisyox.testing import make_controller, make_load_result, make_variable_record
 
     from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
-    from tests.builders import make_controller, make_load_result, make_variable_record
 
     controller = make_controller(make_load_result())
     variable = Variable(make_variable_record("1", "1", "MyVar"), controller._client)
@@ -532,15 +533,15 @@ async def test_backlight_set_native_value_translates_error() -> None:
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
     from pyisyox.constants import CMD_BACKLIGHT
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.number import ISYBacklightNumberEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import ISYBacklightNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Switch"), controller)
@@ -571,16 +572,16 @@ async def test_backlight_memory_write_filter() -> None:
 
     from homeassistant.components.number import NumberEntityDescription
     from pyisyox.constants import CMD_BACKLIGHT
-
-    from custom_components.udi_iox.const import BACKLIGHT_MEMORY_FILTER
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.number import ISYBacklightNumberEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.const import BACKLIGHT_MEMORY_FILTER
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import ISYBacklightNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Switch"), controller)

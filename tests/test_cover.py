@@ -2,10 +2,11 @@
 
 Cover classification only fires for **plugin** nodes whose nodedef
 accepts ``FDUP`` / ``FDDOWN`` / ``FDSTOP`` *without* ``DON`` / ``DOF``
-(otherwise pyisyox's classifier picks light or switch). The bundled
-``eisy6_profile.json`` is a real anonymized capture of a stock eisy
-which has no PG3 plugins, so cover-test fixtures inject a synthetic
-plugin slot at runtime via ``pyisyox.testing.make_cover_load_result``.
+(otherwise pyisyox's classifier picks light or switch). The eisy6
+profile bundled inside ``pyisyox.testing`` is a real anonymized
+capture of a stock eisy which has no PG3 plugins, so cover-test
+fixtures inject a synthetic plugin slot at runtime via
+``pyisyox.testing.make_cover_load_result``.
 
 Pin: ``Platform.COVER`` entity creation flowing through the real
 ``pyisyox.classify`` → ``ControllablePlatform.COVER`` →
@@ -61,15 +62,15 @@ async def test_cover_attrs_unknown_status_yields_none() -> None:
     """When the node has no usable status the cover reports neither
     position nor closed-state."""
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.cover import ISYCoverEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -94,15 +95,15 @@ async def test_cover_attrs_unknown_status_yields_none() -> None:
 async def test_cover_attrs_byte_range_scales_to_percent() -> None:
     """A UOM-100 (raw byte 0-255) status scales to a 0-100 position."""
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.cover import ISYCoverEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -127,15 +128,15 @@ async def test_cover_attrs_byte_range_scales_to_percent() -> None:
 async def test_cover_attrs_percent_status_clamped() -> None:
     """A UOM-51 percent status is clamped into [0, 100]."""
     from pyisyox import NodePropertyValue
-
-    from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.cover import ISYCoverEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -162,15 +163,15 @@ async def test_cover_open_close_translate_node_command_errors() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.cover import ISYCoverEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("C 1", "Roller"), controller)
@@ -200,15 +201,15 @@ async def test_cover_set_position_scales_for_byte_editor() -> None:
 
     from pyisyox import Node
     from pyisyox.schema.editor import EditorRange
-
-    from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.cover import ISYCoverEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("C 1", "Shade"), controller)
@@ -234,15 +235,15 @@ async def test_cover_set_position_passes_through_for_percent_editor() -> None:
 
     from pyisyox import Node
     from pyisyox.schema.editor import EditorRange
-
-    from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.cover import ISYCoverEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("C 1", "Shade"), controller)
@@ -267,15 +268,15 @@ async def test_cover_set_position_translates_node_command_error() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.cover import ISYCoverEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("C 1", "Shade"), controller)
@@ -299,10 +300,10 @@ async def test_cover_program_entity() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Program
+    from pyisyox.testing import make_controller, make_load_result, make_program_record
 
     from custom_components.udi_iox.cover import ISYCoverProgramEntity
     from custom_components.udi_iox.models import IsyData
-    from tests.builders import make_controller, make_load_result, make_program_record
 
     controller = make_controller(make_load_result())
     status = Program(
