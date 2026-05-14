@@ -25,6 +25,7 @@ import homeassistant.helpers.device_registry as dr
 import homeassistant.helpers.entity_registry as er
 import homeassistant.helpers.issue_registry as ir
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 from pyisyox import (
     Controller,
     Event,
@@ -33,11 +34,21 @@ from pyisyox import (
     ProgramStatusEvent,
     SystemEventControl,
 )
+from pyisyox.constants import EventStreamStatus
 
 from .const import _LOGGER, DOMAIN, EVENT_UDI_IOX_CONTROL
 from .models import IsyData
 
 ISSUE_LIFECYCLE_RELOAD = "lifecycle_reload_required"
+
+#: Seconds to wait after a non-CONNECTED status before reporting entities
+#: unavailable. The eisy emits a heartbeat every 30 s and pyisyox flags a
+#: stream stale at ~60 s; brief reconnects within ~30 s of that window
+#: are common (TLS-renegotiate, brief Wi-Fi hiccup, controller-side
+#: reload). Reconnection during the debounce cancels the unavailable
+#: flip entirely so the user never sees the flicker. Reconnect itself
+#: is reported instantly — recovering availability fast is always fine.
+WS_UNAVAILABLE_DEBOUNCE_SECONDS = 90
 
 #: Per-property callback. Receives the raw ``Event`` from pyisyox.
 NodeEventCallback = Callable[[Event], None]
@@ -49,6 +60,9 @@ VariableEventCallback = Callable[[int | None, int | None], None]
 #: Per-program callback. Receives the ``ProgramStatusEvent`` after
 #: the matching ``ProgramRecord`` has been mutated in place.
 ProgramEventCallback = Callable[[ProgramStatusEvent], None]
+#: WS status callback. Receives the new connected flag (``True`` when the
+#: event stream is up, ``False`` for every other status).
+WsStatusCallback = Callable[[bool], None]
 
 # Action codes carried inside a ``SystemEventControl.TRIGGER`` (``_1``)
 # frame. pyisyox 6.0.0a2 keeps these private to the dispatcher — we
@@ -102,12 +116,32 @@ class IsyControllerEvents:
         # unpadded id ("8D") to the 4-character form ("008D") before
         # firing the listener, so consumers key on the 4-character id.
         self._program_listeners: dict[str, list[ProgramEventCallback]] = {}
+        # WS-status listeners — fan out the {connected: bool} signal
+        # entities use for the silver entity-unavailable rule.
+        self._ws_status_listeners: list[WsStatusCallback] = []
+        # Seed from the current WS status if the stream is already up
+        # by the time we wire in; later status frames correct as needed.
+        ws = controller.websocket
+        self._ws_connected: bool = ws.connected if ws is not None else True
+        # Pending unavailable-flip timer. Set when the WS goes non-
+        # CONNECTED so a brief blip-and-reconnect doesn't bounce every
+        # entity through unavailable. Cleared on reconnect (within the
+        # debounce window) or when it actually fires.
+        self._ws_disconnect_timer: Callable[[], None] | None = None
 
         self._unsubscribe: list[Callable[[], None]] = [
             controller.add_event_listener(self._on_event),
             controller.add_node_lifecycle_listener(self._on_lifecycle),
             controller.add_program_status_listener(self._on_program_status),
         ]
+        # ``Controller.add_status_listener`` errors out if the WS reader
+        # isn't running yet. Tests that build a controller without
+        # starting the WS (``start_websocket=False``) skip the
+        # subscription — entities default to ``_ws_connected=True``
+        # there, which matches the test fixture's "everything available"
+        # expectation.
+        if ws is not None:
+            self._unsubscribe.append(controller.add_status_listener(self._on_ws_status))
 
     # --- subscription API for entities -----------------------------------
 
@@ -228,6 +262,38 @@ class IsyControllerEvents:
         return _unsubscribe
 
     @callback
+    def subscribe_ws_status(self, listener: WsStatusCallback) -> Callable[[], None]:
+        """Register a callback for WS connected/disconnected flips.
+
+        Fires only on a true edge — repeat status frames carrying the
+        same connected value are deduped. Listener is invoked with the
+        new ``connected: bool``; entities just call
+        :meth:`Entity.async_write_ha_state` so HA re-reads ``available``.
+        """
+        self._ws_status_listeners.append(listener)
+
+        def _unsubscribe() -> None:
+            try:
+                self._ws_status_listeners.remove(listener)
+            except ValueError:
+                return
+
+        return _unsubscribe
+
+    @property
+    def ws_connected(self) -> bool:
+        """Whether the event stream is currently up.
+
+        Entities AND this with their own enabled state to decide
+        availability. Initialised optimistically (``True`` if the
+        controller's WS isn't constructed yet, else its live
+        ``connected`` flag) so entities don't briefly flicker
+        unavailable during startup before the first status frame
+        lands.
+        """
+        return self._ws_connected
+
+    @callback
     def stop(self) -> None:
         """Drop all controller subscriptions."""
         for unsub in self._unsubscribe:
@@ -237,6 +303,10 @@ class IsyControllerEvents:
         self._lifecycle_listeners.clear()
         self._variable_listeners.clear()
         self._program_listeners.clear()
+        self._ws_status_listeners.clear()
+        if self._ws_disconnect_timer is not None:
+            self._ws_disconnect_timer()
+            self._ws_disconnect_timer = None
 
     # --- pyisyox listener entry points -----------------------------------
 
@@ -392,6 +462,84 @@ class IsyControllerEvents:
                 listener(event)
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("IoX program listener for %s raised", event.address)
+
+    @callback
+    def _on_ws_status(self, status: EventStreamStatus) -> None:
+        """Track WS connected/disconnected transitions and fan out.
+
+        Translates the multi-state ``EventStreamStatus`` (NOT_STARTED,
+        INITIALIZING, RECONNECTING, LOST_CONNECTION, ...) to a single
+        ``connected: bool`` for the rest of the integration. The eisy
+        is known to drop and reconnect within seconds, so non-CONNECTED
+        transitions are debounced by
+        :data:`WS_UNAVAILABLE_DEBOUNCE_SECONDS`: if the stream
+        reconnects within that window we never tell entities anything
+        happened. Reconnect is reported instantly. Logs warning on the
+        actual unavailable flip and info on each reconnect — covers
+        the silver ``log-when-unavailable`` rule.
+        """
+        actually_connected = status == EventStreamStatus.CONNECTED
+
+        if actually_connected:
+            # Reconnect: cancel any pending unavailable flip; if
+            # entities were already flipped to unavailable, flip them
+            # back now.
+            if self._ws_disconnect_timer is not None:
+                self._ws_disconnect_timer()
+                self._ws_disconnect_timer = None
+            if self._ws_connected:
+                return
+            self._ws_connected = True
+            _LOGGER.info(
+                "IoX event stream reconnected (%s)",
+                self.isy_data.root.config.uuid,
+            )
+            self._fan_out_ws_status(True)
+            return
+
+        # Non-CONNECTED frame. We're already disconnected: nothing
+        # changes for entities. (The status enum may flip among the
+        # various non-CONNECTED values during a slow reconnect; we
+        # don't act on those.)
+        if not self._ws_connected:
+            return
+        # Already scheduled a flip; don't reschedule.
+        if self._ws_disconnect_timer is not None:
+            return
+        self._ws_disconnect_timer = async_call_later(
+            self.hass,
+            WS_UNAVAILABLE_DEBOUNCE_SECONDS,
+            self._fire_ws_unavailable,
+        )
+        _LOGGER.debug(
+            "IoX event stream non-CONNECTED (status=%s); marking "
+            "entities unavailable in %ds unless it recovers",
+            status.value,
+            WS_UNAVAILABLE_DEBOUNCE_SECONDS,
+        )
+
+    @callback
+    def _fire_ws_unavailable(self, _now: object) -> None:
+        """Debounce timer fired without a reconnect — flip unavailable."""
+        self._ws_disconnect_timer = None
+        if not self._ws_connected:
+            return
+        self._ws_connected = False
+        _LOGGER.warning(
+            "IoX event stream did not reconnect within %ds — entities "
+            "for controller %s now report unavailable",
+            WS_UNAVAILABLE_DEBOUNCE_SECONDS,
+            self.isy_data.root.config.uuid,
+        )
+        self._fan_out_ws_status(False)
+
+    def _fan_out_ws_status(self, connected: bool) -> None:
+        """Invoke every subscribed WS-status listener."""
+        for listener in tuple(self._ws_status_listeners):
+            try:
+                listener(connected)
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("IoX ws-status listener raised")
 
     @callback
     def _raise_reload_repair(self, event: NodeLifecycleEvent, verb: str) -> None:

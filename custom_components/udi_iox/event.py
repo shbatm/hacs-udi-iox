@@ -126,6 +126,7 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
             events.subscribe_node(self._node.address, None, self._on_control)
         )
         self._unsubscribers.append(events.subscribe_lifecycle(self._on_lifecycle))
+        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
 
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:

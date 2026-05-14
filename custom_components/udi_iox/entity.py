@@ -127,17 +127,35 @@ class ISYEntity(Entity):
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to events for this node via the central registry."""
+        events = self._isy_data.controller_events
         self._unsubscribers.append(
-            self._isy_data.controller_events.subscribe_node(
-                self._node_address(), None, self._on_node_event
-            )
+            events.subscribe_node(self._node_address(), None, self._on_node_event)
         )
+        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
 
     async def async_will_remove_from_hass(self) -> None:
         """Unsubscribe from node events."""
         for unsub in self._unsubscribers:
             unsub()
         self._unsubscribers.clear()
+
+    @property
+    def available(self) -> bool:
+        """Combine entity-local enabled state with WS health.
+
+        An entity is available only if (a) its local availability flag
+        is set — for node-backed entities this tracks ``node.enabled``
+        from the controller; for stateless entities (groups, programs,
+        network resources) it's True by default — AND (b) the event
+        stream is currently connected. When the WS drops, every entity
+        flips unavailable so a stale value isn't acted on; the silver
+        ``log-when-unavailable`` warning is emitted once per transition
+        from :class:`IsyControllerEvents._on_ws_status`.
+        """
+        events = getattr(self._isy_data, "controller_events", None)
+        if events is not None and not events.ws_connected:
+            return False
+        return self._attr_available
 
     @callback
     def _on_node_event(self, event: Event) -> None:
@@ -149,6 +167,16 @@ class ISYEntity(Entity):
         override this method directly.
         """
         self.async_on_update(event, self.unique_id or "")
+
+    @callback
+    def _on_ws_status(self, connected: bool) -> None:
+        """Refresh HA state when the WS stream flips connected/disconnected.
+
+        ``available`` is computed dynamically from
+        ``controller_events.ws_connected`` so we don't need to mutate
+        ``_attr_available`` — just rerender so HA picks up the new value.
+        """
+        self.async_write_ha_state()
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:
@@ -259,7 +287,9 @@ class ISYNodeEntity(ISYEntity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to property changes for this node's control + the
         node-enabled lifecycle so we can flip ``available`` when the
-        controller (de)activates the device."""
+        controller (de)activates the device. Also subscribe to WS-status
+        flips so a dropped event stream marks the entity unavailable
+        (silver ``entity-unavailable`` rule)."""
         events = self._isy_data.controller_events
         self._unsubscribers.append(
             events.subscribe_node(
@@ -267,6 +297,7 @@ class ISYNodeEntity(ISYEntity):
             )
         )
         self._unsubscribers.append(events.subscribe_lifecycle(self._on_lifecycle))
+        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
 
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:
@@ -479,11 +510,11 @@ class ISYProgramEntity(ISYEntity):
         ``subscribe_program`` channel.
         """
         program: Program = self._node  # type: ignore[assignment]
+        events = self._isy_data.controller_events
         self._unsubscribers.append(
-            self._isy_data.controller_events.subscribe_program(
-                program.address, self._on_program_status
-            )
+            events.subscribe_program(program.address, self._on_program_status)
         )
+        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
 
     @callback
     def _on_program_status(self, event: object) -> None:
