@@ -53,6 +53,19 @@
       "unsupported_firmware": "This integration requires IoX firmware 6.x or newer. The discovered controller is running an older firmware that pyisyox does not support."
     }
   },
+  "device_automation": {
+    "trigger_type": {
+      "brighten": "{entity_name} was switched Brighten",
+      "dim": "{entity_name} was switched Dim",
+      "fade_down": "{entity_name} was switched Fade Down",
+      "fade_stop": "{entity_name} was switched Fade Stop",
+      "fade_up": "{entity_name} was switched Fade Up",
+      "fast_off": "{entity_name} was switched Fast Off",
+      "fast_on": "{entity_name} was switched Fast On",
+      "off": "{entity_name} was switched Off",
+      "on": "{entity_name} was switched On"
+    }
+  },
   "entity": {
     "binary_sensor": {
       "program_status": { "name": "Status" }
