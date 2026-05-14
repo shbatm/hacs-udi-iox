@@ -101,3 +101,145 @@ async def test_command_button_translates_node_command_error() -> None:
         pytest.raises(HomeAssistantError, match="Unable to send DISCOVER"),
     ):
         await button.async_press()
+
+
+async def test_beep_button_translates_node_command_error() -> None:
+    """BEEP button surfaces NodeCommandError as HomeAssistantError."""
+    from unittest.mock import AsyncMock, patch
+
+    import pytest
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Node, NodeCommandError
+
+    from custom_components.udi_iox.button import ISYNodeBeepButtonEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
+    isy_data = IsyData()
+    button = ISYNodeBeepButtonEntity(
+        isy_data,
+        node,
+        name="Beep",
+        unique_id="x_beep",
+        device_info=None,  # type: ignore[arg-type]
+    )
+    with (
+        patch.object(
+            Node, "send_command", new=AsyncMock(side_effect=NodeCommandError("nope"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to beep node"),
+    ):
+        await button.async_press()
+
+
+async def test_query_button_translates_node_command_error() -> None:
+    """Node-target Query button surfaces NodeCommandError as HomeAssistantError
+    using the node address (not the button's HA name)."""
+    from unittest.mock import AsyncMock, patch
+
+    import pytest
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Node, NodeCommandError
+
+    from custom_components.udi_iox.button import ISYNodeQueryButtonEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
+    isy_data = IsyData()
+    button = ISYNodeQueryButtonEntity(
+        isy_data,
+        node=node,
+        name="Query",
+        unique_id="x_query",
+        device_info=None,  # type: ignore[arg-type]
+    )
+    with (
+        patch.object(
+            Node, "send_command", new=AsyncMock(side_effect=NodeCommandError("nope"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to query node AA AA AA 1"),
+    ):
+        await button.async_press()
+
+
+async def test_query_button_translates_controller_refresh_failure() -> None:
+    """Controller-target Query button surfaces a broad-except as
+    HomeAssistantError using the controller's UUID."""
+    from unittest.mock import AsyncMock, patch
+
+    import pytest
+    from homeassistant import exceptions as ha_exceptions
+    from pyisyox import Controller
+
+    from custom_components.udi_iox.button import ISYNodeQueryButtonEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import make_controller, make_load_result
+
+    controller = make_controller(make_load_result())
+    isy_data = IsyData()
+    button = ISYNodeQueryButtonEntity(
+        isy_data,
+        node=controller,
+        name="Query",
+        unique_id="x_query",
+        device_info=None,  # type: ignore[arg-type]
+    )
+    with (
+        patch.object(
+            Controller, "refresh", new=AsyncMock(side_effect=RuntimeError("boom"))
+        ),
+        pytest.raises(
+            ha_exceptions.HomeAssistantError, match="Unable to refresh controller"
+        ),
+    ):
+        await button.async_press()
+
+
+async def test_network_resource_button_translates_run_failure() -> None:
+    """Network-resource button surfaces a broad-except as HomeAssistantError."""
+    from unittest.mock import AsyncMock, patch
+
+    import pytest
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import NetworkResource
+
+    from custom_components.udi_iox.button import ISYNetworkResourceButtonEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_network_resource_record,
+    )
+
+    controller = make_controller(make_load_result())
+    record = make_network_resource_record("1", "Doorbell")
+    resource = NetworkResource(record, controller._client)
+    isy_data = IsyData()
+    button = ISYNetworkResourceButtonEntity(
+        isy_data,
+        node=resource,
+        name=resource.name,
+        unique_id="x_netres",
+        device_info=None,  # type: ignore[arg-type]
+    )
+    with (
+        patch.object(
+            NetworkResource, "run", new=AsyncMock(side_effect=RuntimeError("boom"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to run network resource"),
+    ):
+        await button.async_press()

@@ -126,3 +126,38 @@ async def test_set_percentage_translates_node_command_error() -> None:
             await entity.async_set_percentage(50)
         with pytest.raises(HomeAssistantError, match="Unable to turn off fan"):
             await entity.async_turn_off()
+
+
+async def test_fan_program_translates_run_failure() -> None:
+    """A failure in the actions program's run_then/run_else becomes
+    HomeAssistantError (broad-except: the program-run surface can
+    raise more than NodeCommandError)."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Program
+
+    from custom_components.udi_iox.fan import ISYFanProgramEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import make_controller, make_load_result, make_program_record
+
+    controller = make_controller(make_load_result())
+    status = Program(make_program_record("0001", "Status"), controller._client)
+    actions = Program(make_program_record("0002", "Actions"), controller._client)
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYFanProgramEntity(isy_data, "Fan", status, actions)
+    with (
+        patch.object(
+            Program, "run_then", new=AsyncMock(side_effect=RuntimeError("boom"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to turn on fan program"),
+    ):
+        await entity.async_turn_on()
+    with (
+        patch.object(
+            Program, "run_else", new=AsyncMock(side_effect=RuntimeError("boom"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to turn off fan program"),
+    ):
+        await entity.async_turn_off()

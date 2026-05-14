@@ -65,3 +65,75 @@ async def test_set_hvac_mode_translates_node_command_error() -> None:
         pytest.raises(HomeAssistantError, match="Unable to set HVAC mode"),
     ):
         await entity.async_set_hvac_mode(HVACMode.HEAT)
+
+
+async def test_set_temperature_translates_node_command_error() -> None:
+    """A controller-side rejection on setpoint write becomes
+    HomeAssistantError."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Node, NodeCommandError
+
+    from custom_components.udi_iox.climate import ISYThermostatEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(
+        make_node_record("T 1", "Thermostat", nodedef_id="Thermostat"),
+        controller,
+    )
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYThermostatEntity(isy_data, node, device_info=None)
+    with (
+        patch.object(
+            Node,
+            "set_climate_setpoint_heat",
+            new=AsyncMock(side_effect=NodeCommandError("nope")),
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to set temperature"),
+    ):
+        await entity.async_set_temperature(target_temp_low=70)
+
+
+async def test_set_fan_mode_translates_node_command_error() -> None:
+    """A controller-side rejection on fan-mode set becomes HomeAssistantError."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.components.climate import FAN_AUTO
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Node, NodeCommandError
+
+    from custom_components.udi_iox.climate import ISYThermostatEntity
+    from custom_components.udi_iox.models import IsyData
+    from tests.builders import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(
+        make_node_record("T 1", "Thermostat", nodedef_id="Thermostat"),
+        controller,
+    )
+    isy_data = IsyData()
+    isy_data.root = controller
+    entity = ISYThermostatEntity(isy_data, node, device_info=None)
+    with (
+        patch.object(
+            Node,
+            "set_fan_mode",
+            new=AsyncMock(side_effect=NodeCommandError("nope")),
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to set fan mode"),
+    ):
+        await entity.async_set_fan_mode(FAN_AUTO)

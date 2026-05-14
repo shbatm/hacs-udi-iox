@@ -101,13 +101,6 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         # reported yet.
         status = self._node.status
         self._uom = status.uom if status is not None else ""
-        self._hvac_action: str | None = None
-        self._hvac_mode: str | None = None
-        self._fan_mode: str | None = None
-        self._temp_unit = None
-        self._current_humidity = 0
-        self._target_temp_low = 0
-        self._target_temp_high = 0
 
     @property
     def temperature_unit(self) -> str:
@@ -218,10 +211,8 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
                 # the editor codec — pass the float directly so half-degree
                 # setpoints round-trip correctly.
                 await self._node.set_climate_setpoint_heat(target_temp_low)
-                self._target_temp_low = target_temp_low
             if target_temp_high is not None:
                 await self._node.set_climate_setpoint_cool(target_temp_high)
-                self._target_temp_high = target_temp_high
         except NodeCommandError as err:
             raise HomeAssistantError(
                 f"Unable to set temperature on {self._node.address}: {err}"
@@ -237,7 +228,6 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
             raise HomeAssistantError(
                 f"Unable to set fan mode on {self._node.address}: {err}"
             ) from err
-        self._fan_mode = fan_mode
         self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -249,5 +239,4 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
             raise HomeAssistantError(
                 f"Unable to set HVAC mode on {self._node.address}: {err}"
             ) from err
-        self._hvac_mode = hvac_mode
         self.async_write_ha_state()

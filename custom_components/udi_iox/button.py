@@ -207,15 +207,22 @@ class ISYNodeQueryButtonEntity(ISYNodeButtonEntity):
 
     async def async_press(self) -> None:
         """Press the button."""
-        try:
-            if isinstance(self._node, Controller):
+        if isinstance(self._node, Controller):
+            target = self._node.config.uuid
+            try:
                 await self._node.refresh()
-            else:
+            except Exception as err:  # pylint: disable=broad-except
+                raise HomeAssistantError(
+                    f"Unable to refresh controller {target}: {err}"
+                ) from err
+        else:
+            target = self._node.address
+            try:
                 await self._node.send_command("QUERY")
-        except Exception as err:  # pylint: disable=broad-except
-            raise HomeAssistantError(
-                f"Unable to query {self._attr_name or 'controller'}: {err}"
-            ) from err
+            except NodeCommandError as err:
+                raise HomeAssistantError(
+                    f"Unable to query node {target}: {err}"
+                ) from err
 
 
 class ISYNodeBeepButtonEntity(ISYNodeButtonEntity):

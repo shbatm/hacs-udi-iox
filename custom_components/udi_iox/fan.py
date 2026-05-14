@@ -136,18 +136,14 @@ class ISYFanEntity(ISYNodeEntity, FanEntity):
 
     async def async_set_percentage(self, percentage: int) -> None:
         """Set the fan to a speed percentage."""
+        if percentage == 0:
+            await self.async_turn_off()
+            return
+        if self._ordered_speeds is not None:
+            value = percentage_to_ordered_list_item(self._ordered_speeds, percentage)
+        else:
+            value = math.ceil(percentage_to_ranged_value(self._speed_range, percentage))
         try:
-            if percentage == 0:
-                await self._node.send_command(CMD_OFF)
-                return
-            if self._ordered_speeds is not None:
-                value = percentage_to_ordered_list_item(
-                    self._ordered_speeds, percentage
-                )
-            else:
-                value = math.ceil(
-                    percentage_to_ranged_value(self._speed_range, percentage)
-                )
             await self._node.send_command(CMD_ON, value)
         except NodeCommandError as err:
             raise HomeAssistantError(
