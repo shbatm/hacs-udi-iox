@@ -81,18 +81,57 @@ rules:
   config-entry-unloading:
     status: done
     comment: async_unload_entry stops the controller and unloads platforms.
-  docs-configuration-parameters: todo
-  docs-installation-parameters: todo
-  entity-unavailable:
-    status: todo
+  docs-configuration-parameters:
+    status: done
     comment: |
-      Entities only track node.enabled (the enable switch is
-      intentionally always available); availability isn't yet wired to
-      the controller's WebSocket-stream / connection health, so a
-      dropped event stream leaves entities "available" with stale state.
+      The ``Configuration`` section of README.md documents every
+      option-flow field (sensor_string, ignore_string,
+      restore_light_state, enable_variables, enable_programs,
+      enable_networking) with its default and behaviour. All six are
+      also surfaced with ``data_description`` strings in strings.json
+      so HA renders inline help on the Options dialog itself.
+  docs-installation-parameters:
+    status: done
+    comment: |
+      The ``Installation`` section of README.md documents every
+      setup-flow field — Prerequisites lists what to gather before
+      starting (UD portal account + controller URL) and the Setup
+      Parameters table covers host / username / password /
+      verify_ssl with their defaults and where to source each value.
+      SSDP/DHCP discovery and the reauth flow are documented in
+      adjacent subsections.
+  entity-unavailable:
+    status: done
+    comment: |
+      Entity ``available`` is now ``node.enabled AND ws_connected``.
+      ``IsyControllerEvents`` subscribes to the controller's WS status
+      and fans the connected flag to every entity. The disconnect
+      transition is debounced by 90 s — the eisy is known to blip and
+      reconnect within seconds, and reporting unavailable on every
+      transient hiccup would just flicker the UI. Reconnect itself is
+      reported instantly. The enable switch overrides the
+      ``node.enabled`` half (else there'd be no way to re-enable a
+      disabled node) but still respects WS health.
   integration-owner: done
-  log-when-unavailable: todo
-  parallel-updates: todo
+  log-when-unavailable:
+    status: done
+    comment: |
+      ``IsyControllerEvents._on_ws_status`` logs a single warning when
+      the 90 s debounce fires (entities flipped unavailable) and an
+      info when the stream reconnects. Transient blips that recover
+      within the debounce window are logged at DEBUG only — no spam.
+  parallel-updates:
+    status: done
+    comment: |
+      ``PARALLEL_UPDATES = 0`` at module top on every platform. The
+      integration is push-based (no entity-update I/O — state is
+      driven by the WebSocket event stream), AND the eisy on current
+      IoX 6+ firmware queues / throttles parallel writes internally
+      (empirical finding during pyisyox v6 development). pyisyox
+      dropped its own per-host semaphore for this same reason — the
+      legacy ``connection.py`` had ``asyncio.Semaphore(...)``; the
+      v6 ``client.py`` rewrite has none. So there's no benefit to
+      limiting action concurrency on the HA side either.
   reauthentication-flow:
     status: done
     comment: config_flow implements async_step_reauth / async_step_reauth_confirm.

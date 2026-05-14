@@ -56,6 +56,8 @@ DEVICE_PARENT_REQUIRED = [
     BinarySensorDeviceClass.MOTION,
 ]
 
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

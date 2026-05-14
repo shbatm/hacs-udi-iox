@@ -37,6 +37,8 @@ from .models import IsyConfigEntry, IsyData
 #: dimmer-style fan it's a 0-100 (or editor-``max``) range.
 SPEED_RANGE_FALLBACK = (1, 100)  # off is not included
 
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

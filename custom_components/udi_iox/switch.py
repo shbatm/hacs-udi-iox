@@ -28,6 +28,8 @@ from .entity import (
 )
 from .models import IsyConfigEntry, IsyData
 
+PARALLEL_UPDATES = 0
+
 
 @dataclass
 class ISYSwitchEntityDescription(SwitchEntityDescription):
@@ -215,15 +217,12 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
 
     @property
     def available(self) -> bool:
-        """The enable switch is *always* available.
-
-        The base ``ISYNodeEntity`` ties availability to ``node.enabled``
-        so a disabled node's entities drop out — but then there'd be no
-        way to switch this one back on. Pin it to ``True`` regardless of
-        what the inherited control / lifecycle handlers set
-        ``_attr_available`` to.
-        """
-        return True
+        """The enable switch ignores ``node.enabled`` (else there'd be
+        no way to re-enable a disabled node), but still respects WS
+        health — when the event stream is down the controller is
+        unreachable and the command would fail anyway."""
+        events = getattr(self._isy_data, "controller_events", None)
+        return True if events is None else events.ws_connected
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:

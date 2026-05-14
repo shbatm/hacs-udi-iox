@@ -23,6 +23,8 @@ from .models import IsyConfigEntry
 
 VALUE_TO_STATE = {0: False, 100: True}
 
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
