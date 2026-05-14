@@ -7,3 +7,6 @@ logger:
     custom_components.udi_iox: debug
 # If you need to debug uncomment the line below (doc: https://www.home-assistant.io/integrations/debugpy/)
 # debugpy:
+
+# The configuration required for the UI to work
+automation: !include automations.yaml

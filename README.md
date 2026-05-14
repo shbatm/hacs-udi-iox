@@ -72,6 +72,43 @@ All of these are revisitable at any time via **Settings → Devices & Services �
 
 If you change your Universal Devices portal password the integration will detect the failed login on the next refresh and surface a Repair card prompting you to reauthenticate. The reauth flow asks for the username + password only — the host stays as-is.
 
+## Automations on button presses
+
+Insteon KeypadLinc accessory buttons (and any nodedef with a `cmds.sends`
+list — most Insteon load/dimmer controls and many PG3 plugin sources)
+are exposed as `event` entities. Each press updates the entity's state
+timestamp and sets its `event_type` attribute (`on`, `off`, `fast_on`,
+`fast_off`, `fade_up`, `fade_down`, `fade_stop`, …).
+
+**Use a device trigger for "fire on every press."** Settings →
+Automations & Scenes → Create Automation → When → Add trigger → Device,
+pick the KeypadLinc / SwitchLinc / etc., and choose e.g. *"… was switched
+On"*. This fires every time the button is pressed, even when the previous
+press was the same type — which is the behaviour most Insteon users
+expect.
+
+Equivalent YAML:
+
+```yaml
+trigger:
+  - platform: device
+    domain: udi_iox
+    device_id: <copy from the UI>
+    entity_id: event.hallway_keypad_b
+    type: "on"
+action:
+  - service: light.toggle
+    target:
+      entity_id: light.kitchen_main
+```
+
+**Why not a state trigger?** A state trigger configured with `attribute:
+event_type` and `to: "on"` only fires when the attribute *changes*: pressing
+the same button twice in a row is the same `event_type` value both times,
+so the second press is silently dropped. The device trigger above sidesteps
+this by matching against the new state's `event_type` on every update,
+not just transitions.
+
 ## Supported devices
 
 The integration surfaces every device on your controller — Insteon, Z-Wave, Zigbee, Matter, and any [PG3 node-server plugin](https://www.universal-devices.com/polyglot/) you have installed. HA platform routing is driven by `pyisyox`'s classifier reading each device's nodedef, not a hard-coded table.
