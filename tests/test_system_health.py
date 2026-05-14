@@ -17,9 +17,10 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+from pyisyox.testing import make_controller, make_load_result
+
 from custom_components.udi_iox.models import IsyData
 from custom_components.udi_iox.system_health import system_health_info
-from tests.builders import make_controller, make_load_result
 
 
 async def _wire_entry_with_controller(

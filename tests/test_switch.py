@@ -37,17 +37,17 @@ async def test_enable_switch_toggles_node_enabled() -> None:
     from homeassistant.components.switch import SwitchDeviceClass
     from homeassistant.const import EntityCategory
     from pyisyox.constants import TAG_ENABLED
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
 
     from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import (
         ISYEnableSwitchEntity,
         ISYSwitchEntityDescription,
-    )
-    from tests.builders import (
-        make_controller,
-        make_load_result,
-        make_node,
-        make_node_record,
     )
 
     controller = make_controller(make_load_result())
@@ -87,17 +87,17 @@ async def test_enable_switch_always_available_and_tracks_record() -> None:
     from homeassistant.components.switch import SwitchDeviceClass
     from homeassistant.const import EntityCategory
     from pyisyox.constants import TAG_ENABLED
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
 
     from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import (
         ISYEnableSwitchEntity,
         ISYSwitchEntityDescription,
-    )
-    from tests.builders import (
-        make_controller,
-        make_load_result,
-        make_node,
-        make_node_record,
     )
 
     controller = make_controller(make_load_result())
@@ -138,17 +138,17 @@ async def test_enable_switch_translates_set_enabled_failure() -> None:
     from homeassistant.const import EntityCategory
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox.constants import TAG_ENABLED
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
 
     from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import (
         ISYEnableSwitchEntity,
         ISYSwitchEntityDescription,
-    )
-    from tests.builders import (
-        make_controller,
-        make_load_result,
-        make_node,
-        make_node_record,
     )
 
     controller = make_controller(make_load_result())

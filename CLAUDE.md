@@ -17,7 +17,7 @@ This repo was forked from `hacs-isy994` to host the IoX-6+ rewrite without break
 
 ## Status
 
-Alpha. The seven-phase migration is complete and `main` is feature-equivalent to `hacs-isy994` for IoX-6+ hardware: authentication picker, classifier-driven entity wiring, Repair-card lifecycle UX, services + variables, typed `Program` / `NetworkResource` / `Variable` wrappers, WS-health surface, SSDP discovery gated to IoX 6+. Test suite drives a real `pyisyox.Controller` (via the `tests/builders.py` factories backed by the bundled anonymized eisy6 profile); every entity platform has snapshot coverage. Open issues are tracked at <https://github.com/shbatm/hacs-udi-iox/issues>.
+Alpha. The seven-phase migration is complete and `main` is feature-equivalent to `hacs-isy994` for IoX-6+ hardware: authentication picker, classifier-driven entity wiring, Repair-card lifecycle UX, services + variables, typed `Program` / `NetworkResource` / `Variable` wrappers, WS-health surface, SSDP discovery gated to IoX 6+. Test suite drives a real `pyisyox.Controller` (via the `pyisyox.testing` factories backed by the bundled anonymized eisy6 profile); every entity platform has snapshot coverage. Open issues are tracked at <https://github.com/shbatm/hacs-udi-iox/issues>.
 
 ## DevContainer
 

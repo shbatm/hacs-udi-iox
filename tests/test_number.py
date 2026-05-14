@@ -39,15 +39,15 @@ async def test_aux_on_level_uses_editor_units_both_directions() -> None:
 
     from pyisyox import NodePropertyValue
     from pyisyox.constants import PROP_ON_LEVEL
-
-    from custom_components.udi_iox.models import IsyData
-    from custom_components.udi_iox.number import CONTROL_DESC, ISYAuxControlNumberEntity
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.models import IsyData
+    from custom_components.udi_iox.number import CONTROL_DESC, ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -103,10 +103,10 @@ async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
 
     from pyisyox.client import VariableRecord
     from pyisyox.runtime import Variable
+    from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
-    from tests.builders import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     record = VariableRecord(
@@ -185,10 +185,10 @@ async def test_variable_number_pass_through_when_precision_zero() -> None:
 
     from pyisyox.client import VariableRecord
     from pyisyox.runtime import Variable
+    from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
-    from tests.builders import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
     record = VariableRecord(

@@ -62,6 +62,6 @@ Strict linting is enforced via `ruff` and `pre-commit`.
     - `entity.py`: Base entity classes and common logic.
     - `config_flow.py`: Implementation of the UI-based configuration flow.
     - `controller_events.py`: Logic for handling WebSocket events from the IoX controller.
-- `tests/builders.py`: Factory methods for building mock controller states for tests.
+- `pyisyox.testing` (upstream): Factory methods for building mock controller states for tests — imported as `from pyisyox.testing import make_controller, make_load_result, ...`.
 - `pyproject.toml`: Configuration for `ruff`, `pytest`, and build metadata.
 - `CLAUDE.md`: Internal documentation for Claude Code (claude.ai/code) with specific library surface details.

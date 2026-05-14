@@ -6,7 +6,7 @@ verbs (``DISCOVER``, ``BEEP``, ...) that pyisyox's classifier returns in
 ``aux_properties[Platform.BUTTON]`` and ``button.py`` materialises one
 ``ISYNodeCommandButtonEntity`` each (``BEEP`` tagged ``identify``). The
 bundled stock eisy6 profile carries no PG3 plugins, so this test grafts
-a synthetic ``PluginHub`` nodedef in via ``tests.builders``.
+a synthetic ``PluginHub`` nodedef in via ``pyisyox.testing``.
 """
 
 from __future__ import annotations
@@ -15,16 +15,15 @@ import pytest
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from pyisyox.testing import (
+    make_controller,
+    make_hub_plugin_load_result,
+    make_plugin_hub_node_record,
+)
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     SnapshotAssertion,
     snapshot_platform,
-)
-
-from tests.builders import (
-    make_button_plugin_load_result,
-    make_controller,
-    make_plugin_hub_node_record,
 )
 
 
@@ -38,7 +37,7 @@ def populated_controller():
     """Override the default fixture with a controller carrying the
     hub-plugin profile + a single hub node."""
     hub = make_plugin_hub_node_record()
-    return make_controller(make_button_plugin_load_result(nodes={hub.address: hub}))
+    return make_controller(make_hub_plugin_load_result(nodes={hub.address: hub}))
 
 
 @pytest.mark.usefixtures("entity_registry_enabled_by_default")

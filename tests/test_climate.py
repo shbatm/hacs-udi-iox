@@ -38,15 +38,15 @@ async def test_set_hvac_mode_translates_node_command_error() -> None:
     from homeassistant.components.climate import HVACMode
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.climate import ISYThermostatEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
@@ -74,15 +74,15 @@ async def test_set_temperature_translates_node_command_error() -> None:
 
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.climate import ISYThermostatEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
@@ -110,15 +110,15 @@ async def test_set_fan_mode_translates_node_command_error() -> None:
     from homeassistant.components.climate import FAN_AUTO
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Node, NodeCommandError
-
-    from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
-    from tests.builders import (
+    from pyisyox.testing import (
         make_controller,
         make_load_result,
         make_node,
         make_node_record,
     )
+
+    from custom_components.udi_iox.climate import ISYThermostatEntity
+    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(

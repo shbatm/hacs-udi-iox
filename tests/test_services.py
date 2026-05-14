@@ -21,6 +21,13 @@ import pytest
 from homeassistant.const import CONF_ADDRESS, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from pyisyox.testing import (
+    make_controller,
+    make_load_result,
+    make_network_resource_record,
+    make_node_record,
+    make_program_record,
+)
 
 from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.models import IsyData
@@ -33,13 +40,6 @@ from custom_components.udi_iox.services import (
     SERVICE_SET_ZWAVE_PARAMETER,
     async_get_entities,
     async_setup_services,
-)
-from tests.builders import (
-    make_controller,
-    make_load_result,
-    make_network_resource_record,
-    make_node_record,
-    make_program_record,
 )
 
 
