@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import ClassVar
 
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import EntityCategory, Platform
@@ -17,6 +18,7 @@ from pyisyox import (
     NodeCommandError,
     NodeLifecycleAction,
     NodeLifecycleEvent,
+    Program,
 )
 from pyisyox.constants import TAG_ENABLED, Protocol
 
@@ -357,22 +359,14 @@ class _ISYProgramButtonBase(ISYProgramDeviceEntity, ButtonEntity):
 
     Each subclass binds one verb on :class:`pyisyox.Program` (``run``,
     ``run_then``, ``run_else``, ``run_if``, ``stop``) and translates
-    failures to :class:`HomeAssistantError`.
+    failures to :class:`HomeAssistantError`. The ``_verb`` /
+    ``_verb_label`` ClassVars are declared without defaults so a
+    forgotten subclass override surfaces immediately at runtime
+    instead of silently dispatching to ``getattr(node, "")``.
     """
 
-    _verb: str = ""
-    _verb_label: str = ""
-
-    def __init__(
-        self, isy_data, program, device_info, *, suffix: str, translation_key: str
-    ) -> None:
-        super().__init__(
-            isy_data,
-            program,
-            device_info,
-            suffix=suffix,
-            translation_key=translation_key,
-        )
+    _verb: ClassVar[str]
+    _verb_label: ClassVar[str]
 
     async def async_press(self) -> None:
         """Invoke the bound program verb."""
@@ -397,13 +391,11 @@ class ISYProgramRunButton(_ISYProgramButtonBase):
     _attr_translation_key = "program_run"
     _attr_icon = "mdi:play"
 
-    def __init__(self, isy_data, program, device_info) -> None:
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
         super().__init__(
-            isy_data,
-            program,
-            device_info,
-            suffix=PROGRAM_RUN_BUTTON_SUFFIX,
-            translation_key="program_run",
+            isy_data, program, device_info, suffix=PROGRAM_RUN_BUTTON_SUFFIX
         )
 
 
@@ -415,13 +407,11 @@ class ISYProgramRunThenButton(_ISYProgramButtonBase):
     _attr_translation_key = "program_run_then"
     _attr_icon = "mdi:play-circle"
 
-    def __init__(self, isy_data, program, device_info) -> None:
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
         super().__init__(
-            isy_data,
-            program,
-            device_info,
-            suffix=PROGRAM_RUN_THEN_BUTTON_SUFFIX,
-            translation_key="program_run_then",
+            isy_data, program, device_info, suffix=PROGRAM_RUN_THEN_BUTTON_SUFFIX
         )
 
 
@@ -433,13 +423,11 @@ class ISYProgramRunElseButton(_ISYProgramButtonBase):
     _attr_translation_key = "program_run_else"
     _attr_icon = "mdi:play-circle-outline"
 
-    def __init__(self, isy_data, program, device_info) -> None:
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
         super().__init__(
-            isy_data,
-            program,
-            device_info,
-            suffix=PROGRAM_RUN_ELSE_BUTTON_SUFFIX,
-            translation_key="program_run_else",
+            isy_data, program, device_info, suffix=PROGRAM_RUN_ELSE_BUTTON_SUFFIX
         )
 
 
@@ -452,13 +440,11 @@ class ISYProgramRunIfButton(_ISYProgramButtonBase):
     _attr_entity_registry_enabled_default = False
     _attr_icon = "mdi:refresh"
 
-    def __init__(self, isy_data, program, device_info) -> None:
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
         super().__init__(
-            isy_data,
-            program,
-            device_info,
-            suffix=PROGRAM_RUN_IF_BUTTON_SUFFIX,
-            translation_key="program_run_if",
+            isy_data, program, device_info, suffix=PROGRAM_RUN_IF_BUTTON_SUFFIX
         )
 
 
@@ -470,11 +456,9 @@ class ISYProgramStopButton(_ISYProgramButtonBase):
     _attr_translation_key = "program_stop"
     _attr_icon = "mdi:stop"
 
-    def __init__(self, isy_data, program, device_info) -> None:
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
         super().__init__(
-            isy_data,
-            program,
-            device_info,
-            suffix=PROGRAM_STOP_BUTTON_SUFFIX,
-            translation_key="program_stop",
+            isy_data, program, device_info, suffix=PROGRAM_STOP_BUTTON_SUFFIX
         )

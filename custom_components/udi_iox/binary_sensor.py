@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
-from pyisyox import Event, Node
+from pyisyox import Event, Node, Program
 from pyisyox.constants import (
     CMD_OFF,
     CMD_ON,
@@ -610,14 +610,15 @@ class ISYProgramDeviceStatusBinarySensor(ISYProgramDeviceEntity, BinarySensorEnt
     _attr_translation_key = "program_status"
     _attr_icon = "mdi:script-text-outline"
 
-    def __init__(self, isy_data, program, device_info) -> None:
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
         """Initialize the program-status binary sensor."""
         super().__init__(
             isy_data,
             program,
             device_info,
             suffix=PROGRAM_BINARY_STATUS_SUFFIX,
-            translation_key="program_status",
         )
 
     @property

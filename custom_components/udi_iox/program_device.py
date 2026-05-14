@@ -131,23 +131,21 @@ class ISYProgramDeviceEntity(ISYEntity):
         program: Program,
         device_info: DeviceInfo,
         suffix: str,
-        translation_key: str | None = None,
     ) -> None:
         """Initialize the entity. ``suffix`` selects the per-program
-        unique-id slot (one of ``PROGRAM_*_SUFFIX``); ``translation_key``
-        drives the friendly-name lookup in ``strings.json`` under
-        ``entity.<platform>.<key>``."""
+        unique-id slot (one of ``PROGRAM_*_SUFFIX``); subclasses set
+        ``_attr_translation_key`` at the class level so the HA
+        translation pipeline composes
+        ``"<device name> <translated label>"``."""
         super().__init__(
             isy_data,
             program,
             device_info=device_info,
             unique_id=f"{isy_data.uid_base(program)}{suffix}",
         )
-        if translation_key is not None:
-            self._attr_translation_key = translation_key
         # has_entity_name=True + an explicit translation_key composes
-        # ``"<device name> <translated label>"``. Don't set _attr_name
-        # here so HA's translation pipeline picks the localised string.
+        # the localised friendly-name. Force _attr_name to None so HA
+        # uses the translation rather than the program name.
         self._attr_name = None
 
     async def async_added_to_hass(self) -> None:
@@ -156,7 +154,8 @@ class ISYProgramDeviceEntity(ISYEntity):
         Programs flow through the dedicated ``subscribe_program``
         channel (the ``_1`` action=0 frame carrying the program id in
         ``<eventInfo>``); the per-(addr, control) registry the base
-        ``ISYEntity`` uses doesn't carry program updates.
+        ``ISYEntity`` uses doesn't carry program updates, so we
+        intentionally skip ``super().async_added_to_hass()`` here.
         """
         events = self._isy_data.controller_events
         program: Program = self._node

@@ -285,13 +285,11 @@ class ISYProgramEnableSwitch(ISYProgramDeviceEntity, SwitchEntity):
     _attr_entity_category = EntityCategory.CONFIG
     _attr_icon = "mdi:script-text-outline"
 
-    def __init__(self, isy_data, program, device_info) -> None:
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
         super().__init__(
-            isy_data,
-            program,
-            device_info,
-            suffix=PROGRAM_ENABLE_SWITCH_SUFFIX,
-            translation_key="program_enable",
+            isy_data, program, device_info, suffix=PROGRAM_ENABLE_SWITCH_SUFFIX
         )
 
     @property
@@ -326,13 +324,11 @@ class ISYProgramRunAtStartupSwitch(ISYProgramDeviceEntity, SwitchEntity):
     _attr_entity_registry_enabled_default = False
     _attr_icon = "mdi:restart"
 
-    def __init__(self, isy_data, program, device_info) -> None:
+    def __init__(
+        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
+    ) -> None:
         super().__init__(
-            isy_data,
-            program,
-            device_info,
-            suffix=PROGRAM_RUN_AT_STARTUP_SWITCH_SUFFIX,
-            translation_key="program_run_at_startup",
+            isy_data, program, device_info, suffix=PROGRAM_RUN_AT_STARTUP_SWITCH_SUFFIX
         )
 
     @property

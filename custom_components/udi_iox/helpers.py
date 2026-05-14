@@ -531,7 +531,7 @@ def _categorize_program_devices(
     )
     for program in programs.values():
         path = program.path or ""
-        if any(prefix in path for prefix in legacy_prefixes):
+        if any(path.startswith(prefix) for prefix in legacy_prefixes):
             continue
         isy_data.program_devices.append(program)
 

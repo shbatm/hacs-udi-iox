@@ -8,6 +8,7 @@ real :class:`pyisyox.Program` wrapper.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
@@ -134,11 +135,9 @@ def test_enable_switch_calls_enable_disable() -> None:
     switch = ISYProgramEnableSwitch(isy_data_for(controller), program, device_info)
     assert switch.is_on is True
 
-    import asyncio
-
-    asyncio.get_event_loop().run_until_complete(switch.async_turn_off())
+    asyncio.run(switch.async_turn_off())
     program.disable.assert_awaited_once_with()
-    asyncio.get_event_loop().run_until_complete(switch.async_turn_on())
+    asyncio.run(switch.async_turn_on())
     program.enable.assert_awaited_once_with()
 
 
@@ -152,11 +151,9 @@ def test_run_at_startup_switch_calls_matching_pyisyox_verbs() -> None:
     )
     assert switch.is_on is False
 
-    import asyncio
-
-    asyncio.get_event_loop().run_until_complete(switch.async_turn_on())
+    asyncio.run(switch.async_turn_on())
     program.enable_run_at_startup.assert_awaited_once_with()
-    asyncio.get_event_loop().run_until_complete(switch.async_turn_off())
+    asyncio.run(switch.async_turn_off())
     program.disable_run_at_startup.assert_awaited_once_with()
 
 
@@ -177,7 +174,5 @@ def test_program_buttons_invoke_matching_verb(button_cls, verb) -> None:
     setattr(program, verb, AsyncMock())
     button = button_cls(isy_data_for(controller), program, device_info)
 
-    import asyncio
-
-    asyncio.get_event_loop().run_until_complete(button.async_press())
+    asyncio.run(button.async_press())
     getattr(program, verb).assert_awaited_once_with()

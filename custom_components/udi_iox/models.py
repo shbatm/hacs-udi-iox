@@ -57,8 +57,8 @@ class IsyData:
     # Programs surfaced as their own HA devices — every program *outside*
     # the legacy ``HA.<platform>/<name>/{status,actions}`` switch
     # convention. Each one fans out into one binary sensor, one running
-    # sensor, three timestamp sensors, two switches, an event entity, and
-    # five buttons. See ``program_device.py``.
+    # sensor, three timestamp sensors, two switches, and five buttons.
+    # See ``program_device.py``.
     program_devices: list[Program]
     controller_events: IsyControllerEvents
 
