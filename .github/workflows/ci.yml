@@ -10,19 +10,27 @@ name: CI
     - cron: "0 0 * * *"
 
 jobs:
-  validate:
+  hassfest:
+    # Fast, deterministic — runs on every PR as the merge gate.
     runs-on: ubuntu-latest
-    name: Validate
+    name: Hassfest
     steps:
       - uses: actions/checkout@v5
+      - uses: home-assistant/actions/hassfest@master
 
-      - name: HACS validation
-        uses: hacs/action@main
+  hacs:
+    # HACS validation flakes on transient PR branches (the action fetches
+    # the branch by name via the GH API; short-lived PR refs sometimes
+    # 404 / fall back to default mid-run). It's a release-readiness check
+    # so we only run it on main + nightly.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    name: HACS
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hacs/action@main
         with:
           category: integration
-
-      - name: Hassfest validation
-        uses: home-assistant/actions/hassfest@master
 
   lint:
     runs-on: ubuntu-latest
