@@ -464,10 +464,14 @@ def _categorize_nodes(
         # would yield a broken entity (DON would not be accepted), so
         # skip it and route the node onto EVENT if it sends verbs.
         # KeypadLinc-style sub-buttons (``_ADV`` LED-only secondaries
-        # under a primary) classify as SWITCH because the LED itself
-        # accepts DON/DOF — the LED isn't a "load" most users want to
-        # toggle from HA, so suppress those primaries too and keep
-        # them on EVENT only.
+        # under a primary) classify as SWITCH because the LED's
+        # nodedef declares DON/DOF in ``cmds.accepts``, but on real
+        # hardware the LED is *scene-controlled* — pointing DON
+        # directly at the sub-button address doesn't reliably toggle
+        # the LED (the controller drives it via the parent scene's
+        # member-status logic). A direct switch entity would mislead
+        # the user, so suppress those primaries too and keep them on
+        # EVENT only.
         is_subnode_button = (
             primary == Platform.SWITCH
             and node.primary_address is not None
