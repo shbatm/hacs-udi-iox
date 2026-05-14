@@ -21,7 +21,6 @@ from collections.abc import Callable
 from xml.etree import ElementTree as ET
 
 import homeassistant.helpers.device_registry as dr
-import homeassistant.helpers.entity_registry as er
 import homeassistant.helpers.issue_registry as ir
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later
@@ -93,7 +92,6 @@ class IsyControllerEvents:
         self.hass = hass
         self.entry_id = entry_id
         self.dev_reg = dr.async_get(hass)
-        self.entity_reg = er.async_get(hass)
         controller: Controller = isy_data.root
 
         # Per-(address, control) registry. control == None matches every
@@ -311,14 +309,11 @@ class IsyControllerEvents:
 
     @callback
     def _on_event(self, event: Event) -> None:
-        """Dispatch a property event to entity listeners + the HA bus.
+        """Dispatch a property event to entity listeners.
 
         Order:
-        1. Fire ``udi_iox_control`` on the HA bus (matches the legacy
-           ``isy994_control`` surface so existing automations keep
-           working).
-        2. Invoke every listener registered for ``(address, control)``.
-        3. Invoke every wildcard listener registered for
+        1. Invoke every listener registered for ``(address, control)``.
+        2. Invoke every wildcard listener registered for
            ``(address, None)``.
         """
         if not event.node_address:
