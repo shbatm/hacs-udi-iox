@@ -71,7 +71,14 @@
       "program_status": { "name": "Status" }
     },
     "sensor": {
-      "program_running": { "name": "Running" },
+      "program_running": {
+        "name": "Running",
+        "state": {
+          "idle": "Idle",
+          "running_else": "Running else",
+          "running_then": "Running then"
+        }
+      },
       "program_last_run": { "name": "Last run" },
       "program_last_finish": { "name": "Last finish" },
       "program_next_scheduled": { "name": "Next scheduled run" }

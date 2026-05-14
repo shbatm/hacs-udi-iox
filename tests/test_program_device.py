@@ -95,11 +95,43 @@ def test_status_binary_sensor_reads_program_status() -> None:
     assert entity.is_on is False
 
 
-def test_running_sensor_reads_running_field() -> None:
+def test_running_sensor_decodes_text_label_unchanged() -> None:
+    """Older eisy firmware emits human labels (``"idle"`` / ``"running then"``)
+    for the running field. The sensor passes those through, lower-snake-cased
+    so the enum-options match (``"running then"`` → ``"running_then"``)."""
     controller = _make_program_controller()
     _, program, device_info = _setup_isy_data(controller)
     entity = ISYProgramRunningSensor(isy_data_for(controller), program, device_info)
     assert entity.native_value == "idle"
+
+
+def test_running_sensor_decodes_hex_status_byte() -> None:
+    """Modern eisy firmware emits the cookbook ``<s>`` byte as a hex
+    string. ``"21"`` = ``0x21`` = ``RUN_IDLE | ST_TRUE`` → ``"idle"``."""
+    controller = _make_program_controller()
+    _, program, device_info = _setup_isy_data(controller)
+    program._record.running = "21"  # 0x21 = RUN_IDLE | ST_TRUE
+    entity = ISYProgramRunningSensor(isy_data_for(controller), program, device_info)
+    assert entity.native_value == "idle"
+
+
+def test_running_sensor_decodes_running_then_byte() -> None:
+    """``"22"`` = ``0x22`` = ``RUN_THEN | ST_TRUE`` → ``"running_then"``."""
+    controller = _make_program_controller()
+    _, program, device_info = _setup_isy_data(controller)
+    program._record.running = "22"
+    entity = ISYProgramRunningSensor(isy_data_for(controller), program, device_info)
+    assert entity.native_value == "running_then"
+
+
+def test_running_sensor_returns_none_for_not_loaded() -> None:
+    """``"F0"`` = NOT_LOADED — program errored, no run state. Sensor
+    returns None so HA renders ``unknown`` instead of an arbitrary label."""
+    controller = _make_program_controller()
+    _, program, device_info = _setup_isy_data(controller)
+    program._record.running = "F0"
+    entity = ISYProgramRunningSensor(isy_data_for(controller), program, device_info)
+    assert entity.native_value is None
 
 
 def test_timestamp_sensors_parse_iso_8601() -> None:
