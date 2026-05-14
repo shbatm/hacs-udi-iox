@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -46,15 +48,13 @@ async def test_set_hvac_mode_translates_node_command_error() -> None:
     )
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
         make_node_record("T 1", "Thermostat", nodedef_id="Thermostat"),
         controller,
     )
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     with (
         patch.object(
@@ -82,15 +82,13 @@ async def test_set_temperature_translates_node_command_error() -> None:
     )
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
         make_node_record("T 1", "Thermostat", nodedef_id="Thermostat"),
         controller,
     )
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     with (
         patch.object(
@@ -118,15 +116,13 @@ async def test_set_fan_mode_translates_node_command_error() -> None:
     )
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
         make_node_record("T 1", "Thermostat", nodedef_id="Thermostat"),
         controller,
     )
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     with (
         patch.object(
@@ -201,12 +197,10 @@ async def test_climate_reads_basic_state(hass) -> None:
     from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = _make_thermostat(controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     entity.hass = hass
 
@@ -233,7 +227,6 @@ async def test_climate_unknown_states_fallback(hass) -> None:
     )
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
@@ -249,8 +242,7 @@ async def test_climate_unknown_states_fallback(hass) -> None:
         ),
         controller,
     )
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     entity.hass = hass
 
@@ -272,7 +264,6 @@ async def test_climate_temperature_unit_celsius(hass) -> None:
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
     from custom_components.udi_iox.const import UOM_ISY_CELSIUS
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = _make_thermostat(
@@ -281,14 +272,22 @@ async def test_climate_temperature_unit_celsius(hass) -> None:
             id="UOM", value=UOM_ISY_CELSIUS, formatted="C", uom="0", name="Temp Unit"
         ),
     )
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     entity.hass = hass
     assert entity.temperature_unit == UnitOfTemperature.CELSIUS
 
 
-async def test_climate_set_temperature_uses_correct_setpoint_per_mode(hass) -> None:
+@pytest.mark.parametrize(
+    ("mode_value", "mode_label", "verb", "temperature"),
+    [
+        ("1", "Heat", "set_climate_setpoint_heat", 70),
+        ("2", "Cool", "set_climate_setpoint_cool", 76),
+    ],
+)
+async def test_climate_set_temperature_uses_correct_setpoint_per_mode(
+    hass, mode_value: str, mode_label: str, verb: str, temperature: int
+) -> None:
     """In HEAT mode, ATTR_TEMPERATURE writes the heat setpoint;
     in COOL mode it writes the cool setpoint."""
     from unittest.mock import AsyncMock, patch
@@ -299,36 +298,25 @@ async def test_climate_set_temperature_uses_correct_setpoint_per_mode(hass) -> N
     from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
-    node = _make_thermostat(controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    node = _make_thermostat(
+        controller,
+        CLIMD=NodePropertyValue(
+            id="CLIMD", value=mode_value, formatted=mode_label, uom="67", name="Mode"
+        ),
+    )
+    isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     entity.hass = hass
 
-    # HEAT branch — CLIMD value=1 ("Heat") is the _make_thermostat default.
-    set_heat = AsyncMock()
+    setter = AsyncMock()
     with (
-        patch.object(Node, "set_climate_setpoint_heat", new=set_heat),
+        patch.object(Node, verb, new=setter),
         patch.object(ISYThermostatEntity, "async_write_ha_state", lambda s: None),
     ):
-        await entity.async_set_temperature(**{ATTR_TEMPERATURE: 70})
-    set_heat.assert_awaited_once_with(70)
-
-    # COOL branch — flip CLIMD to "Cool" (value=2 on the modes editor)
-    # and assert ATTR_TEMPERATURE routes to set_climate_setpoint_cool.
-    node._record.properties["CLIMD"] = NodePropertyValue(
-        id="CLIMD", value="2", formatted="Cool", uom="67", name="Mode"
-    )
-    set_cool = AsyncMock()
-    with (
-        patch.object(Node, "set_climate_setpoint_cool", new=set_cool),
-        patch.object(ISYThermostatEntity, "async_write_ha_state", lambda s: None),
-    ):
-        await entity.async_set_temperature(**{ATTR_TEMPERATURE: 76})
-    set_cool.assert_awaited_once_with(76)
+        await entity.async_set_temperature(**{ATTR_TEMPERATURE: temperature})
+    setter.assert_awaited_once_with(temperature)
 
 
 async def test_climate_set_fan_mode_success_path(hass) -> None:
@@ -340,12 +328,10 @@ async def test_climate_set_fan_mode_success_path(hass) -> None:
     from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.climate import ISYThermostatEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = _make_thermostat(controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     entity.hass = hass
 

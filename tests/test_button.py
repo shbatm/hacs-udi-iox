@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -42,11 +44,10 @@ def test_command_button_disabled_by_default_for_maintenance_verbs() -> None:
     )
 
     from custom_components.udi_iox.button import ISYNodeCommandButtonEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
-    isy_data = IsyData()
+    isy_data = isy_data_for(controller)
 
     def _button(command_id: str) -> ISYNodeCommandButtonEntity:
         return ISYNodeCommandButtonEntity(
@@ -82,11 +83,10 @@ async def test_command_button_translates_node_command_error() -> None:
     )
 
     from custom_components.udi_iox.button import ISYNodeCommandButtonEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
-    isy_data = IsyData()
+    isy_data = isy_data_for(controller)
     button = ISYNodeCommandButtonEntity(
         isy_data,
         node,
@@ -119,11 +119,10 @@ async def test_beep_button_translates_node_command_error() -> None:
     )
 
     from custom_components.udi_iox.button import ISYNodeBeepButtonEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
-    isy_data = IsyData()
+    isy_data = isy_data_for(controller)
     button = ISYNodeBeepButtonEntity(
         isy_data,
         node,
@@ -156,11 +155,10 @@ async def test_query_button_translates_node_command_error() -> None:
     )
 
     from custom_components.udi_iox.button import ISYNodeQueryButtonEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
-    isy_data = IsyData()
+    isy_data = isy_data_for(controller)
     button = ISYNodeQueryButtonEntity(
         isy_data,
         node=node,
@@ -188,10 +186,9 @@ async def test_query_button_translates_controller_refresh_failure() -> None:
     from pyisyox.testing import make_controller, make_load_result
 
     from custom_components.udi_iox.button import ISYNodeQueryButtonEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
-    isy_data = IsyData()
+    isy_data = isy_data_for(controller)
     button = ISYNodeQueryButtonEntity(
         isy_data,
         node=controller,
@@ -224,12 +221,11 @@ async def test_network_resource_button_translates_run_failure() -> None:
     )
 
     from custom_components.udi_iox.button import ISYNetworkResourceButtonEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_network_resource_record("1", "Doorbell")
     resource = NetworkResource(record, controller._client)
-    isy_data = IsyData()
+    isy_data = isy_data_for(controller)
     button = ISYNetworkResourceButtonEntity(
         isy_data,
         node=resource,

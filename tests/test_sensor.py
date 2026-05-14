@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -65,7 +67,6 @@ async def test_sensor_entity_target_and_native_value() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.sensor import ISYSensorEntity
 
     controller = make_controller(make_load_result())
@@ -79,8 +80,7 @@ async def test_sensor_entity_target_and_native_value() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
 
     # Existing property → target value comes through.
     entity = ISYSensorEntity(
@@ -122,7 +122,6 @@ async def test_sensor_native_value_resolves_options_dict() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.sensor import ISYSensorEntity
 
     controller = make_controller(make_load_result())
@@ -134,8 +133,7 @@ async def test_sensor_native_value_resolves_options_dict() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYSensorEntity(
         isy_data,
         node=node,
@@ -160,7 +158,6 @@ async def test_sensor_native_value_uses_formatted_for_string_types() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.sensor import ISYSensorEntity
 
     controller = make_controller(make_load_result())
@@ -174,8 +171,7 @@ async def test_sensor_native_value_uses_formatted_for_string_types() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYSensorEntity(
         isy_data,
         node=node,

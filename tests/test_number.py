@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -46,7 +48,6 @@ async def test_aux_on_level_uses_editor_units_both_directions() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import CONTROL_DESC, ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
@@ -64,8 +65,7 @@ async def test_aux_on_level_uses_editor_units_both_directions() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYAuxControlNumberEntity(
         isy_data,
         node=node,
@@ -105,7 +105,6 @@ async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
     from pyisyox.runtime import Variable
     from pyisyox.testing import make_controller, make_load_result
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
 
     controller = make_controller(make_load_result())
@@ -118,8 +117,7 @@ async def test_variable_number_scales_by_precision_on_read_and_write() -> None:
         precision=1,
     )
     variable = Variable(record, controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
 
     from homeassistant.components.number import NumberEntityDescription
 
@@ -187,7 +185,6 @@ async def test_variable_number_pass_through_when_precision_zero() -> None:
     from pyisyox.runtime import Variable
     from pyisyox.testing import make_controller, make_load_result
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
 
     controller = make_controller(make_load_result())
@@ -195,8 +192,7 @@ async def test_variable_number_pass_through_when_precision_zero() -> None:
         type_id="1", id="3", name="Count", value=42, init=0, precision=0
     )
     variable = Variable(record, controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
 
     from homeassistant.components.number import NumberEntityDescription
 
@@ -237,13 +233,11 @@ async def test_number_description_fallback_without_editor() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import _number_description
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
 
     desc = _number_description(isy_data, node, "UNKNOWN_CONTROL")
     assert desc.native_min_value is None or desc.native_min_value == 0.0
@@ -266,13 +260,11 @@ async def test_aux_on_level_set_translates_node_command_error() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYAuxControlNumberEntity(
         isy_data=isy_data,
         node=node,
@@ -305,13 +297,11 @@ async def test_aux_writeonly_control_uses_send_command_and_is_optimistic() -> No
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYAuxControlNumberEntity(
         isy_data=isy_data,
         node=node,
@@ -347,13 +337,11 @@ async def test_aux_writeonly_set_translates_node_command_error() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYAuxControlNumberEntity(
         isy_data=isy_data,
         node=node,
@@ -387,7 +375,6 @@ async def test_aux_readback_handles_unparseable_value() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYAuxControlNumberEntity
 
     controller = make_controller(make_load_result())
@@ -401,8 +388,7 @@ async def test_aux_readback_handles_unparseable_value() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     nodedef = NodeDef(
         id="X",
         family_id="1",
@@ -431,15 +417,13 @@ async def test_variable_native_value_handles_none() -> None:
     from pyisyox import Variable
     from pyisyox.testing import make_controller, make_load_result, make_variable_record
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
 
     controller = make_controller(make_load_result())
     record = make_variable_record("1", "1", "MyVar", precision=2)
     record.value = None  # type: ignore[assignment]
     variable = Variable(record, controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYVariableNumberEntity(
         isy_data,
         variable,
@@ -459,14 +443,12 @@ async def test_variable_change_filter_routes_value_and_init_separately() -> None
     from pyisyox import Variable
     from pyisyox.testing import make_controller, make_load_result, make_variable_record
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
 
     controller = make_controller(make_load_result())
     record = make_variable_record("1", "1", "MyVar")
     variable = Variable(record, controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     value_entity = ISYVariableNumberEntity(
         isy_data,
         variable,
@@ -502,13 +484,11 @@ async def test_variable_set_native_value_translates_error() -> None:
     from pyisyox import Variable
     from pyisyox.testing import make_controller, make_load_result, make_variable_record
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYVariableNumberEntity
 
     controller = make_controller(make_load_result())
     variable = Variable(make_variable_record("1", "1", "MyVar"), controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYVariableNumberEntity(
         isy_data,
         variable,
@@ -540,13 +520,11 @@ async def test_backlight_set_native_value_translates_error() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYBacklightNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Switch"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYBacklightNumberEntity(
         isy_data=isy_data,
         node=node,
@@ -580,13 +558,11 @@ async def test_backlight_memory_write_filter() -> None:
     )
 
     from custom_components.udi_iox.const import BACKLIGHT_MEMORY_FILTER
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.number import ISYBacklightNumberEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Switch"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYBacklightNumberEntity(
         isy_data=isy_data,
         node=node,

@@ -30,7 +30,6 @@ from pyisyox.testing import (
 )
 
 from custom_components.udi_iox.const import DOMAIN
-from custom_components.udi_iox.models import IsyData
 from custom_components.udi_iox.services import (
     SERVICE_GET_NODE_COMMANDS,
     SERVICE_GET_ZWAVE_PARAMETER,
@@ -41,6 +40,7 @@ from custom_components.udi_iox.services import (
     async_get_entities,
     async_setup_services,
 )
+from tests.conftest import isy_data_for
 
 
 @pytest.fixture
@@ -69,8 +69,7 @@ def service_controller():
 async def _wire_services_with_entry(hass: HomeAssistant, controller) -> None:
     """Register services + add a stub config entry whose runtime_data
     points at the Controller so service handlers can resolve it."""
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
 
     entry = MagicMock()
     entry.runtime_data = isy_data

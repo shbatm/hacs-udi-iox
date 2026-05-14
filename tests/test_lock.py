@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -45,7 +47,6 @@ async def test_lock_attrs_unknown_status_yields_none() -> None:
     )
 
     from custom_components.udi_iox.lock import ISYLockEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -58,8 +59,7 @@ async def test_lock_attrs_unknown_status_yields_none() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYLockEntity(isy_data, node=node, device_info=None)
     with patch.object(entity, "async_write_ha_state", new=AsyncMock()):
         entity.async_on_update(None, "")  # type: ignore[arg-type]
@@ -79,11 +79,9 @@ async def test_lock_attrs_track_value_to_state_mapping() -> None:
     )
 
     from custom_components.udi_iox.lock import ISYLockEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
 
     for raw, expected in [("100", True), ("0", False), ("50", None)]:
         record = make_node_record(
@@ -116,12 +114,10 @@ async def test_lock_secure_translates_node_command_errors() -> None:
     )
 
     from custom_components.udi_iox.lock import ISYLockEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("L 1", "Door"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYLockEntity(isy_data, node=node, device_info=None)
     with (
         patch.object(
@@ -151,12 +147,10 @@ async def test_lock_zwave_user_code_services_reject() -> None:
     )
 
     from custom_components.udi_iox.lock import ISYLockEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("L 1", "Door"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYLockEntity(isy_data, node=node, device_info=None)
     with pytest.raises(HomeAssistantError, match="not supported"):
         await entity.async_set_zwave_lock_user_code(1, 1234)
@@ -173,15 +167,13 @@ async def test_lock_program_entity() -> None:
     from pyisyox.testing import make_controller, make_load_result, make_program_record
 
     from custom_components.udi_iox.lock import ISYLockProgramEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     status = Program(
         make_program_record("0001", "Status", status=True), controller._client
     )
     actions = Program(make_program_record("0002", "Actions"), controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYLockProgramEntity(isy_data, "FrontDoor", status, actions)
 
     assert entity.is_locked is True

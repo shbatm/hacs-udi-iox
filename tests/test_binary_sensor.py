@@ -252,6 +252,7 @@ async def test_insteon_binary_sensor_negative_node_attachment() -> None:
 async def test_insteon_binary_sensor_on_update_recovers_unknown() -> None:
     """If the entity was initialised with unknown state and the node
     status arrives, async_on_update populates the computed state."""
+    from dataclasses import replace
     from unittest.mock import patch
 
     from homeassistant.components.binary_sensor import BinarySensorDeviceClass
@@ -268,15 +269,13 @@ async def test_insteon_binary_sensor_on_update_recovers_unknown() -> None:
     )
 
     controller = make_controller(make_load_result())
-    record = make_node_record(
-        "A 1",
-        "Leak",
-        properties={
-            "ST": NodePropertyValue(
-                id="ST", value=None, formatted="?", uom="2", name="Status"
-            )
-        },
+    unknown = NodePropertyValue(
+        id="ST", value=None, formatted="?", uom="2", name="Status"
     )
+    known = NodePropertyValue(
+        id="ST", value="1", formatted="On", uom="2", name="Status"
+    )
+    record = make_node_record("A 1", "Leak", properties={"ST": unknown})
     node = make_node(record, controller)
     isy_data = isy_data_for(controller)
     entity = ISYInsteonBinarySensorEntity(
@@ -285,10 +284,11 @@ async def test_insteon_binary_sensor_on_update_recovers_unknown() -> None:
         device_class=BinarySensorDeviceClass.OPENING,
         device_info=None,
     )
-    # Now flip the node's status to a real value.
-    node._record.properties["ST"] = NodePropertyValue(
-        id="ST", value="1", formatted="On", uom="2", name="Status"
-    )
+    # Simulate the dispatcher landing a status update — rebuild the node
+    # off a fresh record (what the dispatcher does internally) and let
+    # the entity re-read it.
+    node = make_node(replace(record, properties={"ST": known}), controller)
+    entity._node = node
     with patch.object(
         ISYInsteonBinarySensorEntity, "async_write_ha_state", lambda s: None
     ):

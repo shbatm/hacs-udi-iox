@@ -45,21 +45,28 @@ from custom_components.udi_iox.switch import (
 from tests.conftest import isy_data_for
 
 
-def _make_program_controller():
+def _make_program_controller(
+    *,
+    status: bool = True,
+    running: str | None = "idle",
+    last_run_time: str | None = "2026-05-13T18:42:11.000Z",
+    last_finish_time: str | None = "2026-05-13T18:42:13.000Z",
+    next_scheduled_run_time: str | None = "2026-05-14T18:42:00.000Z",
+):
     """Build a controller with one rich non-HA-folder program."""
     record = replace(
         make_program_record(
             "0010",
             "Sunset Lights",
             path="Lighting/Sunset Lights",
-            status=True,
+            status=status,
             enabled=True,
         ),
         run_at_startup=False,
-        running="idle",
-        last_run_time="2026-05-13T18:42:11.000Z",
-        last_finish_time="2026-05-13T18:42:13.000Z",
-        next_scheduled_run_time="2026-05-14T18:42:00.000Z",
+        running=running,
+        last_run_time=last_run_time,
+        last_finish_time=last_finish_time,
+        next_scheduled_run_time=next_scheduled_run_time,
     )
     return make_controller(make_load_result(programs={record.address: record}))
 
@@ -84,54 +91,41 @@ def test_categorize_skips_legacy_ha_programs() -> None:
     assert [p.address for p in isy_data.program_devices] == ["0010"]
 
 
-def test_status_binary_sensor_reads_program_status() -> None:
-    controller = _make_program_controller()
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [(True, True), (False, False)],
+)
+def test_status_binary_sensor_reads_program_status(
+    status: bool, expected: bool
+) -> None:
+    controller = _make_program_controller(status=status)
     _, program, device_info = _setup_isy_data(controller)
     entity = ISYProgramDeviceStatusBinarySensor(
         isy_data_for(controller), program, device_info
     )
-    assert entity.is_on is True
-    program._record.status = False
-    assert entity.is_on is False
+    assert entity.is_on is expected
 
 
-def test_running_sensor_decodes_text_label_unchanged() -> None:
-    """Older eisy firmware emits human labels (``"idle"`` / ``"running then"``)
-    for the running field. The sensor passes those through, lower-snake-cased
-    so the enum-options match (``"running then"`` → ``"running_then"``)."""
-    controller = _make_program_controller()
+@pytest.mark.parametrize(
+    ("running", "expected"),
+    [
+        # Older eisy firmware emits human labels.
+        ("idle", "idle"),
+        ("running then", "running_then"),
+        # Modern eisy emits the cookbook <s> byte as two hex digits.
+        ("21", "idle"),  # 0x21 = RUN_IDLE | ST_TRUE
+        ("22", "running_then"),  # 0x22 = RUN_THEN | ST_TRUE
+        # NOT_LOADED — program errored, sensor surfaces unknown.
+        ("F0", None),
+    ],
+)
+def test_running_sensor_decodes_program_state(
+    running: str, expected: str | None
+) -> None:
+    controller = _make_program_controller(running=running)
     _, program, device_info = _setup_isy_data(controller)
     entity = ISYProgramRunningSensor(isy_data_for(controller), program, device_info)
-    assert entity.native_value == "idle"
-
-
-def test_running_sensor_decodes_hex_status_byte() -> None:
-    """Modern eisy firmware emits the cookbook ``<s>`` byte as a hex
-    string. ``"21"`` = ``0x21`` = ``RUN_IDLE | ST_TRUE`` → ``"idle"``."""
-    controller = _make_program_controller()
-    _, program, device_info = _setup_isy_data(controller)
-    program._record.running = "21"  # 0x21 = RUN_IDLE | ST_TRUE
-    entity = ISYProgramRunningSensor(isy_data_for(controller), program, device_info)
-    assert entity.native_value == "idle"
-
-
-def test_running_sensor_decodes_running_then_byte() -> None:
-    """``"22"`` = ``0x22`` = ``RUN_THEN | ST_TRUE`` → ``"running_then"``."""
-    controller = _make_program_controller()
-    _, program, device_info = _setup_isy_data(controller)
-    program._record.running = "22"
-    entity = ISYProgramRunningSensor(isy_data_for(controller), program, device_info)
-    assert entity.native_value == "running_then"
-
-
-def test_running_sensor_returns_none_for_not_loaded() -> None:
-    """``"F0"`` = NOT_LOADED — program errored, no run state. Sensor
-    returns None so HA renders ``unknown`` instead of an arbitrary label."""
-    controller = _make_program_controller()
-    _, program, device_info = _setup_isy_data(controller)
-    program._record.running = "F0"
-    entity = ISYProgramRunningSensor(isy_data_for(controller), program, device_info)
-    assert entity.native_value is None
+    assert entity.native_value == expected
 
 
 def test_timestamp_sensors_parse_iso_8601() -> None:
@@ -152,9 +146,8 @@ def test_timestamp_sensors_parse_iso_8601() -> None:
 
 def test_timestamp_sensor_returns_none_for_missing_field() -> None:
     """An empty timestamp string round-trips to ``None``."""
-    controller = _make_program_controller()
+    controller = _make_program_controller(last_run_time=None)
     _, program, device_info = _setup_isy_data(controller)
-    program._record.last_run_time = None
     entity = ISYProgramLastRunSensor(isy_data_for(controller), program, device_info)
     assert entity.native_value is None
 

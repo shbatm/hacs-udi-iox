@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -38,12 +40,10 @@ def _build_event_entity(controller):
     from pyisyox.testing import make_node, make_node_record
 
     from custom_components.udi_iox.event import ISYButtonEvent
-    from custom_components.udi_iox.models import IsyData
 
     record = make_node_record("AA AA AA 1", "Button")
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     triggers = [Command(id="DON"), Command(id="DOF")]
     return ISYButtonEvent(isy_data, node=node, triggers=triggers, device_info=None)
 
@@ -114,10 +114,11 @@ async def test_event_on_control_ignores_unknown_verb() -> None:
 async def test_event_on_lifecycle_only_acts_on_node_enabled_for_this_address() -> None:
     """The lifecycle handler ignores events for other nodes and verbs
     that aren't NODE_ENABLED."""
+    from dataclasses import replace
     from unittest.mock import patch
 
     from pyisyox import NodeLifecycleAction, NodeLifecycleEvent
-    from pyisyox.testing import make_controller, make_load_result
+    from pyisyox.testing import make_controller, make_load_result, make_node
 
     controller = make_controller(make_load_result())
     entity = _build_event_entity(controller)
@@ -147,8 +148,11 @@ async def test_event_on_lifecycle_only_acts_on_node_enabled_for_this_address() -
         assert entity._attr_available is True
 
         # Matching enable verb → updates availability from the node's
-        # current enabled flag.
-        entity._node._record.enabled = False
+        # current enabled flag. Simulate the dispatcher mutating the
+        # record by rebuilding the node off a disabled copy.
+        entity._node = make_node(
+            replace(entity._node._record, enabled=False), controller
+        )
         entity._on_lifecycle(
             NodeLifecycleEvent(
                 action=NodeLifecycleAction.NODE_ENABLED.value,
