@@ -33,7 +33,7 @@ from pyisyox.constants import (
     PROP_STATUS,
     PROP_TEMPERATURE,
 )
-from pyisyox.runtime.events import _decode_program_status_byte
+from pyisyox.runtime.events import ProgramRunState
 
 from .const import (
     _LOGGER,
@@ -408,42 +408,11 @@ def _parse_iox_timestamp(raw: str | None):
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt_util.UTC)
 
 
-#: Cookbook §8.5.3 ``<s>`` decoder. The eisy reports the byte as a wire
-#: string in either hex (the cookbook form) or decimal (older firmware /
-#: the human "idle"-style label that pyisyox preserves). This sensor
-#: presents whichever shape it sees as a stable enum value.
-_PROGRAM_RUN_STATE_LABELS: dict[int, str] = {
-    1: "idle",
-    2: "running_then",
-    3: "running_else",
+_PROGRAM_RUN_STATE_LABELS: dict[ProgramRunState, str] = {
+    ProgramRunState.IDLE: "idle",
+    ProgramRunState.THEN: "running_then",
+    ProgramRunState.ELSE: "running_else",
 }
-
-
-def _decode_program_running(raw: str | None) -> str | None:
-    """Turn the wire ``<s>`` value into a stable run-state label.
-
-    Tries hex first (``"21"`` → ``0x21``), then decimal, then falls
-    back to the raw string (older firmware emits human labels like
-    ``"idle"`` directly). Returns ``None`` for the
-    ``ST_NOT_LOADED`` / ``program errored`` path so the sensor
-    surfaces ``unknown`` rather than a misleading run state.
-    """
-    if raw is None:
-        return None
-    byte: int | None = None
-    for base in (16, 10):
-        try:
-            byte = int(raw, base)
-            break
-        except (TypeError, ValueError):
-            continue
-    if byte is None:
-        # Already a label like ``"idle"`` / ``"running then"``.
-        return raw.replace(" ", "_").lower() if raw else None
-    run_state, _eval_state = _decode_program_status_byte(byte)
-    if run_state is None:
-        return None
-    return _PROGRAM_RUN_STATE_LABELS.get(int(run_state))
 
 
 class ISYProgramRunningSensor(ISYProgramDeviceEntity, SensorEntity):
@@ -466,8 +435,11 @@ class ISYProgramRunningSensor(ISYProgramDeviceEntity, SensorEntity):
 
     @property
     def native_value(self) -> str | None:
-        """Decoded run-state from the program's ``<s>`` byte."""
-        return _decode_program_running(self._node.running)
+        """Map pyisyox's typed :class:`ProgramRunState` to an HA enum option."""
+        run_state = self._node.run_state
+        if run_state is None:
+            return None
+        return _PROGRAM_RUN_STATE_LABELS.get(run_state)
 
 
 class _ISYProgramTimestampSensor(ISYProgramDeviceEntity, SensorEntity):

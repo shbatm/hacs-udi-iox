@@ -22,7 +22,7 @@
   "issue_tracker": "https://github.com/shbatm/hacs-udi-iox/issues",
   "loggers": ["pyisyox"],
   "quality_scale": "bronze",
-  "requirements": ["pyisyox==6.0.0b2"],
+  "requirements": ["pyisyox==6.0.0b3"],
   "ssdp": [
     {
       "deviceType": "urn:udi-com:device:X_IoX_Device:1",
