@@ -459,19 +459,27 @@ def _categorize_nodes(
         primary = _primary_platform_for_native(node, result)
 
         # No primary platform: nodedef has no controllable surface at
-        # all (RemoteLinc2 scene buttons, IMETER_SOLO energy meters,
-        # PIR2844 motion sensors without on/off). Synthesising one
-        # would yield a broken entity (DON would not be accepted), so
+        # all — accepts list is just bookkeeping verbs like
+        # ``QUERY`` / ``BL`` (backlight) / ``WDU`` (write delta).
+        # Examples: ``KeypadButton_ADV`` (KeypadLinc Dimmer LED-only
+        # sub-buttons), ``RemoteLinc2_ADV`` (battery scene remotes),
+        # ``IMETER_SOLO`` (energy meters), ``PIR2844`` (motion-only
+        # sensors). Synthesising a primary entity would yield a
+        # broken switch / light (DON not accepted on the wire), so
         # skip it and route the node onto EVENT if it sends verbs.
-        # KeypadLinc-style sub-buttons (``_ADV`` LED-only secondaries
-        # under a primary) classify as SWITCH because the LED's
-        # nodedef declares DON/DOF in ``cmds.accepts``, but on real
-        # hardware the LED is *scene-controlled* — pointing DON
-        # directly at the sub-button address doesn't reliably toggle
-        # the LED (the controller drives it via the parent scene's
+        #
+        # Different shape: ``RelayLampSwitch_ADV`` / ``KeypadRelay_ADV``
+        # / ``RelayLampSwitchLED_ADV`` / etc. *do* accept DON/DOF
+        # (classifier returns SWITCH) but they're sub-buttons on a
+        # multi-button physical paddle whose LED is *scene-controlled*
+        # on real Insteon hardware — pointing DON directly at the
+        # sub-button address doesn't reliably toggle the LED
+        # (the controller drives it via the parent scene's
         # member-status logic). A direct switch entity would mislead
-        # the user, so suppress those primaries too and keep them on
-        # EVENT only.
+        # the user, so suppress the SWITCH primary too. Sub-address
+        # dimmers (``DimmerLampSwitch_ADV`` paddles that genuinely
+        # control a load) classify as LIGHT and fall through — those
+        # are real load surfaces, not buttons.
         is_subnode_button = (
             primary == Platform.SWITCH
             and node.primary_address is not None
