@@ -28,6 +28,8 @@ from .entity import (
 )
 from .models import IsyConfigEntry, IsyData
 
+PARALLEL_UPDATES = 0
+
 
 @dataclass
 class ISYSwitchEntityDescription(SwitchEntityDescription):

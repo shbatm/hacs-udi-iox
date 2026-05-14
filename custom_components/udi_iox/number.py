@@ -100,6 +100,9 @@ def _number_description(
     )
 
 
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: IsyConfigEntry,

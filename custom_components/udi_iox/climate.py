@@ -55,6 +55,8 @@ from .entity import ISYNodeEntity, _resolve_device_info, node_status_int
 from .helpers import convert_isy_value_to_hass
 from .models import IsyConfigEntry, IsyData
 
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

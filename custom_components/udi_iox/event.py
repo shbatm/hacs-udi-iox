@@ -55,6 +55,9 @@ def _event_type(command: Command) -> str:
     return slugify(command.name) or command.id.lower()
 
 
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: IsyConfigEntry,

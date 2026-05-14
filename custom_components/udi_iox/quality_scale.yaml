@@ -92,7 +92,18 @@ rules:
       dropped event stream leaves entities "available" with stale state.
   integration-owner: done
   log-when-unavailable: todo
-  parallel-updates: todo
+  parallel-updates:
+    status: done
+    comment: |
+      ``PARALLEL_UPDATES = 0`` at module top on every platform. The
+      integration is push-based (no entity-update I/O — state is
+      driven by the WebSocket event stream), AND the eisy on current
+      IoX 6+ firmware queues / throttles parallel writes internally
+      (empirical finding during pyisyox v6 development). pyisyox
+      dropped its own per-host semaphore for this same reason — the
+      legacy ``connection.py`` had ``asyncio.Semaphore(...)``; the
+      v6 ``client.py`` rewrite has none. So there's no benefit to
+      limiting action concurrency on the HA side either.
   reauthentication-flow:
     status: done
     comment: config_flow implements async_step_reauth / async_step_reauth_confirm.

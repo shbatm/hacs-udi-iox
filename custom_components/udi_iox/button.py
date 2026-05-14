@@ -57,6 +57,9 @@ def _command_label(node: Node, command_id: str) -> str:
     return command_id.replace("_", " ").title()
 
 
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: IsyConfigEntry,

@@ -71,6 +71,9 @@ def _select_options(isy_data: IsyData, node: Node, control: str) -> list[str]:
     return []
 
 
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: IsyConfigEntry,
