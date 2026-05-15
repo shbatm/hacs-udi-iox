@@ -439,6 +439,37 @@ async def test_validate_input_rejects_non_http_scheme(hass) -> None:
         await validate_input(hass, _build_user_input(**{CONF_HOST: "eisy.local:443"}))
 
 
+@pytest.mark.parametrize(
+    ("controller_name", "expected_title"),
+    [
+        ("Skynet ISY", "Skynet ISY (eisy.local)"),  # named hub → "<name> (<host>)"
+        ("", "eisy.local"),  # unnamed → host alone
+    ],
+)
+async def test_validate_input_title_includes_host(
+    hass, controller_name, expected_title
+) -> None:
+    """The integration card title carries the host so a changed IP /
+    hostname is visible without opening the entry."""
+    from custom_components.udi_iox.config_flow import validate_input
+
+    class FakeController:
+        def __init__(self, *args, **kwargs):
+            self.config = type("C", (), {"uuid": "u"})()
+            self.name = controller_name
+
+        async def connect(self, *, start_websocket=True):
+            pass
+
+        async def stop(self):
+            pass
+
+    with patch("custom_components.udi_iox.config_flow.Controller", FakeController):
+        info = await validate_input(hass, _build_user_input())
+
+    assert info["title"] == expected_title
+
+
 # --- discovery (SSDP / DHCP) ------------------------------------------
 
 _UUID = "00:21:b9:01:23:45"

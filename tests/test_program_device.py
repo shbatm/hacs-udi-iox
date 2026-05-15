@@ -204,47 +204,30 @@ def test_program_buttons_invoke_matching_verb(button_cls, verb) -> None:
 # --- suggested_area: derived from IoX program-folder ---------------------
 
 
-def _add_program_folder(
-    controller, address: str, name: str, *, parent_address: str | None
-) -> None:
-    """Inject a folder-shaped ``ProgramRecord`` into the controller's
-    loaded program registry — workaround for the missing
-    ``program_folders=`` kwarg on ``make_load_result``
-    (pyisyox#153)."""
-    from pyisyox.client import ProgramRecord
-
-    controller._loaded.programs[address] = ProgramRecord(
-        address=address,
-        name=name,
-        path=name,
-        parent_address=parent_address,
-        is_folder=True,
-        status=False,
-    )
-
-
 def test_program_device_info_uses_parent_folder_as_suggested_area() -> None:
     """A program inside a user-created folder gets the folder's name as
     ``suggested_area`` — symmetric with the node-side derivation."""
     from pyisyox.testing import (
         make_controller,
         make_load_result,
+        make_program_folder_record,
         make_program_record,
     )
 
     program_rec = make_program_record(
         "0010", "Sunset Lights", path="Lighting/Sunset Lights", parent_address="F1"
     )
-    controller = make_controller(
-        make_load_result(programs={program_rec.address: program_rec})
-    )
     # Real eisy hierarchy: synthetic root → user folder → program.
-    _add_program_folder(controller, "ROOT", "My Programs", parent_address=None)
-    _add_program_folder(controller, "F1", "Lighting", parent_address="ROOT")
-    # Guard: if pyisyox restructures `_loaded`, fail loudly here rather
-    # than letting suggested_area silently return None below.
-    assert controller.program_folders.get("F1") is not None, (
-        "program_folders setup failed — _loaded API may have changed"
+    controller = make_controller(
+        make_load_result(
+            programs={program_rec.address: program_rec},
+            program_folders={
+                "ROOT": make_program_folder_record("ROOT", "My Programs"),
+                "F1": make_program_folder_record(
+                    "F1", "Lighting", parent_address="ROOT"
+                ),
+            },
+        )
     )
     program = controller.programs["0010"]
 
@@ -260,6 +243,7 @@ def test_program_device_info_skips_synthetic_root_folder() -> None:
     from pyisyox.testing import (
         make_controller,
         make_load_result,
+        make_program_folder_record,
         make_program_record,
     )
 
@@ -267,11 +251,10 @@ def test_program_device_info_skips_synthetic_root_folder() -> None:
         "0010", "Top-Level Routine", path="Top-Level Routine", parent_address="ROOT"
     )
     controller = make_controller(
-        make_load_result(programs={program_rec.address: program_rec})
-    )
-    _add_program_folder(controller, "ROOT", "My Programs", parent_address=None)
-    assert controller.program_folders.get("ROOT") is not None, (
-        "program_folders setup failed — _loaded API may have changed"
+        make_load_result(
+            programs={program_rec.address: program_rec},
+            program_folders={"ROOT": make_program_folder_record("ROOT", "My Programs")},
+        )
     )
     program = controller.programs["0010"]
 

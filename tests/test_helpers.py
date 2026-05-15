@@ -207,6 +207,67 @@ def test_load_without_sent_verbs_skips_event(isy_data, options, controller):
     assert "AA BB CC 1" not in isy_data.node_triggers
 
 
+def test_insteon_leak_sensor_routes_to_binary_sensor_and_event(
+    isy_data, options, controller
+):
+    """Insteon binary sensors land on BINARY_SENSOR via the type-override
+    path; EVENT registers in parallel for sub-button transitions."""
+    from pyisyox.testing import make_leak_sensor_records, make_motion_sensor_records
+
+    records = {**make_leak_sensor_records(), **make_motion_sensor_records()}
+    nodes = {addr: make_node(rec, controller) for addr, rec in records.items()}
+    _categorize_nodes(isy_data, nodes, options, controller=controller, host="https://h")
+
+    bs_addrs = {n.address for n in isy_data.nodes[Platform.BINARY_SENSOR]}
+    # Every leak / motion sub-node is on BINARY_SENSOR (parents + heartbeat
+    # + dusk-dawn + tamper + low-battery + disabled subnode).
+    assert "30 30 30 1" in bs_addrs and "30 30 30 4" in bs_addrs  # leak primary + hb
+    assert "32 32 32 1" in bs_addrs  # motion primary
+    assert "32 32 32 2" in bs_addrs  # motion dusk/dawn
+    assert "32 32 32 3" in bs_addrs  # motion low-battery
+
+    # And EVENT still fires alongside.
+    event_addrs = {n.address for n in isy_data.nodes[Platform.EVENT]}
+    assert "30 30 30 1" in event_addrs
+    assert "32 32 32 1" in event_addrs
+
+
+def test_zwave_motion_sensor_routes_to_binary_sensor(isy_data, options, controller):
+    """Z-Wave nodes whose ``zwave_props.category`` matches a known
+    sensor family in ``BINARY_SENSOR_DEVICE_TYPES_ZWAVE`` route to
+    BINARY_SENSOR."""
+    from pyisyox.client import ZWaveProperties
+
+    rec = make_node_record(
+        "ZW019_1", "ZW Motion", family_id="4", nodedef_id="UZW0099", type_="4.16.1.0"
+    )
+    # category "155" is the Z-Wave Notification (motion) generic class.
+    rec.zwave_props = ZWaveProperties.from_devtype(
+        {"cat": "155", "mfg": "634.257.13", "gen": "4.16.1"}
+    )
+    node = make_node(rec, controller)
+
+    _categorize(isy_data, node, options, controller=controller)
+    assert node in isy_data.nodes[Platform.BINARY_SENSOR]
+
+
+def test_zwave_node_without_devtype_does_not_route_to_binary_sensor(
+    isy_data, options, controller
+):
+    """A Z-Wave node that doesn't expose a ``devtype`` block (or whose
+    category isn't a known sensor family) must NOT land on
+    BINARY_SENSOR — falls through to the regular Z-Wave classifier
+    path. Pins the gate's null-safety."""
+    rec = make_node_record(
+        "ZW020_1", "ZW Switch", family_id="4", nodedef_id="UZW000F", type_="4.17.1.0"
+    )
+    # rec.zwave_props stays None — no devtype block published.
+    node = make_node(rec, controller)
+
+    _categorize(isy_data, node, options, controller=controller)
+    assert node not in isy_data.nodes[Platform.BINARY_SENSOR]
+
+
 def test_remotelinc_button_no_primary_entity_routes_to_event_only(
     isy_data, options, controller
 ):

@@ -252,7 +252,9 @@ def _detect_device_type_and_class(
         # The type attribute didn't exist in the ISY's API response
         return (None, None)
 
-    # Z-Wave Devices:
+    # Z-Wave Devices: ``node.zwave_props`` carries the parsed ``devtype``
+    # block (``cat`` / ``mfg`` / ``gen``); ``category`` is the Z-Wave
+    # generic-class id we sort against BINARY_SENSOR_DEVICE_TYPES_ZWAVE.
     if node.protocol == Protocol.ZWAVE and node.zwave_props is not None:
         device_type = f"Z{node.zwave_props.category}"
         for device_class, values in BINARY_SENSOR_DEVICE_TYPES_ZWAVE.items():

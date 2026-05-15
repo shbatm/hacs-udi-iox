@@ -75,6 +75,7 @@
           }),
           'protocol': <Protocol.INSTEON: 'insteon'>,
           'type': '1.0.0.0',
+          'zwave_props': None,
         }),
         'AA AA AA 2': dict({
           'address': 'AA AA AA 2',
@@ -106,6 +107,7 @@
           }),
           'protocol': <Protocol.INSTEON: 'insteon'>,
           'type': '1.0.0.0',
+          'zwave_props': None,
         }),
         'BB BB BB 1': dict({
           'address': 'BB BB BB 1',
@@ -137,6 +139,7 @@
           }),
           'protocol': <Protocol.INSTEON: 'insteon'>,
           'type': '1.0.0.0',
+          'zwave_props': None,
         }),
         'CC CC CC 1': dict({
           'address': 'CC CC CC 1',
@@ -160,6 +163,7 @@
           }),
           'protocol': <Protocol.ZWAVE: 'zwave'>,
           'type': '111.5.0.0',
+          'zwave_props': None,
         }),
         'DD DD DD 1': dict({
           'address': 'DD DD DD 1',
@@ -207,6 +211,7 @@
           }),
           'protocol': <Protocol.INSTEON: 'insteon'>,
           'type': '5.16.0.0',
+          'zwave_props': None,
         }),
         'EE EE EE 1': dict({
           'address': 'EE EE EE 1',
@@ -238,6 +243,7 @@
           }),
           'protocol': <Protocol.INSTEON: 'insteon'>,
           'type': '1.46.0.0',
+          'zwave_props': None,
         }),
         'EE EE EE 2': dict({
           'address': 'EE EE EE 2',
@@ -269,6 +275,7 @@
           }),
           'protocol': <Protocol.INSTEON: 'insteon'>,
           'type': '1.46.0.0',
+          'zwave_props': None,
         }),
       }),
       'profile': dict({

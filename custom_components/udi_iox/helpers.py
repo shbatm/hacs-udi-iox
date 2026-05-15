@@ -37,6 +37,7 @@ from pyisyox.schema.nodedef import Command
 
 from .const import (
     _LOGGER,
+    BINARY_SENSOR_DEVICE_TYPES_ZWAVE,
     CONF_IGNORE_STRING,
     CONF_SENSOR_STRING,
     DEFAULT_IGNORE_STRING,
@@ -97,6 +98,42 @@ def _has_own_device(node: Node) -> bool:
     under the primary.
     """
     return node.primary_address is None or node.protocol == Protocol.NODE_SERVER
+
+
+def _is_native_binary_sensor(node: Node) -> bool:
+    """True for native nodes that should land on the BINARY_SENSOR
+    platform: Insteon ``BinaryAlarm`` variants and Z-Wave nodes whose
+    generic-class category matches a known sensor family.
+
+    Insteon: gates on the nodedef id (``BinaryAlarm`` /
+    ``BinaryAlarm_ADV``) because the *capability* — "this node is a
+    stateful binary sensor surface" — lives in the nodedef. Sub-nodes
+    inherit the parent's nodedef id, so heartbeat / dusk-dawn / tamper /
+    cool / heat sub-addresses all return True and the binary_sensor
+    platform's setup folds them into the right partner entity.
+
+    Z-Wave: gates on ``node.zwave_props.category`` against the
+    ``BINARY_SENSOR_DEVICE_TYPES_ZWAVE`` table — the same lookup
+    ``binary_sensor._detect_device_type_and_class`` uses for
+    device_class assignment, so anything routed here will pick up its
+    matching device class.
+
+    The classifier can't make either decision on its own: BinaryAlarm
+    nodedefs accept only ``QUERY`` (``controllable`` is always
+    ``None``) and Z-Wave generic-class metadata isn't in the nodedef
+    at all. The type triple drives the *device_class* sort downstream
+    (moisture vs. opening vs. motion vs. cool/heat) where the
+    leak/door/motion families look identical at the cmds level and
+    the type byte is the only discriminator.
+    """
+    if node.protocol == Protocol.INSTEON:
+        return node.nodedef_id.startswith("BinaryAlarm")
+    if node.protocol == Protocol.ZWAVE and node.zwave_props is not None:
+        category = node.zwave_props.category
+        return any(
+            category in values for values in BINARY_SENSOR_DEVICE_TYPES_ZWAVE.values()
+        )
+    return False
 
 
 def _primary_platform_for_native(
@@ -428,6 +465,15 @@ def _categorize_nodes(
         # class the classifier's command-only view can't see (e.g. Z-Wave
         # locks speak LOCK/UNLOCK, not the Insteon SECMD verb).
         if node.protocol != Protocol.INSTEON:
+            # Z-Wave sensor families (smoke, gas, leak, motion, …) win
+            # over the classifier — pure sensors carry no controllable
+            # surface, so the rich subnode-aware path in binary_sensor.py
+            # needs the node on ``isy_data.nodes[BINARY_SENSOR]``.
+            if _is_native_binary_sensor(node):
+                isy_data.nodes[Platform.BINARY_SENSOR].append(node)
+                if result is not None and _is_device_root(node):
+                    _fan_out_commands(isy_data, node, controller, result)
+                continue
             native_platform: Platform | None = None
             if result is not None and result.controllable is not None:
                 native_platform = _CONTROLLABLE_TO_HA_PLATFORM.get(
@@ -470,7 +516,19 @@ def _categorize_nodes(
             continue
 
         # Native Insteon nodes: classifier-driven primary with
-        # type-introspection-first overrides for thermostat/lock/fan.
+        # type-introspection-first overrides for thermostat/lock/fan/
+        # binary-sensor. Insteon binary sensors (leak, motion, opening)
+        # carry no controllable surface, so without this override the
+        # node falls through to EVENT-only and never surfaces stateful.
+        if _is_native_binary_sensor(node):
+            isy_data.nodes[Platform.BINARY_SENSOR].append(node)
+            _fan_out_native_aux(isy_data, node)
+            if result is not None and _is_device_root(node):
+                _fan_out_commands(isy_data, node, controller, result)
+            if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
+                _register_event_node(isy_data, node, _node_trigger_commands(node))
+            continue
+
         primary = _primary_platform_for_native(node, result)
 
         # No controllable surface (KeypadButton_ADV, RemoteLinc2_ADV,

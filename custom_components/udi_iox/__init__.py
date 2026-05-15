@@ -132,7 +132,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     if enable_networking and controller.network_resources:
         isy_data.net_resources = list(controller.network_resources.values())
         isy_data.devices[CONF_NETWORK] = _create_service_device_info(
-            controller, host, name=CONF_NETWORK.title(), unique_id=CONF_NETWORK
+            controller, host, name="Network Resources", unique_id=CONF_NETWORK
         )
 
     _async_get_or_create_isy_device_in_registry(hass, entry, controller, host)
