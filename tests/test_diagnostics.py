@@ -104,6 +104,68 @@ async def test_diagnostics_preserves_node_addresses_and_names(
         assert node["name"] != "**REDACTED**"
 
 
+def test_isy_data_shape_handles_missing_mappings() -> None:
+    """``_platform_counts`` returns empty when the mapping is missing /
+    falsy (line 73-74)."""
+    from custom_components.udi_iox.diagnostics import _isy_data_shape
+
+    class _Empty:
+        pass
+
+    shape = _isy_data_shape(_Empty())
+    assert shape["primary_nodes"] == {}
+    assert shape["root_nodes"] == {}
+    assert shape["aux_properties"] == {}
+    assert shape["programs"] == {}
+    assert shape["variables"] == {}
+    assert shape["groups"] == 0
+    assert shape["net_resources"] == 0
+    assert shape["event_triggers"] == 0
+
+
+async def test_async_get_device_diagnostics_returns_matched_nodes(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+) -> None:
+    """``async_get_device_diagnostics`` returns the matching node(s)'
+    ``to_dict()`` plus device-registry header info (lines 139-167)."""
+    from homeassistant.helpers import device_registry as dr
+
+    from custom_components.udi_iox.const import DOMAIN
+    from custom_components.udi_iox.diagnostics import async_get_device_diagnostics
+
+    isy_data = init_integration.runtime_data
+    controller = isy_data.root
+    uuid = controller.config.uuid
+    # Pick a known node and synthesise a DeviceEntry for it. The per-node
+    # devices aren't auto-created with platforms=[]; we don't need the
+    # registry round-trip — only the identifiers.
+    node_address = next(iter(controller.nodes))
+    fake = dr.DeviceEntry(  # type: ignore[call-arg]
+        identifiers={(DOMAIN, f"{uuid}_{node_address}")}
+    )
+    payload = await async_get_device_diagnostics(hass, init_integration, fake)
+    assert payload["matched_addresses"] == [node_address]
+    assert payload["nodes"]
+    assert payload["nodes"][0]["address"] == node_address
+
+
+async def test_async_get_device_diagnostics_handles_unknown_device(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+) -> None:
+    """A device whose identifiers don't map to any node yields an empty
+    ``nodes`` list — pin that the function doesn't crash (line 153-156)."""
+    from homeassistant.helpers import device_registry as dr
+
+    from custom_components.udi_iox.diagnostics import async_get_device_diagnostics
+
+    fake_device = dr.DeviceEntry(identifiers=set())  # type: ignore[call-arg]
+    payload = await async_get_device_diagnostics(hass, init_integration, fake_device)
+    assert payload["nodes"] == []
+    assert payload["matched_addresses"] == []
+
+
 async def test_diagnostics_includes_profile_payload(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,

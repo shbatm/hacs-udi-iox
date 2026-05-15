@@ -278,3 +278,198 @@ async def test_switch_program_entity_round_trip() -> None:
         await entity.async_turn_on()
     with patch.object(Program, "run_else", new=AsyncMock()):
         await entity.async_turn_off()
+
+
+# --- Coverage push: error paths, async_on_update, program switches ---
+
+
+async def test_async_setup_entry_skips_program_switches_without_device_info(
+    hass,
+) -> None:
+    """A program in ``program_devices`` whose DeviceInfo wasn't
+    registered is silently skipped (lines 87-88)."""
+    from unittest.mock import MagicMock
+
+    from pyisyox import Program
+    from pyisyox.testing import make_controller, make_load_result, make_program_record
+
+    from custom_components.udi_iox.switch import (
+        ISYProgramEnableSwitch,
+        ISYProgramRunAtStartupSwitch,
+        async_setup_entry,
+    )
+
+    controller = make_controller(make_load_result())
+    record = make_program_record("0010", "Sunset Lights", path="X")
+    isy_data = isy_data_for(controller)
+    isy_data.program_devices = [Program(record, controller._client)]
+    entry = MagicMock()
+    entry.runtime_data = isy_data
+    collected: list = []
+    await async_setup_entry(hass, entry, collected.extend)
+    assert not any(
+        isinstance(e, (ISYProgramEnableSwitch, ISYProgramRunAtStartupSwitch))
+        for e in collected
+    )
+
+
+async def test_switch_turn_off_translates_node_command_error() -> None:
+    """A controller-side rejection on turn_off becomes HomeAssistantError
+    (lines 132-133)."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Node, NodeCommandError
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.switch import ISYSwitchEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYSwitchEntity(isy_data, node=node, device_info=None)
+    with (
+        patch.object(
+            Node, "send_command", new=AsyncMock(side_effect=NodeCommandError("nope"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to turn off switch"),
+    ):
+        await entity.async_turn_off()
+
+
+async def test_switch_turn_on_translates_node_command_error() -> None:
+    """A controller-side rejection on turn_on becomes HomeAssistantError
+    (lines 141-142)."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Node, NodeCommandError
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.switch import ISYSwitchEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYSwitchEntity(isy_data, node=node, device_info=None)
+    with (
+        patch.object(
+            Node, "send_command", new=AsyncMock(side_effect=NodeCommandError("nope"))
+        ),
+        pytest.raises(HomeAssistantError, match="Unable to turn on switch"),
+    ):
+        await entity.async_turn_on()
+
+
+async def test_enable_switch_async_on_update_writes_state() -> None:
+    """``ISYEnableSwitchEntity.async_on_update`` calls
+    ``async_write_ha_state`` (line 243)."""
+    from unittest.mock import patch
+
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.switch import (
+        ISYEnableSwitchEntity,
+        ISYSwitchEntityDescription,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYEnableSwitchEntity(
+        isy_data,
+        node=node,
+        control="enabled",
+        unique_id="x_en",
+        description=ISYSwitchEntityDescription(key="enabled", name="Enabled"),
+        device_info=None,
+    )
+    write_calls = []
+    with patch.object(
+        ISYEnableSwitchEntity,
+        "async_write_ha_state",
+        lambda s: write_calls.append(1),
+    ):
+        entity.async_on_update(None, "")  # type: ignore[arg-type]
+    assert write_calls == [1]
+
+
+@pytest.mark.parametrize(
+    ("verb", "match"),
+    [
+        ("async_turn_on", "Unable to enable program"),
+        ("async_turn_off", "Unable to disable program"),
+    ],
+)
+async def test_program_enable_switch_translates_errors(verb: str, match: str) -> None:
+    """``ISYProgramEnableSwitch`` enable/disable errors surface as
+    HomeAssistantError (lines 303-304, 312-313)."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Program
+    from pyisyox.testing import make_controller, make_load_result, make_program_record
+
+    from custom_components.udi_iox.switch import ISYProgramEnableSwitch
+
+    controller = make_controller(make_load_result())
+    record = make_program_record("0010", "X", path="X")
+    program = Program(record, controller._client)
+    isy_data = isy_data_for(controller)
+    switch = ISYProgramEnableSwitch(isy_data, program, device_info={})  # type: ignore[arg-type]
+    target = "enable" if verb == "async_turn_on" else "disable"
+    with (
+        patch.object(Program, target, new=AsyncMock(side_effect=RuntimeError("boom"))),
+        pytest.raises(HomeAssistantError, match=match),
+    ):
+        await getattr(switch, verb)()
+
+
+@pytest.mark.parametrize(
+    ("verb", "match"),
+    [
+        ("async_turn_on", "Unable to enable run-at-startup"),
+        ("async_turn_off", "Unable to disable run-at-startup"),
+    ],
+)
+async def test_program_run_at_startup_switch_translates_errors(
+    verb: str, match: str
+) -> None:
+    """``ISYProgramRunAtStartupSwitch`` enable/disable errors surface as
+    HomeAssistantError (lines 342-343, 351-352)."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import Program
+    from pyisyox.testing import make_controller, make_load_result, make_program_record
+
+    from custom_components.udi_iox.switch import ISYProgramRunAtStartupSwitch
+
+    controller = make_controller(make_load_result())
+    record = make_program_record("0010", "X", path="X")
+    program = Program(record, controller._client)
+    isy_data = isy_data_for(controller)
+    switch = ISYProgramRunAtStartupSwitch(isy_data, program, device_info={})  # type: ignore[arg-type]
+    target = (
+        "enable_run_at_startup" if verb == "async_turn_on" else "disable_run_at_startup"
+    )
+    with (
+        patch.object(Program, target, new=AsyncMock(side_effect=RuntimeError("boom"))),
+        pytest.raises(HomeAssistantError, match=match),
+    ):
+        await getattr(switch, verb)()

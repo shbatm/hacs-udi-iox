@@ -397,6 +397,148 @@ async def test_async_get_zwave_parameter_returns_parsed_dict(
     assert result == parsed
 
 
+async def test_valid_iox_command_validator() -> None:
+    """``_valid_iox_command`` upper-cases and validates against the
+    pyisyox COMMAND_FRIENDLY_NAME table (lines 68-71)."""
+    import voluptuous as vol
+
+    from custom_components.udi_iox.services import _valid_iox_command
+
+    assert _valid_iox_command("don") == "DON"
+    with pytest.raises(vol.Invalid, match="Unknown IoX command"):
+        _valid_iox_command("not_a_real_cmd")
+
+
+async def test_select_isy_data_skips_entries_with_none_runtime_data(
+    hass, service_controller
+) -> None:
+    """An entry whose ``runtime_data`` is ``None`` (mid-setup) is
+    silently skipped (line 133-134)."""
+    from custom_components.udi_iox.services import _select_isy_data
+
+    none_entry = MagicMock()
+    none_entry.runtime_data = None
+    hass.config_entries.async_entries = MagicMock(return_value=[none_entry])
+    assert list(_select_isy_data(hass, None)) == []
+
+
+async def test_select_isy_data_filters_by_uuid(hass, service_controller) -> None:
+    """``isy_name`` filters out controllers whose uuid doesn't match
+    (line 135-136)."""
+    from custom_components.udi_iox.services import _select_isy_data
+
+    isy_data = isy_data_for(service_controller)
+    entry = MagicMock()
+    entry.runtime_data = isy_data
+    hass.config_entries.async_entries = MagicMock(return_value=[entry])
+    assert list(_select_isy_data(hass, "different-uuid")) == []
+    matched = list(_select_isy_data(hass, "test-uuid"))
+    assert len(matched) == 1
+
+
+async def test_async_setup_services_no_op_when_already_registered(
+    hass, service_controller
+) -> None:
+    """A second ``async_setup_services`` call is a no-op when one of the
+    integration services is already registered (line 144-147)."""
+    await _wire_services_with_entry(hass, service_controller)
+    # Second call should hit the early-return branch.
+    async_setup_services(hass)
+
+
+async def test_send_program_command_no_matching_controller_raises(
+    hass, service_controller
+) -> None:
+    """A ``isy=`` argument that doesn't match any controller raises
+    immediately rather than silently no-op'ing (line 161-162)."""
+    await _wire_services_with_entry(hass, service_controller)
+    with pytest.raises(HomeAssistantError, match="No IoX controller matched"):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SEND_PROGRAM_COMMAND,
+            {CONF_ADDRESS: "0030", "command": "run", "isy": "no-such-uuid"},
+            blocking=True,
+        )
+
+
+async def test_entity_targeted_services_dispatch(hass, service_controller) -> None:
+    """The five entity-targeted handlers each route through
+    ``entity_service_call`` (lines 205, 220, 236, 251, 266)."""
+    from homeassistant.helpers.entity import Entity
+
+    class _Stub(Entity):
+        entity_id = "switch.x"
+
+        async def async_send_node_command(self, **_):
+            return None
+
+        async def async_get_node_commands(self, **_):
+            return {"accepted_commands": {}}
+
+        async def async_rename_node(self, **_):
+            return None
+
+        async def async_set_zwave_parameter(self, **_):
+            return None
+
+        async def async_get_zwave_parameter(self, **_):
+            return {"parameter": 1, "value": 0, "size": 1}
+
+    await _wire_services_with_entry(hass, service_controller)
+    stub = _Stub()
+    stub.hass = hass
+    with patch(
+        "custom_components.udi_iox.services.async_get_platforms"
+    ) as get_platforms:
+        platform = MagicMock()
+        platform.entities = {stub.entity_id: stub}
+        get_platforms.return_value = [platform]
+        # Each handler is registered against the same entity-service
+        # plumbing; calling them all confirms each lambda gets invoked.
+        with patch(
+            "custom_components.udi_iox.services.entity_service_call",
+            new=AsyncMock(return_value={"r": 1}),
+        ) as esc:
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_SEND_NODE_COMMAND,
+                {"entity_id": stub.entity_id, "command": "beep"},
+                blocking=True,
+            )
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_GET_NODE_COMMANDS,
+                {"entity_id": stub.entity_id},
+                blocking=True,
+                return_response=True,
+            )
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_RENAME_NODE,
+                {"entity_id": stub.entity_id, "name": "n"},
+                blocking=True,
+            )
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_SET_ZWAVE_PARAMETER,
+                {
+                    "entity_id": stub.entity_id,
+                    "parameter": 1,
+                    "value": 0,
+                    "size": 1,
+                },
+                blocking=True,
+            )
+            await hass.services.async_call(
+                DOMAIN,
+                SERVICE_GET_ZWAVE_PARAMETER,
+                {"entity_id": stub.entity_id, "parameter": 1},
+                blocking=True,
+                return_response=True,
+            )
+    assert esc.await_count == 5
+
+
 async def test_send_node_command_translates_node_command_error(
     service_controller,
 ) -> None:

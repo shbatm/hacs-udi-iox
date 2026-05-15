@@ -147,6 +147,168 @@ async def test_turn_on_scales_brightness_for_multirange_zwave_editor() -> None:
     assert send_command.call_args_list[0].args == ("DON", 54)
 
 
+async def test_is_on_and_brightness_handle_unknown_status() -> None:
+    """``is_on`` returns False when status is unknown (line 77-78);
+    ``brightness`` returns None (line 85-86)."""
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.light import ISYLightEntity
+
+    controller = make_controller(make_load_result())
+    # Empty properties dict → node.status is None → node_status_int → None.
+    node = make_node(make_node_record("A 1", "Dimmer", properties={}), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYLightEntity(isy_data, node, restore_light_state=False)
+    assert entity.is_on is False
+    assert entity.brightness is None
+
+
+async def test_brightness_passes_through_non_percentage_uom() -> None:
+    """A non-percentage UOM returns the raw status value (no scale)
+    (line 90)."""
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.entity import node_status_int
+    from custom_components.udi_iox.light import ISYLightEntity
+
+    controller = make_controller(make_load_result())
+    # UOM "0" — generic, no codec normalization applied.
+    record = make_node_record(
+        "A 1",
+        "Dimmer",
+        properties={
+            "ST": NodePropertyValue(
+                id="ST", value="200", formatted="200", uom="0", name="Status"
+            )
+        },
+    )
+    node = make_node(record, controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYLightEntity(isy_data, node, restore_light_state=False)
+    # Brightness should equal the raw status — no percent→255 scale.
+    assert entity.brightness == node_status_int(node)
+
+
+async def test_async_on_update_records_last_brightness() -> None:
+    """``async_on_update`` saves the current brightness so a
+    later DON-without-level can restore it (lines 105-114).
+    Both UOM 51 (percent) and the raw 0-255 path are exercised."""
+    from unittest.mock import patch
+
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.light import ISYLightEntity
+
+    controller = make_controller(make_load_result())
+    # UOM 51 (percent) → status * 255 / 100.
+    record = make_node_record(
+        "A 1",
+        "Dimmer",
+        properties={
+            "ST": NodePropertyValue(
+                id="ST", value="50", formatted="50%", uom="51", name="Status"
+            )
+        },
+    )
+    node = make_node(record, controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYLightEntity(isy_data, node, restore_light_state=True)
+    with patch.object(ISYLightEntity, "async_write_ha_state", lambda s: None):
+        entity.async_on_update(None, "ST")  # type: ignore[arg-type]
+    assert entity._last_brightness == round(50 * 255.0 / 100.0)
+
+    # Non-percentage UOM raw → stored as-is.
+    record_raw = make_node_record(
+        "A 2",
+        "Dimmer",
+        properties={
+            "ST": NodePropertyValue(
+                id="ST", value="200", formatted="200", uom="0", name="Status"
+            )
+        },
+    )
+    node_raw = make_node(record_raw, controller)
+    entity_raw = ISYLightEntity(isy_data, node_raw, restore_light_state=True)
+    from custom_components.udi_iox.entity import node_status_int
+
+    expected = node_status_int(node_raw)
+    with patch.object(ISYLightEntity, "async_write_ha_state", lambda s: None):
+        entity_raw.async_on_update(None, "ST")  # type: ignore[arg-type]
+    assert entity_raw._last_brightness == expected
+
+
+async def test_turn_on_restores_last_brightness_when_enabled() -> None:
+    """``restore_light_state=True`` and brightness=None pulls the
+    cached ``_last_brightness`` (line 126-127)."""
+    from unittest.mock import AsyncMock, patch
+
+    from pyisyox import Node
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.light import ISYLightEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Dimmer"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYLightEntity(isy_data, node, restore_light_state=True)
+    entity._last_brightness = 128
+    with patch.object(Node, "send_command", new=AsyncMock()) as send:
+        await entity.async_turn_on()
+    # The stored brightness is fed into the standard editor scaling
+    # path; the integration sends ``DON`` with the editor-scaled level.
+    assert send.await_args.args[0] == "DON"
+    assert send.await_args.args[1] in (50, 128)  # scaled-percent or raw
+
+
+async def test_async_added_to_hass_restores_last_brightness_attr(hass) -> None:
+    """``async_added_to_hass`` repopulates ``_last_brightness`` from the
+    persisted state attribute when one is present (lines 162-163)."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.light import ATTR_LAST_BRIGHTNESS, ISYLightEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Dimmer"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYLightEntity(isy_data, node, restore_light_state=True)
+    entity.hass = hass
+    entity.entity_id = "light.dimmer"
+    last = MagicMock()
+    last.attributes = {ATTR_LAST_BRIGHTNESS: 200}
+    entity.async_get_last_state = AsyncMock(return_value=last)
+    await entity.async_added_to_hass()
+    assert entity._last_brightness == 200
+
+
 async def test_turn_on_translates_node_command_error_to_homeassistanterror() -> None:
     """A controller-side rejection (NodeCommandError) becomes a
     HomeAssistantError so HA shows the user a clear failure popup

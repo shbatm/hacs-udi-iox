@@ -930,3 +930,114 @@ def test_suggested_area_root_node_has_none(isy_data, options, controller):
     )
 
     assert isy_data.devices["1A 2B 3C 1"].get("suggested_area") is None
+
+
+# --- convert_isy_value_to_hass coverage push ---
+
+
+def test_convert_isy_value_handles_double_temp_uom() -> None:
+    """``UOM_DOUBLE_TEMP`` divides the raw value by two and rounds
+    to one decimal (line 633-634)."""
+    from custom_components.udi_iox.const import UOM_DOUBLE_TEMP
+    from custom_components.udi_iox.helpers import convert_isy_value_to_hass
+
+    assert convert_isy_value_to_hass(140, UOM_DOUBLE_TEMP, "0") == 70.0
+    assert convert_isy_value_to_hass(141, UOM_DOUBLE_TEMP, "0") == 70.5
+
+
+def test_convert_isy_value_returns_none_for_empty_or_unparseable() -> None:
+    """Empty / non-numeric / None inputs return None (lines 625-628)."""
+    from custom_components.udi_iox.helpers import convert_isy_value_to_hass
+
+    assert convert_isy_value_to_hass(None, "1", "0") is None
+    assert convert_isy_value_to_hass("", "1", "0") is None
+    assert convert_isy_value_to_hass("not-a-number", "1", "0") is None
+
+
+def test_convert_isy_value_uses_fallback_precision() -> None:
+    """``fallback_precision`` rounds when the property has no
+    declared precision (line 640)."""
+    from custom_components.udi_iox.helpers import convert_isy_value_to_hass
+
+    assert convert_isy_value_to_hass(1.23456, "1", "0", fallback_precision=2) == 1.23
+
+
+def test_convert_isy_value_returns_raw_when_no_precision_or_fallback() -> None:
+    """A precision of 0 with no fallback returns the raw float (line 641)."""
+    from custom_components.udi_iox.helpers import convert_isy_value_to_hass
+
+    assert convert_isy_value_to_hass(42, "1", "0") == 42.0
+
+
+def test_convert_isy_value_scales_by_explicit_precision() -> None:
+    """Non-zero precision divides by 10**precision (line 638)."""
+    from custom_components.udi_iox.helpers import convert_isy_value_to_hass
+
+    assert convert_isy_value_to_hass(760, "17", "1") == 76.0
+
+
+def test_primary_platform_for_native_lock_branch() -> None:
+    """An ``is_lock`` node short-circuits to LOCK regardless of the
+    classifier (line 126)."""
+    from unittest.mock import MagicMock
+
+    from homeassistant.const import Platform
+
+    from custom_components.udi_iox.helpers import _primary_platform_for_native
+
+    node = MagicMock()
+    node.is_thermostat = False
+    node.is_lock = True
+    node.is_fan = False
+    assert _primary_platform_for_native(node, None) == Platform.LOCK
+
+
+def test_primary_platform_for_native_falls_back_to_switch_when_classifier_missing() -> (
+    None
+):
+    """When all type-introspection flags are False AND classifier
+    result is None, the historical SWITCH fallback fires (line 132)."""
+    from unittest.mock import MagicMock
+
+    from homeassistant.const import Platform
+
+    from custom_components.udi_iox.helpers import _primary_platform_for_native
+
+    node = MagicMock()
+    node.is_thermostat = False
+    node.is_lock = False
+    node.is_fan = False
+    assert _primary_platform_for_native(node, None) == Platform.SWITCH
+
+
+def test_categorize_skips_groups_with_ignore_identifier_in_name() -> None:
+    """A group whose name contains ``CONF_IGNORE_STRING`` is silently
+    skipped (line 374)."""
+    from types import MappingProxyType
+
+    from pyisyox.testing import (
+        make_controller,
+        make_group_record,
+        make_load_result,
+    )
+
+    from custom_components.udi_iox.helpers import _categorize_nodes
+    from custom_components.udi_iox.models import IsyData
+
+    ignored = make_group_record("99001", "{IGNORE ME} Hidden Scene")
+    visible = make_group_record("99002", "Visible Scene")
+    controller = make_controller(
+        make_load_result(groups={ignored.address: ignored, visible.address: visible})
+    )
+    isy_data = IsyData()
+    isy_data.root = controller
+    _categorize_nodes(
+        isy_data,
+        controller.nodes,
+        MappingProxyType({}),
+        controller=controller,
+        host="http://localhost",
+    )
+    addresses = [g.address for g in isy_data.groups]
+    assert "99002" in addresses
+    assert "99001" not in addresses

@@ -108,3 +108,75 @@ def test_unit_for_uom(uom: str, expected: str | None) -> None:
     from custom_components.udi_iox.editor_classification import unit_for_uom
 
     assert unit_for_uom(uom) == expected
+
+
+# --- resolve_editor coverage (lines 79, 92) and the binary-UOM /
+# pure-subset platform branches (lines 150, 157) ---
+
+
+@pytest.mark.parametrize(
+    ("editor", "writable", "expected"),
+    [
+        # Binary UOM 2 + writable=False (line 150 BINARY_SENSOR branch).
+        (_e("X", uom="2", min=0, max=1), False, Platform.BINARY_SENSOR),
+        # Binary UOM 78 + writable=True → SWITCH.
+        (_e("X", uom="78", min=0, max=1), True, Platform.SWITCH),
+        # Pure subset, no names, no numeric bounds → SELECT (line 157).
+        (_e("X", uom="56", subset="0,1,2"), True, Platform.SELECT),
+    ],
+)
+def test_platform_for_control_binary_and_subset_branches(
+    editor: Editor, writable: bool, expected: Platform
+) -> None:
+    assert platform_for_control(editor, writable=writable) == expected
+
+
+def test_resolve_editor_returns_none_when_node_has_no_nodedef() -> None:
+    """A node without a loaded nodedef short-circuits to None (line 79)."""
+    from unittest.mock import MagicMock
+
+    from custom_components.udi_iox.editor_classification import resolve_editor
+
+    node = MagicMock()
+    node.nodedef = None
+    assert resolve_editor(MagicMock(), node, "ST") is None
+
+
+def test_resolve_editor_returns_none_when_editor_has_no_ranges() -> None:
+    """A profile-resolved editor with empty ranges is treated as
+    unusable (line 92)."""
+    from unittest.mock import MagicMock
+
+    from custom_components.udi_iox.editor_classification import resolve_editor
+
+    node = MagicMock()
+    node.nodedef.properties = {"ST": MagicMock(editor_id="EMPTY_ED")}
+    node.family_id = "1"
+    node.instance_id = "0"
+    controller = MagicMock()
+    empty_editor = MagicMock()
+    empty_editor.ranges = []
+    controller.profile.find_editor.return_value = empty_editor
+    assert resolve_editor(controller, node, "ST") is None
+
+
+def test_resolve_editor_walks_accept_command_parameters() -> None:
+    """When the control isn't a property, the resolver looks for an
+    accept command whose first parameter has the editor (line 84-87)."""
+    from unittest.mock import MagicMock
+
+    from custom_components.udi_iox.editor_classification import resolve_editor
+
+    node = MagicMock()
+    node.nodedef.properties = {}
+    cmd = MagicMock()
+    cmd.id = "BL"
+    cmd.parameters = [MagicMock(editor_id="I_BL")]
+    node.nodedef.cmds.accepts = [cmd]
+    node.family_id = "1"
+    node.instance_id = "0"
+    controller = MagicMock()
+    editor = MagicMock()
+    editor.ranges = [MagicMock()]
+    controller.profile.find_editor.return_value = editor
+    assert resolve_editor(controller, node, "BL") is editor

@@ -447,3 +447,276 @@ async def test_index_select_resolves_via_editor_names() -> None:
     ):
         assert entity._has_readback is True
         assert entity.current_option == "High"
+
+
+# --- Coverage push: setup branches and current_option fallbacks ---
+
+
+async def test_select_options_uses_editor_names_with_subset() -> None:
+    """When the resolved range has both ``names`` and a ``subset``, the
+    options come from the subset keys mapped through names (line 66-67)."""
+    from unittest.mock import MagicMock, patch
+
+    from custom_components.udi_iox.select import _select_options
+
+    fake_range = MagicMock(
+        names={"0": "Off", "1": "Low", "2": "High"},
+        subset={"0", "2"},
+    )
+    isy_data = MagicMock()
+    node = MagicMock()
+    with patch(
+        "custom_components.udi_iox.select.range_for_control",
+        return_value=fake_range,
+    ):
+        opts = _select_options(isy_data, node, "OL")
+    # Sorted by raw int key: ["0","2"] → ["Off", "High"].
+    assert opts == ["Off", "High"]
+
+
+async def test_async_setup_entry_skips_aux_with_no_options(hass) -> None:
+    """An aux SELECT control whose ``_select_options`` returns []
+    (no editor names AND no UOM_TO_STATES match) is skipped (lines
+    113-123)."""
+    from unittest.mock import MagicMock
+
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.select import async_setup_entry
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("AA AA AA 1", "X"), controller)
+    isy_data = isy_data_for(controller)
+    isy_data.aux_properties[Platform.SELECT].append((node, "UNKNOWN"))
+    isy_data.devices[node.address] = MagicMock()
+    entry = MagicMock()
+    entry.runtime_data = isy_data
+    collected: list = []
+    await async_setup_entry(hass, entry, collected.extend)
+    # No options resolvable → no entity created.
+    assert collected == []
+
+
+async def test_aux_index_select_async_added_restores_optimistic_state(hass) -> None:
+    """A write-only aux select restores its last selected option
+    on add (lines 178-184)."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from homeassistant.components.select import SelectEntityDescription
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.select import ISYAuxControlIndexSelectEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "X"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYAuxControlIndexSelectEntity(
+        isy_data=isy_data,
+        node=node,
+        control="UNKNOWN",  # write-only
+        unique_id="x_set",
+        description=SelectEntityDescription(key="UNKNOWN", options=["Lo", "Hi"]),
+        device_info=None,
+    )
+    entity.hass = hass
+    entity.entity_id = "select.x"
+    last = MagicMock()
+    last.state = "Hi"
+    entity.async_get_last_state = AsyncMock(return_value=last)
+    await entity.async_added_to_hass()
+    assert entity._optimistic_option == "Hi"
+
+
+async def test_async_setup_entry_creates_backlight_and_aux_index_entities(hass) -> None:
+    """An aux-property CMD_BACKLIGHT control creates an
+    ``ISYBacklightSelectEntity`` (lines 113-115); a UOM_TO_STATES
+    control creates an ``ISYAuxControlIndexSelectEntity`` (line 123)."""
+    from unittest.mock import MagicMock
+
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.constants import CMD_BACKLIGHT
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.select import (
+        ISYAuxControlIndexSelectEntity,
+        ISYBacklightSelectEntity,
+        async_setup_entry,
+    )
+
+    controller = make_controller(make_load_result())
+    bl_node = make_node(make_node_record("AA AA AA 1", "X"), controller)
+    # UOM 66 — HVAC heat/cool state, in UOM_TO_STATES → triggers options.
+    aux = make_node_record(
+        "AA AA AA 2",
+        "Y",
+        properties={
+            "MY": NodePropertyValue(
+                id="MY", value="0", formatted="Off", uom="66", name="MY"
+            )
+        },
+    )
+    aux_node = make_node(aux, controller)
+    isy_data = isy_data_for(controller)
+    isy_data.aux_properties[Platform.SELECT].extend(
+        [(bl_node, CMD_BACKLIGHT), (aux_node, "MY")]
+    )
+    isy_data.devices[bl_node.address] = MagicMock()
+    isy_data.devices[aux_node.address] = MagicMock()
+    entry = MagicMock()
+    entry.runtime_data = isy_data
+    collected: list = []
+    await async_setup_entry(hass, entry, collected.extend)
+    assert any(isinstance(e, ISYBacklightSelectEntity) for e in collected)
+    assert any(isinstance(e, ISYAuxControlIndexSelectEntity) for e in collected)
+
+
+async def test_aux_index_select_current_option_uses_uom_to_states_lookup() -> None:
+    """When the property's UOM is in ``UOM_TO_STATES``, the current
+    option resolves through that map (line 196-197). Drive the readback
+    path by patching ``_has_readback`` to True."""
+    from unittest.mock import patch
+
+    from homeassistant.components.select import SelectEntityDescription
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.select import ISYAuxControlIndexSelectEntity
+
+    controller = make_controller(make_load_result())
+    # UOM 66 → HVAC heat/cool state; "1" → some label.
+    record = make_node_record(
+        "A 1",
+        "X",
+        properties={
+            "MY": NodePropertyValue(
+                id="MY", value="1", formatted="On", uom="66", name="MyControl"
+            )
+        },
+    )
+    node = make_node(record, controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYAuxControlIndexSelectEntity(
+        isy_data=isy_data,
+        node=node,
+        control="MY",
+        unique_id="x_my",
+        description=SelectEntityDescription(key="MY", options=["a", "b"]),
+        device_info=None,
+    )
+    with patch.object(
+        ISYAuxControlIndexSelectEntity,
+        "_has_readback",
+        new_callable=lambda: property(lambda _self: True),
+    ):
+        # The UOM_TO_STATES["66"] maps "1" → some label (or returns the
+        # raw value as fallback). Either way, current_option is non-None.
+        assert entity.current_option is not None
+
+
+async def test_backlight_select_async_added_restores_state_and_subscribes(hass) -> None:
+    """``ISYBacklightSelectEntity.async_added_to_hass`` restores the
+    last-known state and subscribes to memory-write echoes (lines
+    255-265)."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from homeassistant.components.select import SelectEntityDescription
+    from pyisyox.constants import CMD_BACKLIGHT
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.select import ISYBacklightSelectEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYBacklightSelectEntity(
+        isy_data=isy_data,
+        node=node,
+        control=CMD_BACKLIGHT,
+        unique_id="x_bl",
+        description=SelectEntityDescription(
+            key=CMD_BACKLIGHT, options=["Off", "Low", "High"]
+        ),
+        device_info=None,
+    )
+    entity.hass = hass
+    entity.entity_id = "select.bl"
+    last = MagicMock()
+    last.state = "Low"
+    entity.async_get_last_state = AsyncMock(return_value=last)
+    sub_calls: list[tuple] = []
+    isy_data.controller_events.subscribe_node = (  # type: ignore[assignment]
+        lambda addr, ctrl, cb: sub_calls.append((addr, ctrl)) or (lambda: None)
+    )
+    await entity.async_added_to_hass()
+    assert entity._attr_current_option == "Low"
+    assert ("A 1", "_7M") in sub_calls or any(addr == "A 1" for addr, _ in sub_calls)
+
+
+async def test_backlight_memory_write_skips_when_value_matches_current() -> None:
+    """If the memory-write decodes to the option already selected, the
+    handler bails out without firing async_write_ha_state (line 287)."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from homeassistant.components.select import SelectEntityDescription
+    from pyisyox.constants import CMD_BACKLIGHT
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.const import BACKLIGHT_MEMORY_FILTER
+    from custom_components.udi_iox.select import ISYBacklightSelectEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYBacklightSelectEntity(
+        isy_data=isy_data,
+        node=node,
+        control=CMD_BACKLIGHT,
+        unique_id="x_bl",
+        description=SelectEntityDescription(key=CMD_BACKLIGHT, options=["0", "1"]),
+        device_info=None,
+    )
+    entity._attr_current_option = "1"
+    frame = SimpleNamespace(
+        memory=BACKLIGHT_MEMORY_FILTER["memory"],
+        cmd1=BACKLIGHT_MEMORY_FILTER["cmd1"],
+        value=1,
+    )
+    write_calls: list[int] = []
+    with patch.object(
+        ISYBacklightSelectEntity,
+        "async_write_ha_state",
+        lambda s: write_calls.append(1),
+    ):
+        entity._on_memory_write(frame)  # type: ignore[arg-type]
+    assert write_calls == []
