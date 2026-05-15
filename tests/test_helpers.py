@@ -829,37 +829,76 @@ def test_suggested_area_uses_immediate_parent_folder(isy_data, options):
     assert isy_data.devices["1A 2B 3C 1"].get("suggested_area") == "Living Room"
 
 
-def test_suggested_area_walks_through_node_ancestor_to_find_folder(isy_data, options):
-    """A sub-button whose immediate parent is the device root (a node)
-    walks through that node up to the enclosing folder."""
-    from pyisyox.testing import make_folder_record
+def test_suggested_area_climbs_through_plugin_controller_to_find_folder(
+    isy_data, options
+):
+    """A NODE_SERVER plugin child whose ``parent_address`` points to
+    its plugin controller (not directly to a folder) climbs through
+    the controller node to find the enclosing folder. Exercises the
+    ``controller.nodes.get(address)`` branch in
+    ``_suggested_area_for_node``.
 
-    folder = make_folder_record("F1", "Bedroom")
-    primary_rec = make_node_record("AA BB CC 1", "Keypad", parent_address="F1")
-    sub_rec = make_node_record(
-        "AA BB CC 2",
-        "Button A",
-        pnode="AA BB CC 1",
-        parent_address="AA BB CC 1",
+    Insteon sub-buttons share an HA device with their primary so
+    ``_generate_device_info`` is never called for them — only
+    NODE_SERVER children get their own ``DeviceInfo`` and therefore
+    their own ``suggested_area`` derivation, which is when the
+    node-walk path actually fires.
+    """
+    from pyisyox.testing import (
+        PLUGIN_COVER_FAMILY_ID,
+        PLUGIN_COVER_INSTANCE_ID,
+        PLUGIN_COVER_NODEDEF_ID,
+        make_folder_record,
+    )
+
+    folder = make_folder_record("F1", "Garage")
+    plugin_controller = make_node_record(
+        "n100_controller",
+        "Plugin Hub",
+        nodedef_id=PLUGIN_COVER_NODEDEF_ID,
+        family_id=PLUGIN_COVER_FAMILY_ID,
+        instance_id=PLUGIN_COVER_INSTANCE_ID,
+        type_="",
+        parent_address="F1",
+    )
+    plugin_child = make_node_record(
+        "n100_blind1",
+        "Garage Blind",
+        nodedef_id=PLUGIN_COVER_NODEDEF_ID,
+        family_id=PLUGIN_COVER_FAMILY_ID,
+        instance_id=PLUGIN_COVER_INSTANCE_ID,
+        pnode="n100_controller",
+        parent_address="n100_controller",
+        type_="",
     )
     controller = make_controller(
         make_load_result(
-            nodes={primary_rec.address: primary_rec, sub_rec.address: sub_rec},
+            nodes={
+                plugin_controller.address: plugin_controller,
+                plugin_child.address: plugin_child,
+            },
             folders={folder.address: folder},
         )
     )
-    nodes = {rec.address: make_node(rec, controller) for rec in (primary_rec, sub_rec)}
+    nodes = {
+        rec.address: make_node(rec, controller)
+        for rec in (plugin_controller, plugin_child)
+    }
 
     _categorize_nodes(
         isy_data, nodes, options, controller=controller, host="https://eisy.local"
     )
 
-    assert isy_data.devices["AA BB CC 1"].get("suggested_area") == "Bedroom"
+    # The child's parent_address is another node — the walk has to
+    # climb through it before finding the folder.
+    assert isy_data.devices["n100_blind1"].get("suggested_area") == "Garage"
+    # And the controller still finds the folder in one hop.
+    assert isy_data.devices["n100_controller"].get("suggested_area") == "Garage"
 
 
-def test_suggested_area_uses_deepest_folder_in_nested_chain(isy_data, options):
+def test_suggested_area_innermost_folder_wins_in_nested_chain(isy_data, options):
     """When a node sits in ``Lighting/Living Room``, the immediate
-    parent folder ("Living Room") wins — not the outer one."""
+    (innermost) parent folder wins — not the outer ancestor."""
     from pyisyox.testing import make_folder_record
 
     outer = make_folder_record("F1", "Lighting")

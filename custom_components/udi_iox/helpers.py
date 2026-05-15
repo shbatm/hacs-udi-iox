@@ -292,8 +292,13 @@ def _suggested_area_for_node(controller: Controller, node: Node) -> str | None:
     to that folder. Returns ``None`` for nodes at the root of the IoX
     tree (no folder ancestor).
     """
+    # ``visited`` guards against a parent-address cycle. Real IoX
+    # hardware shouldn't produce one, but the loop's upper bound is
+    # otherwise unbounded — cheap insurance against corrupt state.
+    visited: set[str] = set()
     address = node.parent_address
-    while address:
+    while address and address not in visited:
+        visited.add(address)
         folder = controller.folders.get(address)
         if folder is not None:
             return folder.name or None

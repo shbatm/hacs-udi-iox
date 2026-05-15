@@ -241,6 +241,11 @@ def test_program_device_info_uses_parent_folder_as_suggested_area() -> None:
     # Real eisy hierarchy: synthetic root → user folder → program.
     _add_program_folder(controller, "ROOT", "My Programs", parent_address=None)
     _add_program_folder(controller, "F1", "Lighting", parent_address="ROOT")
+    # Guard: if pyisyox restructures `_loaded`, fail loudly here rather
+    # than letting suggested_area silently return None below.
+    assert controller.program_folders.get("F1") is not None, (
+        "program_folders setup failed — _loaded API may have changed"
+    )
     program = controller.programs["0010"]
 
     device_info = program_device_info(controller, program, host="http://localhost")
@@ -265,6 +270,9 @@ def test_program_device_info_skips_synthetic_root_folder() -> None:
         make_load_result(programs={program_rec.address: program_rec})
     )
     _add_program_folder(controller, "ROOT", "My Programs", parent_address=None)
+    assert controller.program_folders.get("ROOT") is not None, (
+        "program_folders setup failed — _loaded API may have changed"
+    )
     program = controller.programs["0010"]
 
     device_info = program_device_info(controller, program, host="http://localhost")
