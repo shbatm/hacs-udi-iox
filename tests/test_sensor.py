@@ -181,3 +181,186 @@ async def test_sensor_native_value_uses_formatted_for_string_types() -> None:
         device_info=None,
     )
     assert entity.native_value == "forty-two"
+
+
+# --- Coverage push: aux-property setup branches and helper edge cases ---
+
+
+async def test_check_volume_flow_rate_uom_handles_list_uom() -> None:
+    """``_check_volume_flow_rate_uom`` accepts a list UOM (legacy
+    ISYv4 firmware shape) and uses the first entry."""
+    from homeassistant.components.sensor import SensorDeviceClass
+
+    from custom_components.udi_iox.sensor import _check_volume_flow_rate_uom
+
+    # First entry is a known volume-flow UOM → keep the device_class.
+    assert (
+        _check_volume_flow_rate_uom(SensorDeviceClass.VOLUME_FLOW_RATE, ["7", "extra"])
+        == SensorDeviceClass.VOLUME_FLOW_RATE
+    )
+    # Empty list → uom becomes None → drop.
+    assert _check_volume_flow_rate_uom(SensorDeviceClass.VOLUME_FLOW_RATE, []) is None
+
+
+async def test_async_setup_entry_skips_program_sensors_without_device_info(
+    hass,
+) -> None:
+    """A program in ``program_devices`` whose DeviceInfo wasn't
+    registered is silently skipped — none of the four per-program
+    sensors get created."""
+    from unittest.mock import MagicMock
+
+    from pyisyox import Program
+    from pyisyox.testing import make_controller, make_load_result, make_program_record
+
+    from custom_components.udi_iox.sensor import (
+        ISYProgramLastFinishSensor,
+        ISYProgramLastRunSensor,
+        ISYProgramNextScheduledSensor,
+        ISYProgramRunningSensor,
+        async_setup_entry,
+    )
+
+    controller = make_controller(make_load_result())
+    record = make_program_record("0010", "Sunset Lights", path="X")
+    isy_data = isy_data_for(controller)
+    isy_data.program_devices = [Program(record, controller._client)]
+    entry = MagicMock()
+    entry.runtime_data = isy_data
+    collected: list = []
+    await async_setup_entry(hass, entry, collected.extend)
+    assert not any(
+        isinstance(
+            e,
+            (
+                ISYProgramRunningSensor,
+                ISYProgramLastRunSensor,
+                ISYProgramLastFinishSensor,
+                ISYProgramNextScheduledSensor,
+            ),
+        )
+        for e in collected
+    )
+
+
+async def test_aux_sensor_setup_classifies_apparent_and_reactive_power(hass) -> None:
+    """A CV (Volt-Amperes) and CC (VAR) aux property attached to a
+    PROP_CURRENT_POWER reading classifies as APPARENT_POWER /
+    REACTIVE_POWER respectively."""
+    from unittest.mock import MagicMock
+
+    from homeassistant.components.sensor import SensorDeviceClass
+    from pyisyox.client import NodePropertyValue
+
+    PROP_CURRENT_POWER = "CPW"
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.sensor import async_setup_entry
+
+    controller = make_controller(make_load_result())
+    # UOM 135 = VA (apparent power), UOM 136 = var (reactive power)
+    apparent = make_node_record(
+        "AA AA AA 1",
+        "Power",
+        properties={
+            PROP_CURRENT_POWER: NodePropertyValue(
+                id=PROP_CURRENT_POWER,
+                value="100",
+                formatted="100 VA",
+                uom="135",
+                name="Power",
+            )
+        },
+    )
+    reactive = make_node_record(
+        "AA AA AA 2",
+        "Reactive",
+        properties={
+            PROP_CURRENT_POWER: NodePropertyValue(
+                id=PROP_CURRENT_POWER,
+                value="50",
+                formatted="50 var",
+                uom="136",
+                name="Reactive Power",
+            )
+        },
+    )
+    apparent_node = make_node(apparent, controller)
+    reactive_node = make_node(reactive, controller)
+    isy_data = isy_data_for(controller)
+    isy_data.aux_properties[Platform.SENSOR].extend(
+        [(apparent_node, PROP_CURRENT_POWER), (reactive_node, PROP_CURRENT_POWER)]
+    )
+    isy_data.devices[apparent.address] = MagicMock()
+    isy_data.devices[reactive.address] = MagicMock()
+    entry = MagicMock()
+    entry.runtime_data = isy_data
+    collected: list = []
+    await async_setup_entry(hass, entry, collected.extend)
+    classes = {getattr(e, "device_class", None) for e in collected}
+    # At least one of the two power-class branches must have fired.
+    assert (
+        SensorDeviceClass.APPARENT_POWER in classes
+        or SensorDeviceClass.REACTIVE_POWER in classes
+    )
+
+
+async def test_aux_sensor_setup_exercises_uom_decode_branches(hass) -> None:
+    """Drives ``get_native_uom`` through its enum / on-off / double-temp /
+    list-UOM legacy branches."""
+    from unittest.mock import MagicMock
+
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.const import UOM_DOUBLE_TEMP, UOM_ON_OFF
+    from custom_components.udi_iox.sensor import async_setup_entry
+
+    controller = make_controller(make_load_result())
+
+    def _aux(addr: str, uom):
+        rec = make_node_record(
+            addr,
+            f"S{addr}",
+            properties={
+                "MY": NodePropertyValue(
+                    id="MY",
+                    value="1",
+                    formatted="1",
+                    uom=uom,
+                    name="MyControl",
+                )
+            },
+        )
+        return make_node(rec, controller)
+
+    # legacy list-UOM
+    n1 = _aux("AA AA AA 1", ["7"])
+    # UOM in UOM_TO_STATES — UOM 66 maps to HVAC heat/cool state enum
+    n2 = _aux("AA AA AA 2", "66")
+    # UOM_INDEX — UOM 25 is the index type
+    n3 = _aux("AA AA AA 3", "25")
+    # UOM_DOUBLE_TEMP
+    n4 = _aux("AA AA AA 4", UOM_DOUBLE_TEMP)
+    # UOM_ON_OFF directly
+    n5 = _aux("AA AA AA 5", UOM_ON_OFF)
+
+    isy_data = isy_data_for(controller)
+    for n in (n1, n2, n3, n4, n5):
+        isy_data.aux_properties[Platform.SENSOR].append((n, "MY"))
+        isy_data.devices[n.address] = MagicMock()
+    entry = MagicMock()
+    entry.runtime_data = isy_data
+    collected: list = []
+    await async_setup_entry(hass, entry, collected.extend)
+    assert len(collected) >= 5

@@ -529,3 +529,204 @@ async def test_stop_cancels_pending_ws_disconnect_timer(hass, events):
     await hass.async_block_till_done()
 
     assert seen == []  # listener cleared by stop(); no signal fanned out
+
+
+# --- Coverage: unsubscribe idempotency + program/lifecycle exceptions + ws ---
+
+
+def test_unsubscribing_lifecycle_listener_twice_is_safe(
+    events, event_controller
+) -> None:
+    """Calling the unsubscriber a second time is a no-op
+    (covers lines 187-188)."""
+    cb = MagicMock()
+    unsub = events.subscribe_lifecycle(cb)
+    unsub()
+    unsub()  # second call must not raise
+
+
+def test_unsubscribing_variable_listener_twice_is_safe(
+    events, event_controller
+) -> None:
+    """Variable unsubscribe is also idempotent."""
+    cb = MagicMock()
+    unsub = events.subscribe_variable(1, "1", cb)
+    unsub()
+    unsub()
+
+
+def test_unsubscribing_program_listener_twice_is_safe(events, event_controller) -> None:
+    """Program-status unsubscribe is idempotent."""
+    cb = MagicMock()
+    unsub = events.subscribe_program("0001", cb)
+    unsub()
+    unsub()
+
+
+def test_unsubscribing_ws_status_listener_twice_is_safe(
+    events, event_controller
+) -> None:
+    """WS-status unsubscribe is idempotent."""
+    cb = MagicMock()
+    unsub = events.subscribe_ws_status(cb)
+    unsub()
+    unsub()
+
+
+def test_lifecycle_listener_exception_does_not_break_others(
+    events, event_controller, caplog
+) -> None:
+    """A raising lifecycle listener is logged but doesn't block siblings
+    ."""
+    import logging
+
+    boom = MagicMock(side_effect=RuntimeError("nope"))
+    after = MagicMock()
+    events.subscribe_lifecycle(boom)
+    events.subscribe_lifecycle(after)
+    with caplog.at_level(logging.ERROR):
+        fire_lifecycle(
+            event_controller,
+            _lifecycle(action="NE", node_address="A 1"),
+        )
+    boom.assert_called_once()
+    after.assert_called_once()
+
+
+def test_program_listener_exception_does_not_break_others(events, caplog) -> None:
+    """A raising program listener is logged but doesn't block siblings
+    ."""
+    import logging
+
+    from pyisyox import ProgramStatusEvent
+
+    boom = MagicMock(side_effect=RuntimeError("nope"))
+    after = MagicMock()
+    events.subscribe_program("0010", boom)
+    events.subscribe_program("0010", after)
+    evt = MagicMock(spec=ProgramStatusEvent)
+    evt.address = "0010"
+    with caplog.at_level(logging.ERROR):
+        events._on_program_status(evt)
+    boom.assert_called_once()
+    after.assert_called_once()
+
+
+def test_ws_status_listener_exception_does_not_break_others(events, caplog) -> None:
+    """A raising ws-status listener is logged but doesn't block siblings
+    ."""
+    import logging
+
+    boom = MagicMock(side_effect=RuntimeError("nope"))
+    after = MagicMock()
+    events.subscribe_ws_status(boom)
+    events.subscribe_ws_status(after)
+    with caplog.at_level(logging.ERROR):
+        events._fan_out_ws_status(True)
+    boom.assert_called_once()
+    after.assert_called_once()
+
+
+def test_variable_wildcard_listener_exception_isolation(
+    events, event_controller, caplog
+) -> None:
+    """A wildcard-variable listener exception doesn't block other
+    listeners."""
+    import logging
+
+    boom = MagicMock(side_effect=RuntimeError("nope"))
+    after = MagicMock()
+    events.subscribe_variable(1, "1", boom)
+    events.subscribe_variable(1, "1", after)
+    with caplog.at_level(logging.ERROR):
+        fire_event(
+            event_controller,
+            _event(
+                control="_1",
+                action="6",
+                event_info='<var type="1" id="1"><val>5</val></var>',
+            ),
+        )
+    boom.assert_called_once()
+    after.assert_called_once()
+
+
+def test_variable_event_with_missing_var_element_is_dropped(
+    events, event_controller
+) -> None:
+    """An event_info that parses but has no ``<var>`` element is
+    silently dropped."""
+    cb = MagicMock()
+    events.subscribe_variable(1, "1", cb)
+    fire_event(
+        event_controller,
+        _event(control="_1", action="6", event_info="<other/>"),
+    )
+    cb.assert_not_called()
+
+
+def test_variable_event_with_missing_type_or_id_is_dropped(
+    events, event_controller
+) -> None:
+    """A ``<var>`` element without ``type`` / ``id`` is dropped
+    ."""
+    cb = MagicMock()
+    events.subscribe_variable(1, "1", cb)
+    fire_event(
+        event_controller,
+        _event(control="_1", action="6", event_info="<var><val>5</val></var>"),
+    )
+    cb.assert_not_called()
+
+
+def test_variable_event_with_unparseable_value_is_dropped(
+    events, event_controller
+) -> None:
+    """A ``<val>`` payload that isn't an int is dropped
+    ."""
+    cb = MagicMock()
+    events.subscribe_variable(1, "1", cb)
+    fire_event(
+        event_controller,
+        _event(
+            control="_1",
+            action="6",
+            event_info='<var type="1" id="1"><val>not-an-int</val></var>',
+        ),
+    )
+    cb.assert_not_called()
+
+
+def test_variable_event_with_unparseable_init_is_dropped(
+    events, event_controller
+) -> None:
+    """Same for ``<init>`` on the init action."""
+    cb = MagicMock()
+    events.subscribe_variable(1, "1", cb)
+    fire_event(
+        event_controller,
+        _event(
+            control="_1",
+            action="7",
+            event_info='<var type="1" id="1"><init>not-an-int</init></var>',
+        ),
+    )
+    cb.assert_not_called()
+
+
+def test_variable_event_with_no_value_or_init_is_dropped(
+    events, event_controller
+) -> None:
+    """An event whose action is value but the body has no ``<val>``
+    yields ``value=None`` and is dropped."""
+    cb = MagicMock()
+    events.subscribe_variable(1, "1", cb)
+    fire_event(
+        event_controller,
+        _event(
+            control="_1",
+            action="6",
+            event_info='<var type="1" id="1"></var>',
+        ),
+    )
+    cb.assert_not_called()

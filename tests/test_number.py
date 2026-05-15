@@ -543,6 +543,228 @@ async def test_backlight_set_native_value_translates_error() -> None:
         await entity.async_set_native_value(50)
 
 
+async def test_number_description_includes_step_when_editor_has_range() -> None:
+    """A control with a resolved editor range gets full
+    min/max/step/uom on its NumberEntityDescription."""
+    from unittest.mock import MagicMock, patch
+
+    from custom_components.udi_iox.number import _number_description
+
+    fake_range = MagicMock(min=0, max=100, step=None, precision=2, uom="51")
+    isy_data = MagicMock()
+    node = MagicMock()
+    with (
+        patch(
+            "custom_components.udi_iox.number.range_for_control",
+            return_value=fake_range,
+        ),
+        patch(
+            "custom_components.udi_iox.number.CONTROL_DESC",
+            {},  # force the editor-derived path
+        ),
+    ):
+        desc = _number_description(isy_data, node, "OL")
+    assert desc.native_min_value == 0.0
+    assert desc.native_max_value == 100.0
+    # precision=2 → step 10^-2 = 0.01
+    assert desc.native_step == 0.01
+
+
+async def test_async_setup_entry_creates_backlight_entity(hass) -> None:
+    """A CMD_BACKLIGHT control in aux_properties[NUMBER] creates an
+     ``ISYBacklightNumberEntity`` instead of the generic aux-number
+    ."""
+    from unittest.mock import MagicMock
+
+    from pyisyox.constants import CMD_BACKLIGHT
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.number import (
+        ISYBacklightNumberEntity,
+        async_setup_entry,
+    )
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    isy_data.aux_properties[Platform.NUMBER].append((node, CMD_BACKLIGHT))
+    entry = MagicMock()
+    entry.runtime_data = isy_data
+    entry.options = {}
+    collected: list = []
+    await async_setup_entry(hass, entry, collected.extend)
+    assert any(isinstance(e, ISYBacklightNumberEntity) for e in collected)
+
+
+async def test_aux_writeonly_restores_optimistic_value_on_add(hass) -> None:
+    """``async_added_to_hass`` for a write-only aux number restores the
+    last optimistic value."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from homeassistant.components.number import NumberEntityDescription
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.number import ISYAuxControlNumberEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYAuxControlNumberEntity(
+        isy_data=isy_data,
+        node=node,
+        control="SETME",  # write-only — not in nodedef.properties
+        unique_id="x_set",
+        description=NumberEntityDescription(key="SETME"),
+        device_info=None,
+    )
+    entity.hass = hass
+    entity.entity_id = "number.x"
+    last = MagicMock()
+    last.native_value = 77.0
+    entity.async_get_last_number_data = AsyncMock(return_value=last)
+    await entity.async_added_to_hass()
+    assert entity._optimistic_value == 77.0
+
+
+async def test_backlight_async_added_restores_last_value(hass) -> None:
+    """The backlight entity restores its last value when both
+    ``async_get_last_state`` and ``async_get_last_number_data`` return
+    something usable."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from homeassistant.components.number import NumberEntityDescription
+    from pyisyox.constants import CMD_BACKLIGHT
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.number import ISYBacklightNumberEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYBacklightNumberEntity(
+        isy_data=isy_data,
+        node=node,
+        control=CMD_BACKLIGHT,
+        unique_id="x_bl",
+        description=NumberEntityDescription(key=CMD_BACKLIGHT),
+        device_info=None,
+    )
+    entity.hass = hass
+    entity.entity_id = "number.bl"
+    last_state = MagicMock()
+    last_state.state = "55"
+    last_data = MagicMock()
+    last_data.native_value = 55.0
+    entity.async_get_last_state = AsyncMock(return_value=last_state)
+    entity.async_get_last_number_data = AsyncMock(return_value=last_data)
+    await entity.async_added_to_hass()
+    assert entity._attr_native_value == 55.0
+
+
+async def test_backlight_memory_write_skips_when_value_unchanged() -> None:
+    """If the computed % matches the current ``native_value`` the
+     handler bails out without firing ``async_write_ha_state``
+    ."""
+    from unittest.mock import patch
+
+    from homeassistant.components.number import NumberEntityDescription
+    from pyisyox.constants import CMD_BACKLIGHT
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.const import BACKLIGHT_MEMORY_FILTER
+    from custom_components.udi_iox.number import ISYBacklightNumberEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYBacklightNumberEntity(
+        isy_data=isy_data,
+        node=node,
+        control=CMD_BACKLIGHT,
+        unique_id="x_bl",
+        description=NumberEntityDescription(key=CMD_BACKLIGHT),
+        device_info=None,
+    )
+    entity._attr_native_value = 50  # match what value=64 maps to
+    from types import SimpleNamespace
+
+    frame = SimpleNamespace(
+        memory=BACKLIGHT_MEMORY_FILTER["memory"],
+        cmd1=BACKLIGHT_MEMORY_FILTER["cmd1"],
+        value=64,
+    )
+    write_calls = []
+    with patch.object(
+        ISYBacklightNumberEntity,
+        "async_write_ha_state",
+        lambda s: write_calls.append(1),
+    ):
+        entity._on_memory_write(frame)  # type: ignore[arg-type]
+    assert write_calls == []
+
+
+async def test_backlight_set_native_value_success_path() -> None:
+    """Successful ``async_set_native_value`` stores the value and
+    fires HA state write."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.components.number import NumberEntityDescription
+    from pyisyox import Node
+    from pyisyox.constants import CMD_BACKLIGHT
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.number import ISYBacklightNumberEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("A 1", "Switch"), controller)
+    isy_data = isy_data_for(controller)
+    entity = ISYBacklightNumberEntity(
+        isy_data=isy_data,
+        node=node,
+        control=CMD_BACKLIGHT,
+        unique_id="x_bl",
+        description=NumberEntityDescription(key=CMD_BACKLIGHT),
+        device_info=None,
+    )
+    write_calls = []
+    with (
+        patch.object(Node, "set_backlight", new=AsyncMock()),
+        patch.object(
+            ISYBacklightNumberEntity,
+            "async_write_ha_state",
+            lambda s: write_calls.append(1),
+        ),
+    ):
+        await entity.async_set_native_value(42)
+    assert entity._attr_native_value == 42
+    assert write_calls == [1]
+
+
 async def test_backlight_memory_write_filter() -> None:
     """``_on_memory_write`` updates the native value only when the
     memory address + cmd1 match the backlight filter."""

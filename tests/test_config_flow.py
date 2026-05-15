@@ -23,6 +23,7 @@ from homeassistant.const import (
 )
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.udi_iox.config_flow import UDN_UUID_PREFIX
 from custom_components.udi_iox.const import DOMAIN
 
 
@@ -338,6 +339,96 @@ async def test_validate_input_uses_portal_auth(hass) -> None:
     from pyisyox import PortalAuth
 
     assert isinstance(captured["auth"], PortalAuth)
+
+
+@pytest.mark.parametrize(
+    ("raised", "expected"),
+    [
+        ("ISYInvalidAuthError", "InvalidAuth"),
+        ("ISYConnectionError", "CannotConnect"),
+        ("ISYResponseParseError", "CannotConnect"),
+    ],
+)
+async def test_validate_input_translates_underlying_errors(
+    hass, raised: str, expected: str
+) -> None:
+    """``validate_input`` maps each pyisyox connect error to the
+    corresponding flow exception."""
+    import importlib
+
+    from custom_components.udi_iox import config_flow as cf
+
+    pyisyox_mod = importlib.import_module("pyisyox")
+    pyisyox_exceptions = importlib.import_module("pyisyox.exceptions")
+    err_cls = getattr(pyisyox_mod, raised, None) or getattr(pyisyox_exceptions, raised)
+    expected_cls = getattr(cf, expected)
+    with (
+        patch.object(cf.Controller, "connect", AsyncMock(side_effect=err_cls("nope"))),
+        patch.object(cf.Controller, "stop", AsyncMock()),
+        pytest.raises(expected_cls),
+    ):
+        await cf.validate_input(
+            hass,
+            {
+                CONF_HOST: "http://eisy.local:8080",
+                CONF_USERNAME: "u",
+                CONF_PASSWORD: "p",
+                "verify_ssl": False,
+            },
+        )
+
+
+async def test_ssdp_aborts_when_existing_entry_is_ignored(hass) -> None:
+    """An SSDP rediscovery of an ignored entry aborts with
+    ``already_configured`` rather than updating the host."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="aabbccddeeff",
+        source=config_entries.SOURCE_IGNORE,
+        data={CONF_HOST: "http://1.2.3.4:8080"},
+    )
+    entry.add_to_hass(hass)
+
+    info = _ssdp_info(host="5.6.7.8")
+    info.upnp[ssdp.ATTR_UPNP_UDN] = f"{UDN_UUID_PREFIX}aabbccddeeff"
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=info
+    )
+    assert result["type"] == data_entry_flow.FlowResultType.ABORT
+    # Host stays untouched.
+    assert entry.data[CONF_HOST] == "http://1.2.3.4:8080"
+
+
+async def test_dhcp_rediscovery_preserves_existing_port(hass) -> None:
+    """A DHCP rediscovery (which passes ``port=None``) keeps the
+     entry's existing port via the ``elif parsed_url.port`` branch
+    ."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="aa:bb:cc:dd:ee:01",
+        data={CONF_HOST: "http://1.2.3.4:9090"},
+    )
+    entry.add_to_hass(hass)
+
+    info = _dhcp_info(host="5.6.7.8")
+    info.macaddress = "aabbccddee01"
+    await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_DHCP}, data=info
+    )
+    await hass.async_block_till_done()
+    assert entry.data[CONF_HOST] == "http://5.6.7.8:9090"
+
+
+async def test_ssdp_discovery_uses_https_port_for_https_scheme(hass) -> None:
+    """An https:// SSDP URL with no explicit port defaults to HTTPS_PORT
+    ."""
+    info = _ssdp_info(host="9.9.9.9")
+    info.ssdp_location = "https://9.9.9.9/desc.xml"
+    info.upnp[ssdp.ATTR_UPNP_PRESENTATION_URL] = "https://9.9.9.9/"
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=info
+    )
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
 
 
 async def test_validate_input_rejects_non_http_scheme(hass) -> None:

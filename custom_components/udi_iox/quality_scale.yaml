@@ -135,7 +135,15 @@ rules:
   reauthentication-flow:
     status: done
     comment: config_flow implements async_step_reauth / async_step_reauth_confirm.
-  test-coverage: todo
+  test-coverage:
+    status: done
+    comment: |
+      98 % overall (372 tests). Every platform module clears the 95 %
+      bar — 17 modules at 100 %, the rest 95-98 %. The dense
+      ``binary_sensor.py`` Insteon parent / subnode classification path
+      (62 % at the time of the silver test-coverage push in PR #44) is
+      now at 97 %, driven by ``pyisyox.testing.make_insteon_binary_sensor_records``
+      (pyisyox 6.0.0b2+).
 
   # Gold
   devices: done
@@ -149,9 +157,24 @@ rules:
       _async_set_unique_id_or_update updates the stored host when SSDP /
       DHCP rediscover a configured controller at a new address.
   docs-data-update: todo
-  docs-examples: todo
+  docs-examples:
+    status: done
+    comment: |
+      ``README.md`` ``Automations on button presses`` walks through a
+      device-trigger automation end-to-end with both a UI-driven walk
+      and a YAML snippet for the canonical KeypadLinc → light.toggle
+      pattern, and explains why the device trigger is preferred over
+      a state trigger (so users coming from PyISY-3 / isy994
+      automations migrate cleanly).
   docs-known-limitations: todo
-  docs-supported-devices: todo
+  docs-supported-devices:
+    status: done
+    comment: |
+      ``README.md`` ``Supported devices`` plus the dedicated
+      ``docs/supported-devices.md`` cover Insteon / Z-Wave / Zigbee /
+      Matter / PG3 plugins, with the explicit guidance to install
+      HA-native integrations alongside this one for devices where
+      the native one is the better source of truth (Sonos, Hue, etc.).
   docs-supported-functions: todo
   docs-troubleshooting: todo
   docs-use-cases: todo
@@ -162,7 +185,20 @@ rules:
       Aux-control NUMBER/SELECT/BUTTON and the enable switch are
       EntityCategory.CONFIG; diagnostic readings (ERR, etc.) are
       EntityCategory.DIAGNOSTIC.
-  entity-device-class: todo
+  entity-device-class:
+    status: done
+    comment: |
+      Every domain whose entities can be classified declares
+      ``device_class``. Sensor + binary_sensor route through
+      ``UOM_TO_DEVICE_CLASS`` / ``BINARY_SENSOR_DEVICE_TYPES_*`` so
+      Insteon / Z-Wave / plugin nodes get the right class
+      automatically; switch / button / event use the static
+      ``SwitchDeviceClass.OUTLET`` / ``ButtonDeviceClass.RESTART`` /
+      ``EventDeviceClass.BUTTON`` overrides where applicable.
+      Domains without a generally-applicable class (cover, lock,
+      climate, fan, light, number, select) leave it unset — the IoX
+      controller doesn't surface the semantic distinction needed to
+      pick one.
   entity-disabled-by-default:
     status: done
     comment: |
@@ -177,7 +213,15 @@ rules:
     comment: |
       Node-lifecycle events (rename / move / enable / etc.) raise a
       Repair issue prompting an entry reload.
-  stale-devices: todo
+  stale-devices:
+    status: done
+    comment: |
+      ``__init__.async_remove_config_entry_device`` lets the user remove
+      a device from the integration via the device-registry "Delete"
+      action. Returns False (block deletion) when the address is still
+      owned by ``IsyData.devices``; True (allow) otherwise — so a node
+      that disappeared from the controller is removable, and a node
+      that's still there can't be accidentally orphaned.
   # Platinum
   async-dependency: done
   inject-websession: todo
