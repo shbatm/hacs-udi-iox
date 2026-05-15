@@ -127,7 +127,9 @@ def _is_native_binary_sensor(node: Node) -> bool:
     the type byte is the only discriminator.
     """
     if node.protocol == Protocol.INSTEON:
-        return node.nodedef_id.startswith("BinaryAlarm")
+        # Defensive: nodedef_id can be empty for nodes the controller
+        # hasn't fully provisioned yet (joined-after-load race).
+        return bool(node.nodedef_id and node.nodedef_id.startswith("BinaryAlarm"))
     if node.protocol == Protocol.ZWAVE and node.zwave_props is not None:
         category = node.zwave_props.category
         return any(
@@ -469,6 +471,11 @@ def _categorize_nodes(
             # over the classifier — pure sensors carry no controllable
             # surface, so the rich subnode-aware path in binary_sensor.py
             # needs the node on ``isy_data.nodes[BINARY_SENSOR]``.
+            #
+            # Z-Wave per-property readings (battery, temperature, …)
+            # land on subnodes rather than the primary, so no
+            # ``_fan_out_native_aux`` here — unlike the Insteon branch
+            # below where the primary itself can carry aux properties.
             if _is_native_binary_sensor(node):
                 isy_data.nodes[Platform.BINARY_SENSOR].append(node)
                 if result is not None and _is_device_root(node):

@@ -40,6 +40,8 @@ Core ships several hardcoded type-prefix tables (Insteon `device categories`, Z-
 - Core: `Skynet ISY (eisy.iot.bond.casa)`
 - This integration: matches — `Skynet ISY (eisy.iot.bond.casa)`. The host is in the title so a changed IP / hostname is visible from the integration card without opening the entry.
 
+> **Upgrading note:** earlier `udi_iox` releases used just the controller name (`Skynet ISY`) for the entry title. Existing config entries keep their stored title until you reload them; new entries (and reauths) use the new format immediately.
+
 ## Net additions (not in core)
 
 ### IoX programs as devices
