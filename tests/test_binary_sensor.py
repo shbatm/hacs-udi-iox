@@ -336,10 +336,12 @@ def _build_isy_data(controller):
     """Build an ``IsyData`` with every controller node pinned onto
     ``Platform.BINARY_SENSOR``.
 
-    The live classifier routes pure-Insteon-fixture nodes (no nodedef
-    profile loaded) onto ``Platform.EVENT`` rather than BINARY_SENSOR,
-    so we bypass it here and exercise ``async_setup_entry``'s subnode
-    classification path directly — which is what we're trying to cover.
+    The pure-Insteon test fixtures don't carry nodedef profiles, so a
+    direct call to ``_categorize_nodes`` can't reach the
+    classifier-driven plugin branch; we pin here to exercise
+    ``async_setup_entry``'s subnode-classification path directly. The
+    ``_categorize_nodes`` routing for native Insteon binary sensors has
+    its own focused coverage in ``test_helpers``.
     """
     isy_data = isy_data_for(controller)
     isy_data.nodes[Platform.BINARY_SENSOR] = list(controller.nodes.values())

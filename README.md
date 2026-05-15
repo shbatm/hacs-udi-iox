@@ -4,6 +4,19 @@
 
 Home Assistant custom component for **Universal Devices eisy** controllers running **IoX 6.0+**.
 
+## What's new vs. the core `isy994` integration
+
+If you've used HA's built-in `isy994` for years, the things this integration adds on top:
+
+- **IoX programs are first-class HA devices.** Each program (and program folder) becomes its own device with `Run` / `Run Then` / `Run Else` / `Stop` / `Enable` / `Disable` buttons, an enable switch, a *Run at startup* toggle, and `Last Run` / `Last Finished` / `Next Scheduled Run` timestamp sensors. Triggering and observing IoX programs no longer requires a status program + actions program pair plus YAML.
+- **Native event entities for keypad / scene buttons.** KeypadLinc accessory buttons, RemoteLincs, and any nodedef with a `cmds.sends` list become `event.*` entities exposed through HA's device-trigger UI — no `udi_iox_control` bus events, no listening for raw control codes. Fires on every press, including same-type repeats. Replaces the legacy `sensor.<keypad>_<letter>` integer-state hack.
+- **Suggested area from your IoX folder layout.** Organize nodes or programs into folders on the controller (`Kitchen`, `Garage`, …) and HA pre-fills each device's *Suggested Area* from the immediate parent folder.
+- **Dynamic device support.** Core `isy994` carries several hardcoded type-prefix tables to decide which HA platform each Insteon device belongs on — adding a new device class meant editing the integration. This integration reads each device's **nodedef from the controller** (the wire shape: accepts / sends / properties / editors). Insteon devices land on the same baseline platforms as core, but Z-Wave, Zigbee, Matter, and any PG3 node-server plugin all classify themselves automatically with no integration update needed.
+- **Z-Wave / Insteon configurables as native HA entities.** On Level, Ramp Rate, Backlight, ramp/scene values, Z-Wave configuration parameters — anything the controller publishes as an editor surfaces as a `number` / `select` / `switch` entity (no service calls, no YAML).
+- **WebSocket-only event stream + Repair-card lifecycle UX.** State updates ride a single WebSocket; entity availability follows WS health. New / removed / renamed devices on the controller surface as Repair cards prompting a reload instead of being silently missed.
+
+> **Side-by-side notes:** the two integrations register distinct domains (`isy994` vs. `udi_iox`) and coexist on the same HA instance — useful for ISY-994 + eisy mixed setups. See [`docs/coexistence-with-core.md`](docs/coexistence-with-core.md) for a per-platform comparison.
+
 ## Legacy Hardware Scope
 
 If you have ISY-994 hardware, use the existing Home Assistant core [`isy994` integration](https://www.home-assistant.io/integrations/isy994/) (which stays on `pyisy` 3.x). The two integrations register distinct domains and coexist on the same HA instance.

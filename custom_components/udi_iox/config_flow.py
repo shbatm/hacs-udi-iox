@@ -146,7 +146,8 @@ async def validate_input(
     except ISYResponseParseError as error:
         raise CannotConnect from error
 
-    title = root_name or parsed_host.hostname or host
+    hostname = parsed_host.hostname or host
+    title = f"{root_name} ({hostname})" if root_name else hostname
     return {
         "title": title,
         ISY_CONF_UUID: uuid,
