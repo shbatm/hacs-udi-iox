@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Side-by-side with the core isy994 integration
+    url: https://github.com/shbatm/hacs-udi-iox/blob/main/docs/coexistence-with-core.md
+    about: Comparison page covering what's identical, intentional improvements, and net additions when both integrations run together.
+  - name: Supported devices
+    url: https://github.com/shbatm/hacs-udi-iox/blob/main/docs/supported-devices.md
+    about: PG3 plugins with HA-native equivalents, where the IoX path is the right call, and platforms still on the roadmap.
