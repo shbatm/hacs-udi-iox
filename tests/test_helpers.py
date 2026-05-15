@@ -802,3 +802,92 @@ def test_categorize_programs_ignores_paths_outside_HA_namespace(isy_data, contro
 
     for platform_programs in isy_data.programs.values():
         assert platform_programs == []
+
+
+# --- suggested_area: derived from IoX folder ancestry ---------------------
+
+
+def test_suggested_area_uses_immediate_parent_folder(isy_data, options):
+    """A node whose ``parent_address`` is a folder gets that folder's
+    name as ``suggested_area`` — mirrors HA core ``isy994``'s
+    ``node.folder``-as-area pattern."""
+    from pyisyox.testing import make_folder_record
+
+    folder = make_folder_record("F1", "Living Room")
+    node_rec = make_node_record("1A 2B 3C 1", "Lamp", parent_address="F1")
+    controller = make_controller(
+        make_load_result(
+            nodes={node_rec.address: node_rec}, folders={folder.address: folder}
+        )
+    )
+    nodes = {node_rec.address: make_node(node_rec, controller)}
+
+    _categorize_nodes(
+        isy_data, nodes, options, controller=controller, host="https://eisy.local"
+    )
+
+    assert isy_data.devices["1A 2B 3C 1"].get("suggested_area") == "Living Room"
+
+
+def test_suggested_area_walks_through_node_ancestor_to_find_folder(isy_data, options):
+    """A sub-button whose immediate parent is the device root (a node)
+    walks through that node up to the enclosing folder."""
+    from pyisyox.testing import make_folder_record
+
+    folder = make_folder_record("F1", "Bedroom")
+    primary_rec = make_node_record("AA BB CC 1", "Keypad", parent_address="F1")
+    sub_rec = make_node_record(
+        "AA BB CC 2",
+        "Button A",
+        pnode="AA BB CC 1",
+        parent_address="AA BB CC 1",
+    )
+    controller = make_controller(
+        make_load_result(
+            nodes={primary_rec.address: primary_rec, sub_rec.address: sub_rec},
+            folders={folder.address: folder},
+        )
+    )
+    nodes = {rec.address: make_node(rec, controller) for rec in (primary_rec, sub_rec)}
+
+    _categorize_nodes(
+        isy_data, nodes, options, controller=controller, host="https://eisy.local"
+    )
+
+    assert isy_data.devices["AA BB CC 1"].get("suggested_area") == "Bedroom"
+
+
+def test_suggested_area_uses_deepest_folder_in_nested_chain(isy_data, options):
+    """When a node sits in ``Lighting/Living Room``, the immediate
+    parent folder ("Living Room") wins — not the outer one."""
+    from pyisyox.testing import make_folder_record
+
+    outer = make_folder_record("F1", "Lighting")
+    inner = make_folder_record("F2", "Living Room", parent_address="F1")
+    node_rec = make_node_record("1A 2B 3C 1", "Lamp", parent_address="F2")
+    controller = make_controller(
+        make_load_result(
+            nodes={node_rec.address: node_rec},
+            folders={outer.address: outer, inner.address: inner},
+        )
+    )
+    nodes = {node_rec.address: make_node(node_rec, controller)}
+
+    _categorize_nodes(
+        isy_data, nodes, options, controller=controller, host="https://eisy.local"
+    )
+
+    assert isy_data.devices["1A 2B 3C 1"].get("suggested_area") == "Living Room"
+
+
+def test_suggested_area_root_node_has_none(isy_data, options, controller):
+    """A node with no ``parent_address`` (root of the IoX tree) leaves
+    ``suggested_area`` unset so HA picks the user's manual area."""
+    node_rec = make_node_record("1A 2B 3C 1", "Lamp")
+    nodes = {node_rec.address: make_node(node_rec, controller)}
+
+    _categorize_nodes(
+        isy_data, nodes, options, controller=controller, host="https://eisy.local"
+    )
+
+    assert isy_data.devices["1A 2B 3C 1"].get("suggested_area") is None

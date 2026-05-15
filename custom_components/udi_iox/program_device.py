@@ -64,6 +64,23 @@ def program_device_uid(uuid: str, program: Program) -> str:
     return f"{uuid}_{PROGRAM_DEVICE_PREFIX}_{program.address}"
 
 
+def _suggested_area_for_program(controller: Controller, program: Program) -> str | None:
+    """Use the program's immediate parent folder name as suggested area.
+
+    Programs always live directly under a folder on the IoX side (the
+    parent chain doesn't have intermediate non-folder nodes the way
+    nodes can), so a single lookup suffices. Returns ``None`` for
+    root-level programs.
+    """
+    address = program.parent_address
+    if address is None:
+        return None
+    folder = controller.program_folders.get(address)
+    if folder is None:
+        return None
+    return folder.name or None
+
+
 def program_device_info(
     controller: Controller, program: Program, host: str
 ) -> DeviceInfo:
@@ -80,6 +97,7 @@ def program_device_info(
         name=program.name,
         via_device=(DOMAIN, uuid),
         configuration_url=host,
+        suggested_area=_suggested_area_for_program(controller, program),
     )
 
 

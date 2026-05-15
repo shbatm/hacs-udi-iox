@@ -199,3 +199,61 @@ def test_program_buttons_invoke_matching_verb(button_cls, verb) -> None:
 
     asyncio.run(button.async_press())
     getattr(program, verb).assert_awaited_once_with()
+
+
+# --- suggested_area: derived from IoX program-folder ---------------------
+
+
+def test_program_device_info_uses_parent_folder_as_suggested_area() -> None:
+    """A program inside a folder gets the folder's name as
+    ``suggested_area`` — symmetric with the node-side derivation."""
+    from pyisyox.testing import (
+        make_controller,
+        make_folder_record,
+        make_load_result,
+        make_program_record,
+    )
+
+    folder = make_folder_record("F1", "Lighting")
+    program_rec = make_program_record(
+        "0010", "Sunset Lights", path="Lighting/Sunset Lights", parent_address="F1"
+    )
+    controller = make_controller(
+        make_load_result(
+            programs={program_rec.address: program_rec},
+            folders={folder.address: folder},
+        )
+    )
+    # ``make_load_result`` doesn't currently take program_folders kwarg —
+    # populate the loaded record directly so program_folders resolves.
+    from pyisyox.client import ProgramRecord
+
+    controller._loaded.programs[folder.address] = ProgramRecord(
+        address=folder.address,
+        name=folder.name,
+        path="Lighting",
+        parent_address=None,
+        is_folder=True,
+        status=False,
+    )
+    program = controller.programs["0010"]
+
+    device_info = program_device_info(controller, program, host="http://localhost")
+
+    assert device_info.get("suggested_area") == "Lighting"
+
+
+def test_program_device_info_root_program_has_none() -> None:
+    """A program with no ``parent_address`` (root of the program tree)
+    leaves ``suggested_area`` unset."""
+    from pyisyox.testing import make_controller, make_load_result
+
+    program_rec = make_program_record("0010", "Standalone", path="Standalone")
+    controller = make_controller(
+        make_load_result(programs={program_rec.address: program_rec})
+    )
+    program = controller.programs["0010"]
+
+    device_info = program_device_info(controller, program, host="http://localhost")
+
+    assert device_info.get("suggested_area") is None
