@@ -69,14 +69,25 @@ def _suggested_area_for_program(controller: Controller, program: Program) -> str
 
     Programs always live directly under a folder on the IoX side (the
     parent chain doesn't have intermediate non-folder nodes the way
-    nodes can), so a single lookup suffices. Returns ``None`` for
-    root-level programs.
+    nodes can), so a single lookup suffices.
+
+    Returns ``None`` for:
+    - root-level programs (no ``parent_address``)
+    - programs whose immediate parent IS the synthetic root folder
+      (``"My Programs"`` on stock eisy firmware) — surfacing
+      ``"My Programs"`` as an Area is noise; treat the program as
+      effectively root.
     """
     address = program.parent_address
     if address is None:
         return None
     folder = controller.program_folders.get(address)
     if folder is None:
+        return None
+    # The synthetic root folder has no parent of its own; user-created
+    # folders always have one (they live under root). Skip the synthetic
+    # root rather than letting "My Programs" leak through as an Area.
+    if folder.parent_address is None:
         return None
     return folder.name or None
 
