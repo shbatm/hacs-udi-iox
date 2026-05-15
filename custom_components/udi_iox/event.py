@@ -1,5 +1,7 @@
 """Event entities for IoX nodes that emit control verbs.
 
+One entity per node whose nodedef declares a non-empty ``cmds.sends``
+list; ``event_types`` derive from that list (slugified name → wire id).
 Sub-button entities (KeypadLinc accessory buttons) are
 disabled-by-default — a single keypad would otherwise register 6-8
 unused entities.

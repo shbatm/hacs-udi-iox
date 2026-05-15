@@ -339,6 +339,7 @@ class _ISYProgramButtonBase(ISYProgramDeviceEntity, ButtonEntity):
     """Per-program manual-run button scaffold; subclasses bind one
     verb on :class:`pyisyox.Program`."""
 
+    # No defaults — omitting an override raises AttributeError at runtime.
     _verb: ClassVar[str]
     _verb_label: ClassVar[str]
 

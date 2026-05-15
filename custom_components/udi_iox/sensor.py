@@ -426,7 +426,7 @@ class _ISYProgramTimestampSensor(ISYProgramDeviceEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_entity_registry_enabled_default = False
 
-    # Subclasses must override.
+    # No default — omitting an override raises AttributeError at runtime.
     _source_attr: ClassVar[str]
 
     @property

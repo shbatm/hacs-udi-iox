@@ -7,7 +7,7 @@
           "username": "Universal Devices portal email",
           "host": "URL",
           "password": "Universal Devices portal password",
-          "verify_ssl": "Verify SSL certificate"
+          "verify_ssl": "Verify SSL certificate (uncheck for self-signed cert)"
         },
         "description": "Host must be a full URL, e.g., {sample_ip}\n\nSign in with your Universal Devices portal account.",
         "title": "Connect to your eisy"
@@ -205,7 +205,7 @@
       "fields": {
         "address": {
           "name": "Program id",
-          "description": "Program or folder id (e.g. 0030)."
+          "description": "Program or folder id (e.g. 0030). Address takes precedence over name."
         },
         "name": {
           "name": "Program name",
@@ -213,7 +213,7 @@
         },
         "command": {
           "name": "Command",
-          "description": "The verb to send."
+          "description": "The verb to send; folders only accept run / stop / enable / disable."
         },
         "isy": {
           "name": "Controller",

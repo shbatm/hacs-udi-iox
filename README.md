@@ -8,6 +8,8 @@ Home Assistant custom component for **Universal Devices eisy** controllers runni
 
 If you have ISY-994 hardware, use the existing Home Assistant core [`isy994` integration](https://www.home-assistant.io/integrations/isy994/) (which stays on `pyisy` 3.x). The two integrations register distinct domains and coexist on the same HA instance.
 
+The earlier-generation **Polisy** controller is end-of-life and no longer a target for this integration — the SSDP / DHCP discovery matchers have been narrowed to eisy. Polisy users can still configure the integration manually (the IoX 6 protocol is the same), but auto-discovery won't surface a Polisy on the network.
+
 ## Why a separate repo
 
 `hacs-isy994` was a stable beta-testing channel for the upstream `isy994` integration which served its purpose, but I no longer want to maintain legacy hardware support for Home Assistant's core `isy994` and try to maintain both new features and legacy support in another repo. The eisy / IoX-6+ rewrite is a clean break: different library (`pyisyox` v6 with JWT/portal auth, WebSocket-only, classifier-driven entity routing, ergonomic Node wrappers). Forcing existing `hacs-isy994` users onto that rewrite would regress their working ISY-994 setups, so this is a new repo with a new domain.
