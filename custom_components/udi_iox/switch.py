@@ -235,8 +235,7 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
         no way to re-enable a disabled node), but still respects WS
         health — when the event stream is down the controller is
         unreachable and the command would fail anyway."""
-        events = getattr(self._isy_data, "controller_events", None)
-        return True if events is None else events.ws_connected
+        return self._isy_data.controller_events.ws_connected
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:

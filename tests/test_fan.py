@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -48,7 +50,6 @@ async def test_fanlinc_speed_driven_by_st_editor() -> None:
     )
 
     from custom_components.udi_iox.fan import ISYFanEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -63,8 +64,7 @@ async def test_fanlinc_speed_driven_by_st_editor() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYFanEntity(isy_data, node=node, device_info=None)
 
     assert entity.speed_count == 3
@@ -100,7 +100,6 @@ async def test_set_percentage_translates_node_command_error() -> None:
     )
 
     from custom_components.udi_iox.fan import ISYFanEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -115,8 +114,7 @@ async def test_set_percentage_translates_node_command_error() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYFanEntity(isy_data, node=node, device_info=None)
     with patch.object(
         type(node),
@@ -140,13 +138,11 @@ async def test_fan_program_translates_run_failure() -> None:
     from pyisyox.testing import make_controller, make_load_result, make_program_record
 
     from custom_components.udi_iox.fan import ISYFanProgramEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     status = Program(make_program_record("0001", "Status"), controller._client)
     actions = Program(make_program_record("0002", "Actions"), controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYFanProgramEntity(isy_data, "Fan", status, actions)
     with (
         patch.object(

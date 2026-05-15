@@ -64,6 +64,9 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"scripts/**/*.py" = [
+    "T201",  # `print` is the right tool for a stdout-driven CLI script
+]
 "tests/**/*" = [
     "D100",
     "D101",

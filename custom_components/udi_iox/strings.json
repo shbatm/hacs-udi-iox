@@ -71,7 +71,14 @@
       "program_status": { "name": "Status" }
     },
     "sensor": {
-      "program_running": { "name": "Running" },
+      "program_running": {
+        "name": "Running",
+        "state": {
+          "idle": "Idle",
+          "running_else": "Running else",
+          "running_then": "Running then"
+        }
+      },
       "program_last_run": { "name": "Last run" },
       "program_last_finish": { "name": "Last finish" },
       "program_next_scheduled": { "name": "Next scheduled run" }
@@ -84,7 +91,6 @@
       "program_run": { "name": "Run" },
       "program_run_then": { "name": "Run then" },
       "program_run_else": { "name": "Run else" },
-      "program_run_if": { "name": "Re-evaluate" },
       "program_stop": { "name": "Stop" }
     },
     "event": {

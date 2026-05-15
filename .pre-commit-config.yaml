@@ -60,3 +60,9 @@ repos:
         language: script
         require_serial: true
         files: ^custom_components/udi_iox/.*\.py$
+      - id: strings-en-sync
+        name: strings.json ⇔ translations/en.json key parity
+        entry: python3 scripts/check_strings_sync.py
+        language: system
+        pass_filenames: false
+        files: ^custom_components/udi_iox/(strings\.json|translations/en\.json)$

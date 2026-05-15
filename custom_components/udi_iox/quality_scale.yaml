@@ -139,9 +139,7 @@ rules:
 
   # Gold
   devices: done
-  diagnostics:
-    status: todo
-    comment: Tracked separately as the diagnostics issue.
+  diagnostics: done
   discovery:
     status: done
     comment: SSDP (X_IoX_Device:1) + DHCP.

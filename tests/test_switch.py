@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -44,7 +46,6 @@ async def test_enable_switch_toggles_node_enabled() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import (
         ISYEnableSwitchEntity,
         ISYSwitchEntityDescription,
@@ -52,8 +53,7 @@ async def test_enable_switch_toggles_node_enabled() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     description = ISYSwitchEntityDescription(
         key=TAG_ENABLED,
         device_class=SwitchDeviceClass.SWITCH,
@@ -94,7 +94,6 @@ async def test_enable_switch_always_available_and_tracks_record() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import (
         ISYEnableSwitchEntity,
         ISYSwitchEntityDescription,
@@ -104,8 +103,7 @@ async def test_enable_switch_always_available_and_tracks_record() -> None:
     record = make_node_record("AA AA AA 1", "Lamp")
     record.enabled = False  # start disabled
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYEnableSwitchEntity(
         isy_data,
         node=node,
@@ -145,7 +143,6 @@ async def test_enable_switch_translates_set_enabled_failure() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import (
         ISYEnableSwitchEntity,
         ISYSwitchEntityDescription,
@@ -153,8 +150,7 @@ async def test_enable_switch_translates_set_enabled_failure() -> None:
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("AA AA AA 1", "Lamp"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYEnableSwitchEntity(
         isy_data,
         node=node,
@@ -191,12 +187,10 @@ async def test_switch_entity_is_on_reflects_status() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import ISYSwitchEntity
 
     controller = make_controller(make_load_result())
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
 
     for raw, expected in [("100", True), ("0", False), (None, None)]:
         record = make_node_record(
@@ -226,13 +220,11 @@ async def test_switch_turn_on_off_success_paths() -> None:
         make_node_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import ISYSwitchEntity
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Lamp"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYSwitchEntity(isy_data, node=node, device_info=None)
 
     send_command = AsyncMock()
@@ -255,7 +247,6 @@ async def test_switch_program_entity_round_trip() -> None:
         make_program_record,
     )
 
-    from custom_components.udi_iox.models import IsyData
     from custom_components.udi_iox.switch import ISYSwitchProgramEntity
 
     controller = make_controller(make_load_result())
@@ -263,8 +254,7 @@ async def test_switch_program_entity_round_trip() -> None:
         make_program_record("0001", "Status", status=True), controller._client
     )
     actions = Program(make_program_record("0002", "Actions"), controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYSwitchProgramEntity(isy_data, "Scene", status, actions)
 
     assert entity.is_on is True

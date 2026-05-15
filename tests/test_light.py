@@ -12,6 +12,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -46,7 +48,6 @@ async def test_turn_on_sets_brightness_via_don_level_parameter() -> None:
     )
 
     from custom_components.udi_iox.light import ISYLightEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
@@ -69,8 +70,7 @@ async def test_turn_on_sets_brightness_via_don_level_parameter() -> None:
             ]
         ),
     )
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYLightEntity(isy_data, node, restore_light_state=False)
     with (
         patch.object(
@@ -108,7 +108,6 @@ async def test_turn_on_scales_brightness_for_multirange_zwave_editor() -> None:
     )
 
     from custom_components.udi_iox.light import ISYLightEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(
@@ -135,8 +134,7 @@ async def test_turn_on_scales_brightness_for_multirange_zwave_editor() -> None:
             ]
         ),
     )
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYLightEntity(isy_data, node, restore_light_state=False)
     with (
         patch.object(
@@ -165,12 +163,10 @@ async def test_turn_on_translates_node_command_error_to_homeassistanterror() -> 
     )
 
     from custom_components.udi_iox.light import ISYLightEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("A 1", "Dimmer"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYLightEntity(isy_data, node, restore_light_state=False)
     with patch.object(
         Node, "send_command", new=AsyncMock(side_effect=NodeCommandError("nope"))

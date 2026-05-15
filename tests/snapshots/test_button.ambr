@@ -1475,7 +1475,7 @@
     'state': 'unknown',
   })
 # ---
-# name: test_button_entities[button.sunset_lights-entry]
+# name: test_button_entities[button.sunset_lights_run-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -1487,7 +1487,7 @@
     'disabled_by': None,
     'domain': 'button',
     'entity_category': None,
-    'entity_id': 'button.sunset_lights',
+    'entity_id': 'button.sunset_lights_run',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -1499,7 +1499,7 @@
     }),
     'original_device_class': None,
     'original_icon': 'mdi:play',
-    'original_name': None,
+    'original_name': 'Run',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
@@ -1508,21 +1508,21 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_button_entities[button.sunset_lights-state]
+# name: test_button_entities[button.sunset_lights_run-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights',
+      'friendly_name': 'Sunset Lights Run',
       'icon': 'mdi:play',
     }),
     'context': <ANY>,
-    'entity_id': 'button.sunset_lights',
+    'entity_id': 'button.sunset_lights_run',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'unknown',
   })
 # ---
-# name: test_button_entities[button.sunset_lights_2-entry]
+# name: test_button_entities[button.sunset_lights_run_else-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -1534,54 +1534,7 @@
     'disabled_by': None,
     'domain': 'button',
     'entity_category': None,
-    'entity_id': 'button.sunset_lights_2',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': 'mdi:play-circle',
-    'original_name': None,
-    'platform': 'udi_iox',
-    'previous_unique_id': None,
-    'supported_features': 0,
-    'translation_key': 'program_run_then',
-    'unique_id': 'aa:bb:cc:dd:ee:ff_0010_run_then',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_button_entities[button.sunset_lights_2-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights',
-      'icon': 'mdi:play-circle',
-    }),
-    'context': <ANY>,
-    'entity_id': 'button.sunset_lights_2',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_button_entities[button.sunset_lights_3-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': None,
-    'config_entry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'button',
-    'entity_category': None,
-    'entity_id': 'button.sunset_lights_3',
+    'entity_id': 'button.sunset_lights_run_else',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -1593,7 +1546,7 @@
     }),
     'original_device_class': None,
     'original_icon': 'mdi:play-circle-outline',
-    'original_name': None,
+    'original_name': 'Run else',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
@@ -1602,21 +1555,21 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_button_entities[button.sunset_lights_3-state]
+# name: test_button_entities[button.sunset_lights_run_else-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights',
+      'friendly_name': 'Sunset Lights Run else',
       'icon': 'mdi:play-circle-outline',
     }),
     'context': <ANY>,
-    'entity_id': 'button.sunset_lights_3',
+    'entity_id': 'button.sunset_lights_run_else',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'unknown',
   })
 # ---
-# name: test_button_entities[button.sunset_lights_4-entry]
+# name: test_button_entities[button.sunset_lights_run_then-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -1628,7 +1581,7 @@
     'disabled_by': None,
     'domain': 'button',
     'entity_category': None,
-    'entity_id': 'button.sunset_lights_4',
+    'entity_id': 'button.sunset_lights_run_then',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -1639,31 +1592,31 @@
     'options': dict({
     }),
     'original_device_class': None,
-    'original_icon': 'mdi:refresh',
-    'original_name': None,
+    'original_icon': 'mdi:play-circle',
+    'original_name': 'Run then',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
-    'translation_key': 'program_run_if',
-    'unique_id': 'aa:bb:cc:dd:ee:ff_0010_run_if',
+    'translation_key': 'program_run_then',
+    'unique_id': 'aa:bb:cc:dd:ee:ff_0010_run_then',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_button_entities[button.sunset_lights_4-state]
+# name: test_button_entities[button.sunset_lights_run_then-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights',
-      'icon': 'mdi:refresh',
+      'friendly_name': 'Sunset Lights Run then',
+      'icon': 'mdi:play-circle',
     }),
     'context': <ANY>,
-    'entity_id': 'button.sunset_lights_4',
+    'entity_id': 'button.sunset_lights_run_then',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'unknown',
   })
 # ---
-# name: test_button_entities[button.sunset_lights_5-entry]
+# name: test_button_entities[button.sunset_lights_stop-entry]
   EntityRegistryEntrySnapshot({
     'aliases': set({
     }),
@@ -1675,7 +1628,7 @@
     'disabled_by': None,
     'domain': 'button',
     'entity_category': None,
-    'entity_id': 'button.sunset_lights_5',
+    'entity_id': 'button.sunset_lights_stop',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -1687,7 +1640,7 @@
     }),
     'original_device_class': None,
     'original_icon': 'mdi:stop',
-    'original_name': None,
+    'original_name': 'Stop',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'supported_features': 0,
@@ -1696,14 +1649,14 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_button_entities[button.sunset_lights_5-state]
+# name: test_button_entities[button.sunset_lights_stop-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights',
+      'friendly_name': 'Sunset Lights Stop',
       'icon': 'mdi:stop',
     }),
     'context': <ANY>,
-    'entity_id': 'button.sunset_lights_5',
+    'entity_id': 'button.sunset_lights_stop',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

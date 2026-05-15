@@ -51,7 +51,6 @@ PROGRAM_RUN_AT_STARTUP_SWITCH_SUFFIX = "_run_at_startup"
 PROGRAM_RUN_BUTTON_SUFFIX = "_run"
 PROGRAM_RUN_THEN_BUTTON_SUFFIX = "_run_then"
 PROGRAM_RUN_ELSE_BUTTON_SUFFIX = "_run_else"
-PROGRAM_RUN_IF_BUTTON_SUFFIX = "_run_if"
 PROGRAM_STOP_BUTTON_SUFFIX = "_stop"
 
 
@@ -100,7 +99,6 @@ PROGRAM_DEVICE_ENTITY_SUFFIXES: dict[Platform, tuple[str, ...]] = {
         PROGRAM_RUN_BUTTON_SUFFIX,
         PROGRAM_RUN_THEN_BUTTON_SUFFIX,
         PROGRAM_RUN_ELSE_BUTTON_SUFFIX,
-        PROGRAM_RUN_IF_BUTTON_SUFFIX,
         PROGRAM_STOP_BUTTON_SUFFIX,
     ),
     # Platform.EVENT is intentionally not yet listed here. A "ran"
@@ -143,10 +141,7 @@ class ISYProgramDeviceEntity(ISYEntity):
             device_info=device_info,
             unique_id=f"{isy_data.uid_base(program)}{suffix}",
         )
-        # has_entity_name=True + an explicit translation_key composes
-        # the localised friendly-name. Force _attr_name to None so HA
-        # uses the translation rather than the program name.
-        self._attr_name = None
+        del self._attr_name
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to program-status frames + WS-health flips.

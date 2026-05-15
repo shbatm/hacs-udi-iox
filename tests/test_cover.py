@@ -30,6 +30,8 @@ from pytest_homeassistant_custom_component.common import (
     snapshot_platform,
 )
 
+from tests.conftest import isy_data_for
+
 
 @pytest.fixture
 def platforms() -> list[Platform]:
@@ -70,7 +72,6 @@ async def test_cover_attrs_unknown_status_yields_none() -> None:
     )
 
     from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -83,8 +84,7 @@ async def test_cover_attrs_unknown_status_yields_none() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYCoverEntity(isy_data, node=node, device_info=None)
 
     entity._update_cover_attrs()
@@ -103,7 +103,6 @@ async def test_cover_attrs_byte_range_scales_to_percent() -> None:
     )
 
     from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -116,8 +115,7 @@ async def test_cover_attrs_byte_range_scales_to_percent() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYCoverEntity(isy_data, node=node, device_info=None)
     entity._update_cover_attrs()
 
@@ -136,7 +134,6 @@ async def test_cover_attrs_percent_status_clamped() -> None:
     )
 
     from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     record = make_node_record(
@@ -149,8 +146,7 @@ async def test_cover_attrs_percent_status_clamped() -> None:
         },
     )
     node = make_node(record, controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYCoverEntity(isy_data, node=node, device_info=None)
     entity._update_cover_attrs()
     assert entity.current_cover_position == 42
@@ -171,12 +167,10 @@ async def test_cover_open_close_translate_node_command_errors() -> None:
     )
 
     from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("C 1", "Roller"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYCoverEntity(isy_data, node=node, device_info=None)
     with (
         patch.object(
@@ -209,12 +203,10 @@ async def test_cover_set_position_scales_for_byte_editor() -> None:
     )
 
     from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("C 1", "Shade"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYCoverEntity(isy_data, node=node, device_info=None)
 
     byte_range = EditorRange(uom="100", min=0, max=255)
@@ -243,12 +235,10 @@ async def test_cover_set_position_passes_through_for_percent_editor() -> None:
     )
 
     from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("C 1", "Shade"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYCoverEntity(isy_data, node=node, device_info=None)
 
     percent_range = EditorRange(uom="51", min=0, max=100)
@@ -276,12 +266,10 @@ async def test_cover_set_position_translates_node_command_error() -> None:
     )
 
     from custom_components.udi_iox.cover import ISYCoverEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     node = make_node(make_node_record("C 1", "Shade"), controller)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYCoverEntity(isy_data, node=node, device_info=None)
     with (
         patch.object(entity, "_editor_range_for", return_value=None),
@@ -303,15 +291,13 @@ async def test_cover_program_entity() -> None:
     from pyisyox.testing import make_controller, make_load_result, make_program_record
 
     from custom_components.udi_iox.cover import ISYCoverProgramEntity
-    from custom_components.udi_iox.models import IsyData
 
     controller = make_controller(make_load_result())
     status = Program(
         make_program_record("0001", "Status", status=True), controller._client
     )
     actions = Program(make_program_record("0002", "Actions"), controller._client)
-    isy_data = IsyData()
-    isy_data.root = controller
+    isy_data = isy_data_for(controller)
     entity = ISYCoverProgramEntity(isy_data, "Garage", status, actions)
 
     assert entity.is_closed is True  # status=True → closed

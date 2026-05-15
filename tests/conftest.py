@@ -287,6 +287,29 @@ def populated_controller():
 # ---------------------------------------------------------------------------
 
 
+class _StubControllerEvents:
+    """Minimal stand-in for :class:`IsyControllerEvents`.
+
+    Direct-entity unit tests instantiate entities by hand (no ``hass``,
+    no real dispatcher), but production code reads ``ws_connected`` and
+    expects ``subscribe_*`` to return an unsubscribe callable. The stub
+    satisfies both contracts so the entity code can index
+    ``isy_data.controller_events`` directly without defensive guards.
+    """
+
+    ws_connected = True
+
+    @staticmethod
+    def _noop_unsub(*_args: object, **_kwargs: object):  # type: ignore[no-untyped-def]
+        return lambda: None
+
+    subscribe_node = _noop_unsub
+    subscribe_lifecycle = _noop_unsub
+    subscribe_ws_status = _noop_unsub
+    subscribe_program = _noop_unsub
+    subscribe_variable = _noop_unsub
+
+
 def isy_data_for(controller) -> IsyData:
     """Build a minimal :class:`IsyData` carrier with ``root`` pinned.
 
@@ -299,6 +322,7 @@ def isy_data_for(controller) -> IsyData:
 
     data = IsyData()
     data.root = controller
+    data.controller_events = _StubControllerEvents()  # type: ignore[assignment]
     return data
 
 
