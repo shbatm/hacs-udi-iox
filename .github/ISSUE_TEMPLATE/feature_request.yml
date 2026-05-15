@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest a new entity, service, configuration option, or behaviour change.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea? File it here. For things that could be a bug *or* a feature ("the integration doesn't expose X — should it?"), prefer the bug report — diagnostics tell us whether the upstream wire payload supports it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the use case in your own words first — this makes sure we don't optimise for the wrong solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: How you'd like the integration to behave / what entities or services it should expose.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, native HA features that almost solve it, IoX-side approaches.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Device models / nodedef ids / IoX firmware version if device-specific. PG3 plugin name if relevant.
+    validations:
+      required: false

@@ -1,0 +1,131 @@
+name: Bug report
+description: Something isn't working — entity missing, wrong state, command fails, integration crash, etc.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! A few requests up front to make this triageable:
+
+        - **Attach the diagnostics file and a debug log** (instructions below). 90% of bugs need both — if the report is missing them, the first reply will just be a request for them, so saving us a round trip helps.
+        - **One bug per issue.** If you've found two unrelated problems, file two issues.
+        - **Search existing issues first** — duplicate triage takes time away from fixing things.
+
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      description: "Settings → About (e.g. `2026.5.2`)."
+      placeholder: "2026.5.x"
+    validations:
+      required: true
+
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      description: "From `Settings → Devices & Services → Universal Devices IoX → ⋮ → System information`, or check `manifest.json`."
+      placeholder: "2026.5.x"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: Controller hardware
+      options:
+        - eisy
+        - Polisy (legacy — auto-discovery removed; manual config still works)
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: iox_version
+    attributes:
+      label: IoX firmware version
+      description: "From the eisy admin UI (`Help → About`) or `https://<your-controller>/desc` in a browser."
+      placeholder: "5.10.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What's happening
+      description: A clear description of the problem. Include the entity / device / service involved if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: What did you think would happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: |
+        A numbered list — the first step is usually "open this entity / call this service / restart HA".
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics file
+      description: |
+        **Required.** This carries the redacted controller snapshot (nodes / programs / variables / WS health) the integration sees — without it, most bugs can't be reproduced. ([HA docs on diagnostics](https://www.home-assistant.io/integrations/diagnostics/))
+
+        1. Open the integration: [![Open your Home Assistant instance and show an integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=udi_iox)
+        2. Click on your hub device (e.g. *IoX-Testing*, your eisy's name).
+        3. On the hub device page, click **⋮** in the **Device info** card → **Download diagnostics**.
+        4. Drag the downloaded `.json` file into this textarea.
+      placeholder: "Drag and drop the diagnostics .json file here."
+    validations:
+      required: true
+
+  - type: textarea
+    id: debug_log
+    attributes:
+      label: Debug log
+      description: |
+        **Required for any state / event / command bug.** Optional for pure UI / config-flow bugs. ([HA docs on enabling debug logging](https://www.home-assistant.io/docs/configuration/troubleshooting/#enabling-debug-logging))
+
+        1. Open the integration: [![Open your Home Assistant instance and show an integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=udi_iox)
+        2. Click **⋮** in the top-right corner of the integration page → **Enable debug logging**.
+        3. **Reproduce the bug** (re-run whatever you described in "Steps to reproduce").
+        4. Click **⋮** → **Disable debug logging** — HA will automatically download the captured log file.
+        5. Drag the log file into this textarea (or paste its contents in a fenced code block).
+      placeholder: "Drag and drop the debug log file here, or paste contents."
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, related issues, what you've already tried, hunches about what's wrong.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched [existing issues](https://github.com/shbatm/hacs-udi-iox/issues?q=is%3Aissue) and didn't find a duplicate.
+          required: true
+        - label: I attached the diagnostics file above.
+          required: true
+        - label: I'm running the latest release (or the issue exists on the latest release).
+          required: true

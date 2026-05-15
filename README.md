@@ -48,9 +48,9 @@ Before starting the setup flow, gather:
 
 This is a HACS Custom Repository:
 
-1. HACS → Integrations → ⋮ → Custom repositories
-2. Add `https://github.com/shbatm/hacs-udi-iox`, category Integration
-3. Install, restart HA, then add the integration via Settings → Devices & Services.
+1. Open HACS in Home Assistant: [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?repository=hacs-udi-iox&owner=shbatm&category=integration) (or HACS → ⋮ → Custom repositories → add `https://github.com/shbatm/hacs-udi-iox`, category Integration).
+2. Install, restart HA.
+3. Add the integration: [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=udi_iox) (or Settings → Devices & Services → **+ Add Integration** → search "Universal Devices IoX").
 
 ### Setup parameters
 
@@ -131,6 +131,39 @@ The integration surfaces every device on your controller — Insteon, Z-Wave, Zi
 If you bridge a device through a PG3 plugin **and** Home Assistant has a first-party integration for that same device (Sonos, Hue, Rachio, Roku, Plex, Ecobee, Shelly, WLED, etc.), install HA's native integration directly. It will almost always be the better source of truth — local-push state, manufacturer-aware quirks, more device-specific features. The two coexist fine: this integration still exposes the device's IoX-side state (useful if your IoX programs reference the device), and the native integration handles the device itself.
 
 See [`docs/supported-devices.md`](docs/supported-devices.md) for the full list of PG3 plugins with HA-native equivalents, the cases where the IoX path is the right call, and roadmap notes for the platforms still to come.
+
+## Reporting issues
+
+Bug reports go through [GitHub Issues](https://github.com/shbatm/hacs-udi-iox/issues/new/choose) — the **Bug report** template walks you through the diagnostics + debug-log attachments most issues need. Two things to grab before you file:
+
+### 1. Diagnostics file
+
+Captures a redacted snapshot of what the integration sees: nodes, programs, variables, WebSocket health, and the entry's options. It's the fastest way to confirm the wire shape of whatever's misbehaving. ([HA docs on diagnostics](https://www.home-assistant.io/integrations/diagnostics/))
+
+1. Open the integration: [![Open your Home Assistant instance and show an integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=udi_iox)
+2. Click on the hub device (e.g. *IoX-Testing*, your eisy's name).
+3. On the hub device page, click **⋮** in the **Device info** card → **Download diagnostics**.
+
+   ![Download diagnostics menu on the hub device card](docs/images/download-diagnostics.png)
+
+4. Attach the `.json` file to the issue.
+
+PII (passwords, portal email, host) is redacted; node addresses and names stay verbatim so triage keeps context.
+
+### 2. Debug log
+
+Required for any state / event / command bug — the integration emits per-event lines at `DEBUG` so we can see which control / property a bad reading came in on. ([HA docs on enabling debug logging](https://www.home-assistant.io/docs/configuration/troubleshooting/#enabling-debug-logging))
+
+1. Open the integration: [![Open your Home Assistant instance and show an integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=udi_iox)
+2. Click **⋮** in the top-right corner of the integration page → **Enable debug logging**.
+
+   ![Enable debug logging menu on the integration page](docs/images/enable-debug-logging.png)
+
+3. **Reproduce the bug** — toggle the broken switch, fire the program, etc.
+4. Click **⋮** → **Disable debug logging** — HA automatically downloads the captured log file.
+5. Attach the file to the issue.
+
+Debug logging captures every WebSocket frame plus REST request, so keep the reproduction window short — even a few minutes generates several MB.
 
 ## Roadmap
 
