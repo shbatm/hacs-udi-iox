@@ -1,20 +1,8 @@
 """Event entities for IoX nodes that emit control verbs.
 
-Each node whose nodedef declares a non-empty ``cmds.sends`` list gets one
-event entity. The entity's ``event_types`` are derived from that list:
-the human-readable command name slugified (``"Fast On"`` → ``fast_on``),
-falling back to the lowercased wire id when a command carries no name.
-That covers both native Insteon load/keypad nodes (``DON`` / ``DOF`` /
-fast / fade / brighten / dim) and PG3 plugin trigger sources (which
-publish their own verbs, e.g. ``DOORBELL_PRESS`` → ``doorbell_press``).
-
-Translations for the common Insteon verbs live in ``strings.json`` under
-``entity.event.button``; verbs without a translation render as the raw
-slug.
-
-Sub-button entities (KeypadLinc accessory buttons) are disabled by
-default to avoid registering large numbers of unused entities for users
-who don't need them.
+Sub-button entities (KeypadLinc accessory buttons) are
+disabled-by-default — a single keypad would otherwise register 6-8
+unused entities.
 """
 
 from __future__ import annotations
@@ -38,15 +26,12 @@ if TYPE_CHECKING:
 
     from .models import IsyConfigEntry, IsyData
 
-# Suffix for the unique-id of the EventEntity each emitting node spawns.
-# Imported back into models.py (which derives unique-ids during
-# stale-entity cleanup); keep this constant next to the EventEntity that
-# owns the format so both sides stay in sync.
+# EventEntity unique-id suffix; re-imported by models.py for stale-entity
+# cleanup so both sides stay in sync.
 EVENT_BUTTON_UNIQUE_ID_SUFFIX = "_button"
 
-# Wire command ids that mark a node as "button-shaped" — only those get
-# the BUTTON device class. A motion/doorbell plugin that merely sends
-# DOORBELL_PRESS isn't a button, so it gets no device class.
+# Verbs that mark a node as "button-shaped" → BUTTON device class.
+# Motion/doorbell plugins (just DOORBELL_PRESS) get no device class.
 _BUTTON_SHAPED_VERBS = frozenset({CMD_ON, CMD_OFF})
 
 
@@ -106,21 +91,13 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
         )
         if _BUTTON_SHAPED_VERBS.intersection(self._event_type_by_control):
             self._attr_device_class = EventDeviceClass.BUTTON
-        # ISYNodeEntity already computes ``_attr_name``: ``None`` for
-        # device-root nodes, stripped sub-name for sub-buttons. Just
-        # disable-by-default the sub-button case so a KeypadLinc's 6–8
-        # accessory buttons don't clutter the entity registry until
-        # users explicitly opt them in.
+        # KeypadLinc sub-buttons stay disabled by default; users opt in.
         if node.primary_address is not None:
             self._attr_entity_registry_enabled_default = False
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to every control event for this node + lifecycle.
-
-        Unlike the ISYNodeEntity default which filters to one control
-        id, the event platform needs every verb the node emits, so the
-        (address, None) wildcard subscription is correct here.
-        """
+        """Wildcard-subscribe to every control on this node — the event
+        platform needs every verb, not just one."""
         events = self._isy_data.controller_events
         self._unsubscribers.append(
             events.subscribe_node(self._node.address, None, self._on_control)

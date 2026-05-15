@@ -7,9 +7,9 @@
           "username": "Universal Devices portal email",
           "host": "URL",
           "password": "Universal Devices portal password",
-          "verify_ssl": "Verify SSL certificate (leave off for the self-signed default)."
+          "verify_ssl": "Verify SSL certificate"
         },
-        "description": "Host must be a full URL, e.g., {sample_ip}\n\nSign in with your Universal Devices portal account (my.isy.io). Local admin credentials are not supported yet.",
+        "description": "Host must be a full URL, e.g., {sample_ip}\n\nSign in with your Universal Devices portal account.",
         "title": "Connect to your eisy / Polisy"
       },
       "reauth_confirm": {
@@ -22,7 +22,7 @@
       },
       "options": {
         "title": "IoX Options",
-        "description": "Tune the integration before any entities are created. You can revisit these later via Configure on the integration card.",
+        "description": "Configure how entities are created. Revisit anytime via Configure.",
         "data": {
           "sensor_string": "Node Sensor String",
           "ignore_string": "Ignore String",
@@ -35,9 +35,9 @@
           "sensor_string": "Any device or folder containing this string in its name is treated as a sensor or binary sensor.",
           "ignore_string": "Any device containing this string in its name is ignored.",
           "restore_light_state": "Restore the previous brightness when turning on a light instead of the device's built-in On Level.",
-          "enable_variables": "Disable to skip loading variable entities (faster startup if you don't use them).",
-          "enable_programs": "Disable to skip loading program entities (faster startup if you don't use them).",
-          "enable_networking": "Disable to skip loading network resource entities (faster startup if you don't use them)."
+          "enable_variables": "Disable to skip loading variable entities.",
+          "enable_programs": "Disable to skip loading program entities.",
+          "enable_networking": "Disable to skip loading network resource entities."
         }
       }
     },
@@ -50,7 +50,7 @@
     "abort": {
       "already_configured": "Device is already configured",
       "reauth_successful": "Re-authentication was successful",
-      "unsupported_firmware": "This integration requires IoX firmware 6.x or newer. The discovered controller is running an older firmware that pyisyox does not support."
+      "unsupported_firmware": "This integration requires IoX firmware 6.x or newer. The discovered controller is running an older firmware."
     }
   },
   "device_automation": {
@@ -118,7 +118,7 @@
     "step": {
       "init": {
         "title": "IoX Options",
-        "description": "Set the options for the IoX integration.",
+        "description": "Configure how entities are created. Revisit anytime via Configure.",
         "data": {
           "sensor_string": "Node Sensor String",
           "ignore_string": "Ignore String",
@@ -131,9 +131,9 @@
           "sensor_string": "Any device or folder containing this string in its name is treated as a sensor or binary sensor.",
           "ignore_string": "Any device containing this string in its name is ignored.",
           "restore_light_state": "Restore the previous brightness when turning on a light instead of the device's built-in On Level.",
-          "enable_variables": "Disable to skip loading variable entities (faster startup if you don't use them).",
-          "enable_programs": "Disable to skip loading program entities (faster startup if you don't use them).",
-          "enable_networking": "Disable to skip loading network resource entities (faster startup if you don't use them)."
+          "enable_variables": "Disable to skip loading variable entities.",
+          "enable_programs": "Disable to skip loading program entities.",
+          "enable_networking": "Disable to skip loading network resource entities."
         }
       }
     }
@@ -149,7 +149,7 @@
   "services": {
     "send_node_command": {
       "name": "Send node command",
-      "description": "Send a friendly-named command (beep, brighten, dim, disable, enable, fade_down/stop/up, fast_off/on, query) to an IoX device.",
+      "description": "Send a friendly-named command to an IoX device.",
       "fields": {
         "command": {
           "name": "Command",
@@ -159,11 +159,11 @@
     },
     "get_node_commands": {
       "name": "Get node commands",
-      "description": "Return the IoX commands a node accepts, as a wire-id → friendly-name mapping."
+      "description": "Return the commands a node accepts."
     },
     "rename_node": {
       "name": "Rename node",
-      "description": "Rename the underlying IoX node or scene. A Repair card will prompt you to reload afterwards.",
+      "description": "Rename the underlying IoX node or scene.",
       "fields": {
         "name": {
           "name": "Name",
@@ -173,7 +173,7 @@
     },
     "set_zwave_parameter": {
       "name": "Set Z-Wave parameter",
-      "description": "Write a Z-Wave configuration parameter, carrying byte size so multi-byte values round-trip correctly. The post-write report arrives asynchronously on the event stream.",
+      "description": "Write a Z-Wave configuration parameter.",
       "fields": {
         "parameter": {
           "name": "Parameter number",
@@ -191,7 +191,7 @@
     },
     "get_zwave_parameter": {
       "name": "Get Z-Wave parameter",
-      "description": "Request the current value of a Z-Wave configuration parameter. Returns a parameter/size/value dict.",
+      "description": "Request the current value of a Z-Wave configuration parameter.",
       "fields": {
         "parameter": {
           "name": "Parameter number",
@@ -201,11 +201,11 @@
     },
     "send_program_command": {
       "name": "Send program command",
-      "description": "Send a verb (run, run_then, run_else, stop, enable, disable, …) to a program or folder by id or name.",
+      "description": "Send a verb to a program or folder by id or name.",
       "fields": {
         "address": {
           "name": "Program id",
-          "description": "The program or folder id (e.g. 0030). Takes precedence over name when both are given."
+          "description": "Program or folder id (e.g. 0030)."
         },
         "name": {
           "name": "Program name",
@@ -213,7 +213,7 @@
         },
         "command": {
           "name": "Command",
-          "description": "The verb to send. Folders only accept run / stop / enable / disable."
+          "description": "The verb to send."
         },
         "isy": {
           "name": "Controller",
@@ -229,7 +229,7 @@
         "step": {
           "confirm": {
             "title": "Reload {title}?",
-            "description": "The controller reported a {verb} for node {address}. Home Assistant cannot apply added/removed/renamed/enabled/revised nodes without reloading the integration. Reload now to pick up the change?"
+            "description": "The controller reported a {verb} for node {address}. Reload to pick up the change?"
           }
         }
       }

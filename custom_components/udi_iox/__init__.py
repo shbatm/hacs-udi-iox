@@ -161,15 +161,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
 
 
 def _controller_label(controller: Controller, host: str) -> str:
-    """Friendly controller label for HA device names.
-
-    Prefers the user-assigned controller name from
-    :attr:`pyisyox.Controller.name` (the ``<name>`` of the root group
-    on the eisy admin UI) and falls back to the URL hostname when the
-    controller hasn't been named. Used for the hub device, the
-    Variables service device, and the Network service device so all
-    three carry the same friendly prefix.
-    """
+    """Controller name → URL hostname → host. Used by the hub +
+    Variables + Network service devices for a common prefix."""
     return controller.name or urlparse(host).hostname or host
 
 

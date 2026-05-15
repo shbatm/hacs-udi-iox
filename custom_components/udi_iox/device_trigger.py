@@ -1,20 +1,10 @@
 """Device triggers for udi_iox event entities.
 
-HA's built-in state-trigger requires a value transition: pressing the
-same KeypadLinc button twice doesn't fire a trigger configured with
-``attribute: event_type`` + ``to: "off"`` because the attribute didn't
-change. The :class:`event.EventEntity` updates its state timestamp on
-every press, but ``state_trigger`` without an ``attribute`` filter then
-fires for *every* event_type.
-
-This module exposes one device trigger per (event entity, event_type),
-so users get a UI-driven picker that fires on every dispatched event of
-the chosen type — matching what users coming from legacy
+HA's state-trigger requires a value transition, so two identical
+presses in a row drop the second. This exposes one device trigger per
+(event entity, event_type) and fires on every state change whose
+``event_type`` attribute matches — the behaviour users coming from
 ``isy994_control`` automations expect.
-
-The trigger watches the entity's state via ``async_track_state_change_event``
-and matches against the entity's ``event_type`` attribute on each change,
-so consecutive same-type events all fire.
 """
 
 from __future__ import annotations

@@ -108,12 +108,8 @@ SERVICE_SEND_PROGRAM_COMMAND_SCHEMA = vol.All(
 def async_get_entities(
     hass: HomeAssistant, supports: str | None = None
 ) -> dict[str, Entity]:
-    """Collect every udi_iox entity across all platforms, keyed by entity_id.
-
-    ``supports`` narrows to entities exposing the named method, so
-    targeting (e.g.) a scene/group with a node-only service yields
-    "no entities matched" rather than an opaque AttributeError.
-    """
+    """All udi_iox entities, optionally narrowed to those exposing
+    ``supports`` (so node-only services skip scene/group entities)."""
     entities: dict[str, Entity] = {}
     for platform in async_get_platforms(hass, DOMAIN):
         entities.update(platform.entities)

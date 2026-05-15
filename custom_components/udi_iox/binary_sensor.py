@@ -300,13 +300,8 @@ class ISYBinarySensorEntity(ISYNodeEntity, BinarySensorEntity):
 
 
 class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
-    """Representation of an ISY Insteon binary sensor device.
-
-    Often times, a single device is represented by multiple nodes in the ISY,
-    allowing for different nuances in how those devices report their on and
-    off events. This class turns those multiple nodes into a single Home
-    Assistant entity and handles both ways that ISY binary sensors can work.
-    """
+    """Insteon binary sensor — folds positive + optional negative subnodes
+    into one HA entity."""
 
     _node: Node
 
@@ -355,12 +350,8 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
             )
 
     def add_heartbeat_device(self, entity: ISYBinarySensorHeartbeat | None) -> None:
-        """Register a heartbeat device for this sensor.
-
-        The heartbeat node beats on its own, but we can gain a little
-        reliability by considering any node activity for this sensor
-        to be a heartbeat as well.
-        """
+        """Wire the heartbeat partner; any parent activity also counts
+        as a heartbeat."""
         self._heartbeat_device = entity
 
     def _async_heartbeat(self) -> None:
@@ -403,12 +394,8 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
 
     @callback
     def _async_positive_node_control_handler(self, event: Event) -> None:
-        """Handle On and Off control event coming from the primary node.
-
-        Depending on device configuration, sometimes only On events
-        will come to this node, with the negative node representing Off
-        events
-        """
+        """Primary-node On/Off; some devices route Off through the
+        negative node instead."""
         if event.control == CMD_ON:
             _LOGGER.debug(
                 "Sensor %s turning On via the Primary node sending a DON command",
@@ -428,15 +415,9 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
 
     @callback
     def async_on_update(self, event: NodeEventType, key: str) -> None:
-        """Primary node status updates.
-
-        We MOSTLY ignore these updates, as we listen directly to the Control
-        events on all nodes for this device. However, there is one edge case:
-        If a leak sensor is unknown, due to a recent reboot of the ISY, the
-        status will get updated to dry upon the first heartbeat. This status
-        update is the only way that a leak sensor's status changes without
-        an accompanying Control event, so we need to watch for it.
-        """
+        """Mostly ignored — control events drive state. Edge case: a
+        post-ISY-reboot leak sensor reports DRY via a status update
+        (no accompanying Control event) on the first heartbeat."""
         if self._status_was_unknown and self._computed_state is None:
             self._computed_state = bool(node_status_int(self._node))
             self._status_was_unknown = False
@@ -445,15 +426,9 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        """Get whether the ISY binary sensor device is on.
-
-        Insteon leak sensors set their primary node to On when the state is
-        DRY, not WET, so we invert the binary state if the user indicates
-        that it is a moisture sensor.
-
-        Dusk/Dawn sensors set their node to On when DUSK, not light detected,
-        so this is inverted as well.
-        """
+        """Insteon leak sensors report DRY=On (not WET) and dusk/dawn
+        sensors report DUSK=On — both inverted on the LIGHT / MOISTURE
+        device classes."""
         if self._computed_state is None:
             # Do this first so we don't invert None on moisture or light sensors
             return None
@@ -483,14 +458,8 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
         | ISYBinarySensorProgramEntity,
         device_info: DeviceInfo | None = None,
     ) -> None:
-        """Initialize the IoX heartbeat binary sensor.
-
-        Computed state is set to UNKNOWN unless the controller provided a
-        valid state. If a valid state is provided (on or off), HA restores
-        the previous value or defaults to OFF (Normal). If the heartbeat
-        is not received in 25 hours the computed state flips to ON
-        (Low Battery).
-        """
+        """Defaults OFF (Normal); flips ON (Low Battery) after 25 h
+        without a heartbeat. Restores the prior ON state across restarts."""
         super().__init__(isy_data, node, device_info=device_info)
         self._parent_device = parent_device
         self._heartbeat_timer: CALLBACK_TYPE | None = None
@@ -527,13 +496,8 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
 
     @callback
     def async_heartbeat(self) -> None:
-        """Mark the device as online, and restart the 25 hour timer.
-
-        This gets called when the heartbeat node beats, but also when the
-        parent sensor sends any events, as we can trust that to mean the device
-        is online. This mitigates the risk of false positives due to a single
-        missed heartbeat event.
-        """
+        """Mark online + restart the 25 h timer; any parent activity
+        also counts as a heartbeat (mitigates a single missed beat)."""
         self._computed_state = False
         self._restart_timer()
         self.async_write_ha_state()
@@ -599,13 +563,7 @@ class ISYBinarySensorProgramEntity(ISYProgramEntity, BinarySensorEntity):
 
 
 class ISYProgramDeviceStatusBinarySensor(ISYProgramDeviceEntity, BinarySensorEntity):
-    """The program's last-evaluation result, exposed as a binary sensor.
-
-    Mirrors what the legacy ``ISYBinarySensorProgramEntity`` does for
-    ``HA.binary_sensor/<name>/status`` programs, but here the program
-    is a first-class device (rather than a name-and-status pair under
-    the controller hub).
-    """
+    """Program last-evaluation result, exposed under the program device."""
 
     _attr_translation_key = "program_status"
     _attr_icon = "mdi:script-text-outline"

@@ -395,9 +395,8 @@ _PROGRAM_RUN_STATE_LABELS: dict[ProgramRunState, str] = {
 
 
 class ISYProgramRunningSensor(ISYProgramDeviceEntity, SensorEntity):
-    """Decoded run-state of the program — ``idle`` / ``running_then``
-    / ``running_else``, or ``None`` (rendered as ``unknown``) when the
-    program is in the cookbook ``ST_NOT_LOADED`` (errored) state."""
+    """Decoded program run-state (idle / running_then / running_else);
+    ``None`` for the cookbook ``ST_NOT_LOADED`` errored state."""
 
     _attr_translation_key = "program_running"
     _attr_device_class = SensorDeviceClass.ENUM
@@ -427,20 +426,13 @@ class _ISYProgramTimestampSensor(ISYProgramDeviceEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_entity_registry_enabled_default = False
 
-    # Subclasses must override; declared without a default so a missing
-    # override surfaces immediately as a mypy / runtime AttributeError
-    # rather than silently calling ``getattr(node, "")``.
+    # Subclasses must override.
     _source_attr: ClassVar[str]
 
     @property
     def native_value(self):
-        """Parsed timestamp value off the program's record.
-
-        :class:`pyisyox.Program` exposes ``last_run_time`` /
-        ``last_finish_time`` / ``next_scheduled_run_time`` as tz-aware
-        :class:`datetime` (or ``None`` when unset), so the sensor is a
-        thin pass-through.
-        """
+        """Pass through ``Program.<source_attr>`` — already a tz-aware
+        :class:`datetime` or ``None``."""
         return getattr(self._node, self._source_attr)
 
 

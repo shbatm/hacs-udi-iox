@@ -196,13 +196,7 @@ class ISYNodeButtonEntity(ButtonEntity):
 
     @property
     def available(self) -> bool:
-        """Return entity availability.
-
-        Combines node-enabled (for node-backed buttons) with WS health —
-        a dropped event stream marks every button unavailable so the
-        user doesn't fire a command at a controller we can't observe.
-        Silver ``entity-unavailable`` rule.
-        """
+        """``node_enabled AND ws_connected``."""
         if not self._isy_data.controller_events.ws_connected:
             return False
         return self._node_enabled
@@ -281,16 +275,10 @@ class ISYNodeBeepButtonEntity(ISYNodeButtonEntity):
 
 
 class ISYNodeCommandButtonEntity(ISYNodeButtonEntity):
-    """Press → send a plugin-defined zero-arg accept command to the node.
+    """Press → send a zero-arg accept command (DISCOVER, SETFAILED, …).
 
-    Covers parameterless verbs (DISCOVER, SETFAILED, ...) and ones whose
-    parameters are all optional (controller applies defaults). Callers who
-    need a non-default parameter value use the ``send_node_command``
-    service instead.
-
-    Categorised ``config`` — these are device-configuration verbs
-    (re-discover, reset, identify, ...) the user invokes deliberately,
-    not primary controls and not read-only diagnostics.
+    For commands needing non-default parameters use ``send_node_command``
+    service. Categorised ``config`` — device-configuration verbs.
     """
 
     _node: Node
@@ -348,15 +336,8 @@ class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
 
 
 class _ISYProgramButtonBase(ISYProgramDeviceEntity, ButtonEntity):
-    """Shared scaffolding for the per-program-device manual run buttons.
-
-    Each subclass binds one verb on :class:`pyisyox.Program` (``run``,
-    ``run_then``, ``run_else``, ``stop``) and translates failures to
-    :class:`HomeAssistantError`. The ``_verb`` / ``_verb_label``
-    ClassVars are declared without defaults so a forgotten subclass
-    override surfaces immediately at runtime instead of silently
-    dispatching to ``getattr(node, "")``.
-    """
+    """Per-program manual-run button scaffold; subclasses bind one
+    verb on :class:`pyisyox.Program`."""
 
     _verb: ClassVar[str]
     _verb_label: ClassVar[str]

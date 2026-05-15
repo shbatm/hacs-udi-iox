@@ -10,7 +10,7 @@ If you have ISY-994 hardware, use the existing Home Assistant core [`isy994` int
 
 ## Why a separate repo
 
-`hacs-isy994` was a stable beta-testing channel for the upstream `isy994` integration which served it's purpose, but I no longer want to maintain legacy hardware support for Home Assistant's core `isy994` and try to maintain both new features and legacy support in another repo. The eisy / IoX-6+ rewrite is a clean break: different library (`pyisyox` v6 with JWT/portal auth, WebSocket-only, classifier-driven entity routing, ergonomic Node wrappers). Forcing existing `hacs-isy994` users onto that rewrite would regress their working ISY-994 setups, so this is a new repo with a new domain.
+`hacs-isy994` was a stable beta-testing channel for the upstream `isy994` integration which served its purpose, but I no longer want to maintain legacy hardware support for Home Assistant's core `isy994` and try to maintain both new features and legacy support in another repo. The eisy / IoX-6+ rewrite is a clean break: different library (`pyisyox` v6 with JWT/portal auth, WebSocket-only, classifier-driven entity routing, ergonomic Node wrappers). Forcing existing `hacs-isy994` users onto that rewrite would regress their working ISY-994 setups, so this is a new repo with a new domain.
 
 ## Installation
 
@@ -61,7 +61,7 @@ All of these are revisitable at any time via **Settings → Devices & Services �
 
 | Option | Default | Description |
 | --- | --- | --- |
-| **Node Sensor String** (`sensor_string`) | `sensor` | Any device or folder whose IoX name contains this substring is treated as a (binary) sensor instead of its classifier-assigned platform. Useful for forcing a generic Insteon I/O Linc input or a folder of motion sensors onto the sensor platform. |
+| **Node Sensor String** (`sensor_string`) | `sensor` | Any device or folder whose IoX name contains this substring is treated as a (binary) sensor instead of its classifier-assigned platform. Useful for forcing a generic Insteon I/O Linc input onto the sensor platform. |
 | **Ignore String** (`ignore_string`) | `{IGNORE ME}` | Any device whose IoX name contains this substring is skipped entirely — no entity is created. Add the substring to a node's name in the eisy admin UI to hide it from HA without deleting it from the controller. |
 | **Restore Light Brightness** (`restore_light_state`) | off | When **on**, turning a light on from HA restores the previous brightness instead of using the device's built-in On Level (Insteon `OL`). When **off**, the device decides the start level — usually the right call for Insteon switches with a configured On Level. |
 | **Enable adding variables entities** (`enable_variables`) | on | When **off**, IoX variables (Integer + State) are not exposed as `number` entities. Turn off if you have many variables and only use them inside IoX programs (faster startup). |

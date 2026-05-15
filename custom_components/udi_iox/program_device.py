@@ -1,23 +1,11 @@
-"""Per-IoX-program HA device + the entity scaffolding it shares.
+"""Per-IoX-program HA device + entity scaffolding.
 
-The :class:`ISYProgramDeviceEntity` mixin is the seam every entity
-inherits — it pins ``_node`` to the program, builds the unique-id from
-``uid_base(program) + suffix``, and subscribes to the program-status
-channel so any update from the controller re-renders the entity.
-
-
-
-Programs that *don't* follow the legacy
-``HA.<platform>/<name>/{status,actions}`` folder convention used to be
-invisible to HA. This module gives each one its own HA device so the
-program's runtime state — last-evaluation status, current run state,
-schedule timestamps, manual run/stop controls, enable + run-at-startup
-toggles — surface as a coherent set of entities under one device card.
-
-Wire-side, every program update flows through pyisyox's
-:class:`ProgramStatusEvent` channel; the dispatcher mutates the
-underlying ``ProgramRecord`` before firing, so wrapper attributes read
-fresh on the very next render.
+Programs outside the legacy ``HA.<platform>/<name>/{status,actions}``
+folder convention each get their own device whose entities surface
+status / run-state / schedule / enable / run-at-startup / manual run.
+Updates flow through pyisyox's :class:`ProgramStatusEvent`; the
+dispatcher mutates ``ProgramRecord`` before firing, so wrapper attrs
+read fresh on the next render.
 """
 
 from __future__ import annotations
@@ -37,9 +25,8 @@ if TYPE_CHECKING:
 
     from .models import IsyData
 
-# Per-platform unique-id suffixes for each entity in a program-device's
-# fan-out. Centralised here so models.py's ``unique_ids`` accounting and
-# every platform module agree on the wire format.
+# Per-platform unique-id suffixes — kept here so ``models.unique_ids``
+# and every platform module agree on the wire format.
 PROGRAM_DEVICE_PREFIX = "program"
 PROGRAM_BINARY_STATUS_SUFFIX = "_status"
 PROGRAM_RUNNING_SENSOR_SUFFIX = "_running"
@@ -134,15 +121,8 @@ PROGRAM_DEVICE_ENTITY_SUFFIXES: dict[Platform, tuple[str, ...]] = {
 
 
 class ISYProgramDeviceEntity(ISYEntity):
-    """Shared base for every entity attached to a per-program device.
-
-    Pins ``_node`` to the program (so wrapper attributes like
-    ``status`` / ``running`` / ``last_run_time`` are read off the
-    pre-mutated record) and subscribes to its status frames. Subclasses
-    only need to override the platform-appropriate value/property and
-    optionally the state-change handler when they need finer-grained
-    behavior (the default rerenders on every program-status frame).
-    """
+    """Shared base: pins ``_node`` to the program and subscribes to its
+    status frames (default handler rerenders on every frame)."""
 
     _node: Program
     _attr_has_entity_name = True
@@ -154,11 +134,8 @@ class ISYProgramDeviceEntity(ISYEntity):
         device_info: DeviceInfo,
         suffix: str,
     ) -> None:
-        """Initialize the entity. ``suffix`` selects the per-program
-        unique-id slot (one of ``PROGRAM_*_SUFFIX``); subclasses set
-        ``_attr_translation_key`` at the class level so the HA
-        translation pipeline composes
-        ``"<device name> <translated label>"``."""
+        """``suffix`` picks the per-program unique-id slot;
+        subclasses set ``_attr_translation_key`` for the label."""
         super().__init__(
             isy_data,
             program,
@@ -170,11 +147,9 @@ class ISYProgramDeviceEntity(ISYEntity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to program-status frames + WS-health flips.
 
-        Programs flow through the dedicated ``subscribe_program``
-        channel (the ``_1`` action=0 frame carrying the program id in
-        ``<eventInfo>``); the per-(addr, control) registry the base
-        ``ISYEntity`` uses doesn't carry program updates, so we
-        intentionally skip ``super().async_added_to_hass()`` here.
+        Skips ``super()`` deliberately: the per-(addr, control)
+        registry doesn't carry program updates — those flow through
+        the dedicated ``subscribe_program`` channel.
         """
         events = self._isy_data.controller_events
         program: Program = self._node
