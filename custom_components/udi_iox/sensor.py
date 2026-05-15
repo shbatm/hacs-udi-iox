@@ -19,7 +19,6 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util import dt as dt_util
 from pyisyox import Node, NodePropertyValue, Program
 from pyisyox.constants import (
     COMMAND_FRIENDLY_NAME,
@@ -388,26 +387,6 @@ class ISYSensorEntity(ISYNodeEntity, SensorEntity):
         return value
 
 
-def _parse_iox_timestamp(raw: str | None):
-    """Parse an IoX ISO 8601 timestamp into a tz-aware ``datetime``.
-
-    pyisyox surfaces timestamps as the wire string (``"2026-05-10T..."``)
-    rather than parsing eagerly; we do it here so timestamp sensors
-    expose a real ``datetime``. Returns ``None`` on missing or
-    unparsable input — the wire payload omits these fields when the
-    program has never run / has no schedule.
-    """
-    if not raw:
-        return None
-    try:
-        parsed = dt_util.parse_datetime(raw)
-    except (TypeError, ValueError):
-        return None
-    if parsed is None:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt_util.UTC)
-
-
 _PROGRAM_RUN_STATE_LABELS: dict[ProgramRunState, str] = {
     ProgramRunState.IDLE: "idle",
     ProgramRunState.THEN: "running_then",
@@ -455,8 +434,14 @@ class _ISYProgramTimestampSensor(ISYProgramDeviceEntity, SensorEntity):
 
     @property
     def native_value(self):
-        """Parsed timestamp value off the program's record."""
-        return _parse_iox_timestamp(getattr(self._node, self._source_attr))
+        """Parsed timestamp value off the program's record.
+
+        :class:`pyisyox.Program` exposes ``last_run_time`` /
+        ``last_finish_time`` / ``next_scheduled_run_time`` as tz-aware
+        :class:`datetime` (or ``None`` when unset), so the sensor is a
+        thin pass-through.
+        """
+        return getattr(self._node, self._source_attr)
 
 
 class ISYProgramLastRunSensor(_ISYProgramTimestampSensor):
