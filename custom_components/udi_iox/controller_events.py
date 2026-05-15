@@ -279,15 +279,8 @@ class IsyControllerEvents:
 
     @property
     def ws_connected(self) -> bool:
-        """Whether the event stream is currently up.
-
-        Entities AND this with their own enabled state to decide
-        availability. Seeded from the WS's current ``connected`` flag
-        at construction (or ``True`` when there's no WS — test
-        fixtures opt out of the upgrade); if construction races the
-        initial handshake, the first CONNECTED frame fans out
-        through ``_on_ws_status`` and entities re-render.
-        """
+        """Whether the event stream is currently up. Defaults ``True``
+        when there's no WS (test fixtures opt out of the upgrade)."""
         return self._ws_connected
 
     @callback
@@ -444,18 +437,12 @@ class IsyControllerEvents:
 
     @callback
     def _on_ws_status(self, status: EventStreamStatus) -> None:
-        """Track WS connected/disconnected transitions and fan out.
+        """Boil ``EventStreamStatus`` down to ``connected: bool``.
 
-        Translates the multi-state ``EventStreamStatus`` (NOT_STARTED,
-        INITIALIZING, RECONNECTING, LOST_CONNECTION, ...) to a single
-        ``connected: bool`` for the rest of the integration. The eisy
-        is known to drop and reconnect within seconds, so non-CONNECTED
-        transitions are debounced by
-        :data:`WS_UNAVAILABLE_DEBOUNCE_SECONDS`: if the stream
-        reconnects within that window we never tell entities anything
-        happened. Reconnect is reported instantly. Logs warning on the
-        actual unavailable flip and info on each reconnect — covers
-        the silver ``log-when-unavailable`` rule.
+        Non-CONNECTED transitions are debounced by
+        :data:`WS_UNAVAILABLE_DEBOUNCE_SECONDS` (eisy blips and
+        reconnects within seconds). Reconnect reported instantly;
+        WARN on the unavailable flip, INFO on reconnect.
         """
         actually_connected = status == EventStreamStatus.CONNECTED
 

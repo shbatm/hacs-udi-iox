@@ -16,12 +16,8 @@ rules:
   brands:
     status: done
     comment: |
-      Brand assets shipped locally under
-      ``custom_components/udi_iox/brand/`` (icon.png 256×256 + icon@2x.png
-      512×512 — the Universal Devices mark). HA 2026.3+ serves these
-      via the Brands Proxy API and prefers them over the brands CDN, so
-      the udi_iox domain renders the brand mark even though the domain
-      isn't registered in home-assistant/brands.
+      Brand assets shipped locally under ``brand/`` (icon.png +
+      icon@2x.png); HA 2026.3+ Brands Proxy API serves them.
   common-modules:
     status: done
     comment: |
@@ -84,66 +80,38 @@ rules:
   docs-configuration-parameters:
     status: done
     comment: |
-      The ``Configuration`` section of README.md documents every
-      option-flow field (sensor_string, ignore_string,
-      restore_light_state, enable_variables, enable_programs,
-      enable_networking) with its default and behaviour. All six are
-      also surfaced with ``data_description`` strings in strings.json
-      so HA renders inline help on the Options dialog itself.
+      README "Configuration" section + ``data_description`` strings
+      cover every option-flow field.
   docs-installation-parameters:
     status: done
     comment: |
-      The ``Installation`` section of README.md documents every
-      setup-flow field — Prerequisites lists what to gather before
-      starting (UD portal account + controller URL) and the Setup
-      Parameters table covers host / username / password /
-      verify_ssl with their defaults and where to source each value.
-      SSDP/DHCP discovery and the reauth flow are documented in
-      adjacent subsections.
+      README "Installation" section covers prereqs + every setup field;
+      SSDP/DHCP and reauth in adjacent subsections.
   entity-unavailable:
     status: done
     comment: |
-      Entity ``available`` is now ``node.enabled AND ws_connected``.
-      ``IsyControllerEvents`` subscribes to the controller's WS status
-      and fans the connected flag to every entity. The disconnect
-      transition is debounced by 90 s — the eisy is known to blip and
-      reconnect within seconds, and reporting unavailable on every
-      transient hiccup would just flicker the UI. Reconnect itself is
-      reported instantly. The enable switch overrides the
-      ``node.enabled`` half (else there'd be no way to re-enable a
-      disabled node) but still respects WS health.
+      ``available`` = ``node.enabled AND ws_connected``. WS disconnect
+      debounced 90 s (eisy blips and reconnects within seconds);
+      reconnect reported instantly. The enable switch overrides the
+      ``node.enabled`` half so a disabled node is still toggleable.
   integration-owner: done
   log-when-unavailable:
     status: done
     comment: |
-      ``IsyControllerEvents._on_ws_status`` logs a single warning when
-      the 90 s debounce fires (entities flipped unavailable) and an
-      info when the stream reconnects. Transient blips that recover
-      within the debounce window are logged at DEBUG only — no spam.
+      WARN once when the 90 s debounce fires, INFO on reconnect;
+      transient blips DEBUG-only.
   parallel-updates:
     status: done
     comment: |
-      ``PARALLEL_UPDATES = 0`` at module top on every platform. The
-      integration is push-based (no entity-update I/O — state is
-      driven by the WebSocket event stream), AND the eisy on current
-      IoX 6+ firmware queues / throttles parallel writes internally
-      (empirical finding during pyisyox v6 development). pyisyox
-      dropped its own per-host semaphore for this same reason — the
-      legacy ``connection.py`` had ``asyncio.Semaphore(...)``; the
-      v6 ``client.py`` rewrite has none. So there's no benefit to
-      limiting action concurrency on the HA side either.
+      ``PARALLEL_UPDATES = 0`` on every platform. Integration is
+      push-based and pyisyox v6 dropped its per-host semaphore — the
+      eisy throttles parallel writes server-side.
   reauthentication-flow:
     status: done
     comment: config_flow implements async_step_reauth / async_step_reauth_confirm.
   test-coverage:
     status: done
-    comment: |
-      98 % overall (372 tests). Every platform module clears the 95 %
-      bar — 17 modules at 100 %, the rest 95-98 %. The dense
-      ``binary_sensor.py`` Insteon parent / subnode classification path
-      (62 % at the time of the silver test-coverage push in PR #44) is
-      now at 97 %, driven by ``pyisyox.testing.make_insteon_binary_sensor_records``
-      (pyisyox 6.0.0b2+).
+    comment: 98 % overall (372 tests); every platform module ≥95 %.
 
   # Gold
   devices: done
@@ -160,21 +128,14 @@ rules:
   docs-examples:
     status: done
     comment: |
-      ``README.md`` ``Automations on button presses`` walks through a
-      device-trigger automation end-to-end with both a UI-driven walk
-      and a YAML snippet for the canonical KeypadLinc → light.toggle
-      pattern, and explains why the device trigger is preferred over
-      a state trigger (so users coming from PyISY-3 / isy994
-      automations migrate cleanly).
+      README "Automations on button presses" walks the device-trigger
+      pattern with YAML and explains why state-trigger doesn't suffice.
   docs-known-limitations: todo
   docs-supported-devices:
     status: done
     comment: |
-      ``README.md`` ``Supported devices`` plus the dedicated
-      ``docs/supported-devices.md`` cover Insteon / Z-Wave / Zigbee /
-      Matter / PG3 plugins, with the explicit guidance to install
-      HA-native integrations alongside this one for devices where
-      the native one is the better source of truth (Sonos, Hue, etc.).
+      README "Supported devices" + ``docs/supported-devices.md`` cover
+      Insteon / Z-Wave / Zigbee / Matter / PG3 plugins.
   docs-supported-functions: todo
   docs-troubleshooting: todo
   docs-use-cases: todo
@@ -188,17 +149,9 @@ rules:
   entity-device-class:
     status: done
     comment: |
-      Every domain whose entities can be classified declares
-      ``device_class``. Sensor + binary_sensor route through
-      ``UOM_TO_DEVICE_CLASS`` / ``BINARY_SENSOR_DEVICE_TYPES_*`` so
-      Insteon / Z-Wave / plugin nodes get the right class
-      automatically; switch / button / event use the static
-      ``SwitchDeviceClass.OUTLET`` / ``ButtonDeviceClass.RESTART`` /
-      ``EventDeviceClass.BUTTON`` overrides where applicable.
-      Domains without a generally-applicable class (cover, lock,
-      climate, fan, light, number, select) leave it unset — the IoX
-      controller doesn't surface the semantic distinction needed to
-      pick one.
+      Sensor / binary_sensor route through UOM/type tables; cover /
+      lock / climate / fan / light / number / select leave it unset
+      because the IoX controller doesn't surface the distinction.
   entity-disabled-by-default:
     status: done
     comment: |
@@ -216,12 +169,8 @@ rules:
   stale-devices:
     status: done
     comment: |
-      ``__init__.async_remove_config_entry_device`` lets the user remove
-      a device from the integration via the device-registry "Delete"
-      action. Returns False (block deletion) when the address is still
-      owned by ``IsyData.devices``; True (allow) otherwise — so a node
-      that disappeared from the controller is removable, and a node
-      that's still there can't be accidentally orphaned.
+      ``async_remove_config_entry_device`` blocks removal while
+      ``IsyData.devices`` still owns the address.
   # Platinum
   async-dependency: done
   inject-websession: todo

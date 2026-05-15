@@ -35,10 +35,7 @@ if TYPE_CHECKING:
 
     from .models import IsyData
 
-# PEP 695 lazy type aliases — the right-hand side is evaluated only when
-# the alias is consumed, so the (TYPE_CHECKING-only) Program / Variable
-# references don't pull models.py at import time. Keeps the import graph
-# acyclic.
+# Lazy aliases — keep the import graph acyclic.
 type NodeType = Node | Group | Folder | Program | Variable
 type NodeEventType = NodePropertyValue | NodeLifecycleEvent
 
@@ -141,40 +138,19 @@ class ISYEntity(Entity):
 
     @property
     def available(self) -> bool:
-        """Combine entity-local enabled state with WS health.
-
-        An entity is available only if (a) its local availability flag
-        is set — for node-backed entities this tracks ``node.enabled``
-        from the controller; for stateless entities (groups, programs,
-        network resources) it's True by default — AND (b) the event
-        stream is currently connected. When the WS drops, every entity
-        flips unavailable so a stale value isn't acted on; the silver
-        ``log-when-unavailable`` warning is emitted once per transition
-        from :class:`IsyControllerEvents._on_ws_status`.
-        """
+        """``_attr_available`` AND WS connected."""
         if not self._isy_data.controller_events.ws_connected:
             return False
         return self._attr_available
 
     @callback
     def _on_node_event(self, event: Event) -> None:
-        """Default handler — write HA state on every property update.
-
-        Subclasses that need finer-grained behavior override
-        :meth:`async_on_update` (which still receives the legacy
-        ``(event, key)`` signature for backward compatibility) or
-        override this method directly.
-        """
+        """Default handler — dispatch to ``async_on_update``."""
         self.async_on_update(event, self.unique_id or "")
 
     @callback
     def _on_ws_status(self, connected: bool) -> None:
-        """Refresh HA state when the WS stream flips connected/disconnected.
-
-        ``available`` is computed dynamically from
-        ``controller_events.ws_connected`` so we don't need to mutate
-        ``_attr_available`` — just rerender so HA picks up the new value.
-        """
+        """Rerender so the dynamic ``available`` picks up the new flag."""
         self.async_write_ha_state()
 
     @callback
@@ -231,24 +207,14 @@ class ISYNodeEntity(ISYEntity):
         if description is not None:
             self.entity_description = description
 
-        # Name composition (has_entity_name=True throughout — HA prepends
-        # the device name automatically; ``_attr_name`` carries the entity's
-        # own suffix only, or ``None`` to mean "use the device name as-is").
-        #
-        # - Primary entity (PROP_STATUS) on a node that owns its DeviceInfo
-        #   (top-level root OR node-server plugin child) → ``None`` so HA
-        #   renders the device name as-is.
-        # - Primary entity on a native sub-node folded under a parent
-        #   device (FanLinc motor side, KeypadLinc sub-buttons) → the
-        #   sub-node's name with the parent's prefix stripped, so the
-        #   rendered friendly name doesn't duplicate the device prefix.
-        # - Aux control entity → the property's nodedef label, falling
-        #   back to the IoX command friendly-name table. On a node that
-        #   owns its DeviceInfo (root, or a node-server child) the label
-        #   stands alone; on a native sub-node folded under a parent
-        #   device it's prefixed with the sub-node's own (parent-prefix-
-        #   stripped) name so e.g. a "Ramp Rate" on the sub-node doesn't
-        #   render identically to the parent's.
+        # Name composition (has_entity_name=True; ``_attr_name`` is the
+        # suffix or ``None`` to use the device name as-is):
+        # - Primary on a node owning its DeviceInfo → ``None``.
+        # - Primary on a folded sub-node → sub-name with parent prefix
+        #   stripped (avoids duplicating the device prefix).
+        # - Aux → property label or COMMAND_FRIENDLY_NAME, prefixed with
+        #   the sub-name on folded sub-nodes so e.g. a sub-node "Ramp
+        #   Rate" doesn't render identically to the parent's.
         self._node_def = node.nodedef
         node_owns_device = (
             node.primary_address is None or node.protocol == "node_server"
@@ -284,11 +250,7 @@ class ISYNodeEntity(ISYEntity):
         self._attr_available = node.enabled
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to property changes for this node's control + the
-        node-enabled lifecycle so we can flip ``available`` when the
-        controller (de)activates the device. Also subscribe to WS-status
-        flips so a dropped event stream marks the entity unavailable
-        (silver ``entity-unavailable`` rule)."""
+        """Subscribe to control + lifecycle + WS status."""
         events = self._isy_data.controller_events
         self._unsubscribers.append(
             events.subscribe_node(
@@ -327,12 +289,8 @@ class ISYNodeEntity(ISYEntity):
         return {cmd.id for cmd in nodedef.cmds.accepts}
 
     def _validate_command(self, command_id: str) -> None:
-        """Raise if ``command_id`` isn't in the node's accept set.
-
-        Just-in-time against the live nodedef — saves a round-trip to
-        the controller for a verb it would reject, and gives the caller
-        the valid list instead of an opaque protocol error.
-        """
+        """Raise if ``command_id`` isn't in the node's accept set; the
+        error surfaces the valid list."""
         accepted = self._accepted_command_ids()
         if accepted is not None and command_id not in accepted:
             raise ServiceValidationError(
@@ -341,13 +299,8 @@ class ISYNodeEntity(ISYEntity):
             )
 
     async def async_get_node_commands(self) -> dict[str, dict[str, str]]:
-        """Entity-service response: the node's accepted-command vocabulary.
-
-        ``accepted_commands`` is an id→friendly-name mapping (the wire
-        ids — ``DON``, ``OL``, ``BEEP`` — are what ``send_raw_node_command``
-        expects; the values are the nodedef ``name`` strings for display).
-        Sorted by wire id; empty when the nodedef isn't resolved.
-        """
+        """Return ``{"accepted_commands": {id: friendly_name}}``,
+        sorted by wire id; empty when the nodedef isn't resolved."""
         nodedef = self._node.nodedef
         if nodedef is None:
             return {"accepted_commands": {}}
@@ -378,12 +331,8 @@ class ISYNodeEntity(ISYEntity):
         unit_of_measurement: str | None = None,
         parameters: Any | None = None,
     ) -> None:
-        """Respond to an entity-service raw command call.
-
-        ``unit_of_measurement`` and ``parameters`` are ignored — the
-        editor codec on :meth:`Node.send_command` resolves them from
-        the node's profile. Only ``(command, value)`` is honored.
-        """
+        """Send a raw ``(command, value)`` pair; ``unit_of_measurement``
+        and ``parameters`` are ignored — the editor codec resolves them."""
         self._validate_command(command)
         params = (value,) if value is not None else ()
         try:
@@ -394,20 +343,10 @@ class ISYNodeEntity(ISYEntity):
             ) from err
 
     async def async_get_zwave_parameter(self, parameter: int) -> dict[str, int]:
-        """Z-Wave parameter read.
+        """Read a Z-Wave parameter.
 
-        Returns a structured ``{"parameter", "size", "value"}`` dict
-        (pyisyox parses the controller's ``<config>`` response shape
-        for us); HA renders that directly as the service response.
-        Mirrors PyISY 3.x's structured return on
-        ``Node.get_zwave_parameter`` so existing automations migrating
-        from the legacy ``isy994`` integration keep the same dict
-        keys.
-
-        Raises ``HomeAssistantError`` when the underlying node isn't a
-        Z-Wave node, or when the controller rejects the read
-        (unknown parameter number / device unreachable —
-        :class:`pyisyox.NodeCommandError` surfaces the status code).
+        Returns the ``{"parameter", "size", "value"}`` dict shape PyISY
+        3.x used so isy994-migrated automations keep the same keys.
         """
         try:
             return await self._node.get_zwave_parameter(parameter)
@@ -417,70 +356,38 @@ class ISYNodeEntity(ISYEntity):
     async def async_set_zwave_parameter(
         self, parameter: int, value: int, size: int
     ) -> None:
-        """Z-Wave parameter write.
-
-        Delegates to :meth:`pyisyox.Node.set_zwave_parameter` which uses
-        the dedicated ``/rest/(zmatter/)?zwave/.../parameters/set/...``
-        wire path — the only surface that carries ``size`` (the
-        parameter's byte width), unlike the legacy ``CONFIG`` ``cmd``
-        editor which only models the ``(NUM, VAL)`` pair. This is why
-        the auto-fan-out for ``CONFIG`` is suppressed on Z-Wave: the
-        slider it'd produce can't express ``size``.
-        """
+        """Write a Z-Wave parameter via the dedicated wire path that
+        carries ``size`` — the legacy CONFIG cmd can't model byte width,
+        which is why CONFIG auto-fan-out is suppressed on Z-Wave."""
         try:
             await self._node.set_zwave_parameter(parameter, value, size)
         except NodeCommandError as err:
             raise HomeAssistantError(str(err)) from err
 
     async def async_rename_node(self, name: str) -> None:
-        """Rename the underlying node on the controller.
-
-        The IoX server emits a ``NodeLifecycleEvent`` with action
-        ``NN`` after the rename succeeds; the lifecycle Repair card
-        prompts the user to reload the entry so HA's name caches
-        catch up.
-        """
+        """Rename the node; controller emits ``NN`` lifecycle which
+        triggers the reload-required Repair card."""
         await self._node.rename(name)
 
     def _editor_range_for(self, control: str) -> EditorRange | None:
-        """Return the write-side editor range for ``control`` on this node.
+        """Write-side editor range for ``control``; ``None`` if unresolved.
 
-        Thin wrapper over :func:`.editor_classification.range_for_control`
-        — resolves the editor governing ``control`` (via the nodedef
-        property's ``editor_id``, or the accept-command parameter's for
-        command-only controls like backlight), scoped to
-        ``(family_id, instance_id)``, and picks ``ranges[0]``.
-
-        Callers should inspect both ``uom`` and ``max``:
-
-        * ``uom == UOM_PERCENTAGE`` (51) → editor accepts 0-100 percent.
-        * ``uom == UOM_8_BIT_RANGE`` (100) → editor accepts raw bytes;
-          ``max`` tells you whether the device uses the full 0-255
-          range (classic Insteon SwitchLinc) or a constrained subset
-          like 0-100 (KeypadDimmer_ADV — byte-semantically but only the
-          lower portion is valid).
-        * ``names`` non-empty → enum / discrete values; classification
-          (``helpers.platform_for_control``) routes those to SELECT.
-
-        Returns ``None`` when the editor can't be resolved.
+        UOM keys callers care about:
+        * ``UOM_PERCENTAGE`` (51) → 0-100 percent.
+        * ``UOM_8_BIT_RANGE`` (100) → raw byte; check ``max`` for the
+          0-255 vs 0-100 SwitchLinc/KeypadDimmer_ADV distinction.
+        * ``names`` non-empty → enum (routed to SELECT).
         """
         return range_for_control(self._isy_data.root, self._node, control)
 
 
 class ISYProgramEntity(ISYEntity):
-    """Representation of an IoX program base.
+    """Program-based entity. Subscribes via ``subscribe_program`` (the
+    dedicated channel for ``_1`` action ``"0"`` frames) rather than the
+    per-(addr, control) registry nodes use."""
 
-    Programs flow through the dedicated ``subscribe_program`` channel
-    (control ``_1`` action ``"0"`` frames carrying the program id in
-    ``<eventInfo>``) rather than the per-(addr, control) registry that
-    nodes use, so we override ``async_added_to_hass`` to subscribe via
-    that path.
-    """
-
-    # Programs are device-less in HA's model (they attach to the
-    # controller hub stub). Their friendly name IS the program's
-    # name — opt out of has_entity_name so HA doesn't prepend the
-    # controller name (would yield "eisy.local Movie Mode").
+    # Opt out of has_entity_name so HA uses the program name verbatim
+    # (else it'd prepend the controller name → "eisy.local Movie Mode").
     _attr_has_entity_name = False
     _node: Program
     _actions: Program | None
@@ -527,15 +434,8 @@ class ISYProgramEntity(ISYEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Get the state attributes for the device.
-
-        Surfaces the actions / status program metadata pyisy 3.x
-        consumers expected. The runtime ``Program`` wrapper exposes
-        the timing fields as ISO 8601 strings; we keep them as-is
-        here (the wrapper-side decode keeps the path symmetrical with
-        the wire shape, and downstream automations that parsed the
-        old strings still see strings).
-        """
+        """Surfaces actions / status program metadata pyisy 3.x
+        consumers expected; timestamps stay as ISO 8601 strings."""
         attr: dict[str, Any] = {}
         actions = self._actions
         if actions is not None:

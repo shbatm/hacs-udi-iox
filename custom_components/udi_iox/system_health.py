@@ -22,25 +22,11 @@ def async_register(
 
 
 async def system_health_info(hass: HomeAssistant) -> dict[str, Any]:
-    """Get info for the system health page.
-
-    Surfaces four signals:
-
-    * ``host_reachable`` — HTTP reachability of the controller's
-      ``/desc`` endpoint (the lightest endpoint we know works on
-      both ISY-994 and IoX 6).
-    * ``device_connected`` — whether ``Controller.connect()``
-      completed and ``stop()`` hasn't run. Tracks the initial
-      handshake, not the live WS.
-    * ``event_stream_status`` — most-recent :class:`EventStreamStatus`
-      value from the WS reader (``"connected"`` / ``"lost_connection"``
-      / ``"reconnecting"`` / ``"not_started"`` / ...). Read directly
-      via ``controller.websocket.status`` — no listener subscription
-      needed.
-    * ``last_event_at`` — UTC datetime of the most recent text
-      frame. The eisy emits a heartbeat every 30 s, so a stale
-      value (>60 s) indicates the WS has silently stopped.
-    """
+    """Surfaces ``host_reachable`` (``/desc`` HTTP probe),
+    ``device_connected`` (initial handshake), ``event_stream_status``
+    (live WS status), and ``last_event_at`` (UTC). The eisy heartbeats
+    every 30 s, so a stale ``last_event_at`` (>60 s) flags a silent WS
+    stop."""
     health_info: dict[str, Any] = {}
 
     entries = hass.config_entries.async_entries(DOMAIN)

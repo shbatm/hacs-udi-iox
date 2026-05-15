@@ -145,13 +145,8 @@ class ISYSwitchEntityMixin(SwitchEntity):
 
 
 class ISYGroupSwitchEntity(ISYGroupEntity, ISYSwitchEntityMixin):
-    """Representation of an ISY group switch device.
-
-    ``pyisyox.Group`` deliberately exposes no live ``status`` — groups
-    don't carry wire-level state of their own. The is_on aggregation is
-    derived on access from the controller's nodes registry via
-    ``group_any_on`` (any member currently non-zero).
-    """
+    """Group switch — ``is_on`` derives from ``group_any_on`` (any
+    member non-zero) since groups carry no wire-level status."""
 
     _node: Group
     _attr_icon: str = "mdi:google-circles-communities"
@@ -169,15 +164,8 @@ class ISYSwitchEntity(ISYNodeEntity, ISYSwitchEntityMixin):
 
 
 class ISYSwitchProgramEntity(ISYProgramEntity, SwitchEntity):
-    """A representation of an ISY program switch.
-
-    ``status`` (``self._node``) is the program that drives ``is_on``.
-    ``self._actions`` is the sibling program that runs on user input
-    — its ``then`` clause turns the switch on; ``else`` turns it off.
-    The status program flips back through the WS dispatcher; the
-    optimistic local state is the ``then`` / ``else`` branch we just
-    requested.
-    """
+    """ISY program switch — status program drives ``is_on``;
+    actions program's ``then`` / ``else`` runs on user input."""
 
     _actions: Program
     _attr_icon: str = "mdi:script-text-outline"  # Matches isy program icon
@@ -244,12 +232,8 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
-        """Whether the node is enabled on the controller.
-
-        ``node.enabled`` tracks ``EN`` lifecycle frames (pyisyox writes
-        the new state back to the record), so this follows changes made
-        from the admin console / REST as well as from this switch.
-        """
+        """``node.enabled`` tracks ``EN`` lifecycle frames — also picks
+        up admin-console / REST toggles."""
         return bool(self._node.enabled)
 
     async def async_turn_off(self, **kwargs: Any) -> None:

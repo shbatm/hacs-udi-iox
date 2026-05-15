@@ -73,14 +73,8 @@ def _data_schema(schema_input: dict[str, Any]) -> vol.Schema:
 
 
 def _options_schema(options: Mapping[str, Any]) -> vol.Schema:
-    """Build the options schema with the supplied mapping as defaults.
-
-    Shared between the post-creds setup step (:meth:`ConfigFlow.async_step_options`)
-    and the post-install options flow
-    (:meth:`OptionsFlowHandler.async_step_init`) so the two surfaces can
-    never drift apart. An empty mapping yields the integration's
-    out-of-box defaults.
-    """
+    """Shared by :meth:`ConfigFlow.async_step_options` and
+    :meth:`OptionsFlowHandler.async_step_init` so the two never drift."""
     return vol.Schema(
         {
             vol.Optional(
@@ -140,11 +134,8 @@ async def validate_input(
             await controller.connect(start_websocket=False)
         try:
             uuid = controller.config.uuid
-            # ``Controller.name`` is the user-assigned label from the
-            # root group on the eisy admin UI (same value PyISY 3.x got
-            # from /rest/config). Prefer it for the entry title so the
-            # integration card shows "Main eisy" rather than the URL
-            # hostname; fall back when the controller hasn't been named.
+            # User-assigned controller name → integration card title;
+            # falls back to URL hostname.
             root_name = controller.name
         finally:
             await controller.stop()
@@ -232,21 +223,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
     async def async_step_options(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Second step — confirm/adjust integration options before create.
-
-        Same schema as :meth:`OptionsFlowHandler.async_step_init`; a
-        single click on "Submit" accepts the defaults and creates the
-        entry. The fields are intentionally surfaced here rather than
-        deferred to post-install so users discover the toggles up
-        front instead of finding them after entities are already loaded.
-
-        ``self._user_input`` is per-flow instance state — HA's flow
-        manager allocates one :class:`ConfigFlow` per ``flow_id``, so
-        two concurrent flows (e.g. two browser tabs) don't share this.
-        If we land here without credentials (deep-link, flow-manager
-        re-entry after a restart, duplicate ``async_configure`` racing
-        the submit), bounce back to the user step rather than asserting.
-        """
+        """Confirm/adjust options before create. Same schema as
+        ``OptionsFlowHandler.async_step_init``; bounces back to user
+        if credentials weren't captured first."""
         if self._user_input is None:
             return await self.async_step_user()
         if user_input is not None:
@@ -300,7 +279,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
     ) -> config_entries.ConfigFlowResult:
         """Handle a discovered IoX device via DHCP."""
         friendly_name = discovery_info.hostname
-        # eisy / Polisy serve the IoX API over HTTPS on :443.
+        # eisy serves the IoX API over HTTPS on :443.
         url = f"https://{discovery_info.ip}:{HTTPS_PORT}"
         mac = discovery_info.macaddress
         isy_mac = (

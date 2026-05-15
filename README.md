@@ -2,15 +2,17 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-Home Assistant custom component for **Universal Devices eisy / Polisy** controllers running **IoX 6.0+**.
+Home Assistant custom component for **Universal Devices eisy** controllers running **IoX 6.0+**.
 
 ## Legacy Hardware Scope
 
 If you have ISY-994 hardware, use the existing Home Assistant core [`isy994` integration](https://www.home-assistant.io/integrations/isy994/) (which stays on `pyisy` 3.x). The two integrations register distinct domains and coexist on the same HA instance.
 
+The earlier-generation **Polisy** controller is end-of-life and no longer a target for this integration — the SSDP / DHCP discovery matchers have been narrowed to eisy. Polisy users can still configure the integration manually (the IoX 6 protocol is the same), but auto-discovery won't surface a Polisy on the network.
+
 ## Why a separate repo
 
-`hacs-isy994` was a stable beta-testing channel for the upstream `isy994` integration which served it's purpose, but I no longer want to maintain legacy hardware support for Home Assistant's core `isy994` and try to maintain both new features and legacy support in another repo. The eisy / IoX-6+ rewrite is a clean break: different library (`pyisyox` v6 with JWT/portal auth, WebSocket-only, classifier-driven entity routing, ergonomic Node wrappers). Forcing existing `hacs-isy994` users onto that rewrite would regress their working ISY-994 setups, so this is a new repo with a new domain.
+`hacs-isy994` was a stable beta-testing channel for the upstream `isy994` integration which served its purpose, but I no longer want to maintain legacy hardware support for Home Assistant's core `isy994` and try to maintain both new features and legacy support in another repo. The eisy / IoX-6+ rewrite is a clean break: different library (`pyisyox` v6 with JWT/portal auth, WebSocket-only, classifier-driven entity routing, ergonomic Node wrappers). Forcing existing `hacs-isy994` users onto that rewrite would regress their working ISY-994 setups, so this is a new repo with a new domain.
 
 ## Installation
 
@@ -22,10 +24,10 @@ Before starting the setup flow, gather:
 
 - A **Universal Devices portal account** (the same email + password you use to sign in at <https://my.isy.io>). The eisy on IoX 6+ authenticates against the portal — local admin credentials are not supported by the integration yet.
   - If you don't have a portal account, follow the "Sign up" link on <https://my.isy.io> and link your controller there first.
-- The **base URL of your eisy / Polisy**, including the scheme and port. Examples:
+- The **base URL of your eisy**, including the scheme and port. Examples:
   - `https://eisy.local:443` (default portal-mode port on the local network)
   - `https://192.168.1.50:443` (by IP)
-  - `https://polisy.example.com:443` (with a non-default hostname)
+  - `https://eisy.example.com:443` (with a non-default hostname)
 
   The default port for portal (JWT) auth is `443`. Visit `https://<your-controller>/desc` in a browser to confirm the controller responds — if you get a self-signed-cert warning, that's normal.
 
@@ -39,7 +41,7 @@ This is a HACS Custom Repository:
 
 ### Setup parameters
 
-The initial setup flow asks for the following. HA also recognises eisy / Polisy controllers via SSDP and DHCP discovery — if your controller is on the same network as HA, the integration usually surfaces it automatically and prefills the `host` field; you only need to enter credentials.
+The initial setup flow asks for the following. HA also recognises eisy controllers via SSDP and DHCP discovery — if your controller is on the same network as HA, the integration usually surfaces it automatically and prefills the `host` field; you only need to enter credentials.
 
 | Parameter | Required | Description |
 | --- | --- | --- |
@@ -61,7 +63,7 @@ All of these are revisitable at any time via **Settings → Devices & Services �
 
 | Option | Default | Description |
 | --- | --- | --- |
-| **Node Sensor String** (`sensor_string`) | `sensor` | Any device or folder whose IoX name contains this substring is treated as a (binary) sensor instead of its classifier-assigned platform. Useful for forcing a generic Insteon I/O Linc input or a folder of motion sensors onto the sensor platform. |
+| **Node Sensor String** (`sensor_string`) | `sensor` | Any device or folder whose IoX name contains this substring is treated as a (binary) sensor instead of its classifier-assigned platform. Useful for forcing a generic Insteon I/O Linc input onto the sensor platform. |
 | **Ignore String** (`ignore_string`) | `{IGNORE ME}` | Any device whose IoX name contains this substring is skipped entirely — no entity is created. Add the substring to a node's name in the eisy admin UI to hide it from HA without deleting it from the controller. |
 | **Restore Light Brightness** (`restore_light_state`) | off | When **on**, turning a light on from HA restores the previous brightness instead of using the device's built-in On Level (Insteon `OL`). When **off**, the device decides the start level — usually the right call for Insteon switches with a configured On Level. |
 | **Enable adding variables entities** (`enable_variables`) | on | When **off**, IoX variables (Integer + State) are not exposed as `number` entities. Turn off if you have many variables and only use them inside IoX programs (faster startup). |

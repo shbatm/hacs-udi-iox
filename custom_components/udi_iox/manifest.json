@@ -1,6 +1,6 @@
 {
   "domain": "udi_iox",
-  "name": "Universal Devices IoX (eisy / Polisy)",
+  "name": "Universal Devices IoX (eisy)",
   "codeowners": ["@shbatm"],
   "config_flow": true,
   "dhcp": [
@@ -10,10 +10,6 @@
     {
       "hostname": "eisy*",
       "macaddress": "0021B9*"
-    },
-    {
-      "hostname": "polisy*",
-      "macaddress": "000DB9*"
     }
   ],
   "documentation": "https://github.com/shbatm/hacs-udi-iox",

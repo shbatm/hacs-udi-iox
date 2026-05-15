@@ -136,14 +136,8 @@ def _primary_platform_for_native(
 
 
 def _classify_node(controller: Controller, node: Node) -> ClassificationResult | None:
-    """Run the pyisyox classifier against a node's nodedef.
-
-    Same shape for native (Insteon / Z-Wave / Zigbee) and PG3 plugin
-    nodedefs — the classifier reads links / accepts / properties, not a
-    protocol flag. ``None`` when the nodedef isn't in the loaded profile
-    (a node that joined after load, or an unknown nodedef id — wait for
-    a reload).
-    """
+    """Run pyisyox's classifier; ``None`` when the nodedef isn't in the
+    loaded profile (joined-after-load or unknown id)."""
     nodedef = node.nodedef
     if nodedef is None:
         _LOGGER.debug(
@@ -279,22 +273,11 @@ def _fan_out_commands(
 
 
 def _suggested_area_for_node(controller: Controller, node: Node) -> str | None:
-    """Walk ``node.parent_address`` until a folder is hit; return its name.
-
-    Mirrors HA core ``isy994``'s ``node.folder``-as-``suggested_area``
-    pattern (the property pyisy 3.x exposes off the parent walk). HA
-    only consults ``suggested_area`` when the user hasn't manually
-    assigned one, so this is purely additive — renaming an IoX folder
-    later does not override a manual area assignment.
-
-    Climbs through node ancestors as well so a sub-button of a multi-
-    button device whose primary lives inside a folder still resolves
-    to that folder. Returns ``None`` for nodes at the root of the IoX
-    tree (no folder ancestor).
-    """
-    # ``visited`` guards against a parent-address cycle. Real IoX
-    # hardware shouldn't produce one, but the loop's upper bound is
-    # otherwise unbounded — cheap insurance against corrupt state.
+    """Walk ``parent_address`` until a folder is hit; mirrors HA core
+    ``isy994``'s ``node.folder``-as-``suggested_area``. Climbs through
+    node ancestors so a sub-button on a primary inside a folder still
+    resolves. ``None`` for root-level nodes."""
+    # ``visited`` guards against a malformed parent-address cycle.
     visited: set[str] = set()
     address = node.parent_address
     while address and address not in visited:
@@ -490,22 +473,13 @@ def _categorize_nodes(
         # type-introspection-first overrides for thermostat/lock/fan.
         primary = _primary_platform_for_native(node, result)
 
-        # No primary platform: nodedef has no controllable surface at
-        # all — accepts list is just bookkeeping verbs like
-        # ``QUERY`` / ``BL`` (backlight) / ``WDU`` (write delta).
-        # Examples: ``KeypadButton_ADV`` (KeypadLinc Dimmer LED-only
-        # sub-buttons), ``RemoteLinc2_ADV`` (battery scene remotes),
-        # ``IMETER_SOLO`` (energy meters), ``PIR2844`` (motion-only
-        # sensors). Synthesising a primary entity would yield a
-        # broken switch / light (DON not accepted on the wire), so
-        # skip it and route the node onto EVENT if it sends verbs.
-        #
-        # If a sub-address nodedef *does* accept DON/DOF — e.g.
-        # ``RelayLampSwitch_ADV`` (2477S On/Off Switch),
-        # ``KeypadRelay_ADV`` (6/8-button keypad load),
-        # ``RelayLampSwitchLED_ADV`` (InLineLinc) — we trust it: those
-        # are real load controllers and surface as proper switches.
-        # The nodedef is the source of truth.
+        # No controllable surface (KeypadButton_ADV, RemoteLinc2_ADV,
+        # IMETER_SOLO, PIR2844 — accepts is just QUERY/BL/WDU). Skip
+        # the primary entity and route to EVENT if the node sends
+        # verbs. Sub-address nodedefs that *do* accept DON/DOF
+        # (RelayLampSwitch_ADV, KeypadRelay_ADV, RelayLampSwitchLED_ADV)
+        # are real load controllers — trust the nodedef and surface them
+        # as switches.
         if primary is None:
             if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
                 _register_event_node(isy_data, node, _node_trigger_commands(node))
@@ -532,14 +506,8 @@ def _categorize_nodes(
 
 
 def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> None:
-    """Categorize the controller's programs onto HA platforms.
-
-    Walks the legacy ``HA.<platform>/<name>/<status|actions>`` folder
-    convention pyisy 3.x consumers established. ``Program.path`` is
-    reconstructed from the ``parentId`` chain by pyisyox at parse
-    time, so this side just splits on the platform prefix and pairs
-    ``status`` / ``actions`` programs by their inner name.
-    """
+    """Walk the ``HA.<platform>/<name>/<status|actions>`` convention,
+    pairing status/actions programs by inner name."""
     by_path: dict[str, Program] = {p.path: p for p in programs.values() if p.path}
 
     for platform in PROGRAM_PLATFORMS:
@@ -579,16 +547,10 @@ def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> Non
 def _categorize_program_devices(
     isy_data: IsyData, programs: dict[str, Program], program_prefix: str
 ) -> None:
-    """Collect every program *outside* the legacy switch convention.
-
-    The ``HA.<platform>/<name>/{status,actions}`` folder layout is the
-    pyisy 3.x "virtual device" pattern (see Home Assistant's `isy994`
-    docs). Programs that follow it are already covered by the
-    platform-specific surfaces in :func:`_categorize_programs` — we
-    leave those untouched. Every *other* program (manually written
-    automation, scheduler, scene helper, …) was previously invisible to
-    HA; this collection drives the rich per-program device fan-out.
-    """
+    """Programs outside the legacy ``HA.<platform>/<name>/{status,actions}``
+    convention — those are already platform-routed by
+    :func:`_categorize_programs`. Everything else gets a per-program
+    device fan-out."""
     legacy_prefixes = tuple(
         f"{program_prefix}{platform}/" for platform in PROGRAM_PLATFORMS
     )

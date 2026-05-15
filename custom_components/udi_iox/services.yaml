@@ -1,8 +1,5 @@
-# IoX integration services
-#
-# Targeted-entity services controlling many entities in one call is not
-# recommended — it may flood the controller with requests. To control
-# multiple devices, define a scene on the controller and target that.
+# IoX integration services. Targeting many entities in one call may
+# flood the controller — use a scene defined on the controller instead.
 
 send_node_command:
   target:
