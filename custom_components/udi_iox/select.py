@@ -48,17 +48,9 @@ RAMP_RATE_OPTIONS = [time_string(rate) for rate in INSTEON_RAMP_RATES.values()]
 
 
 def _select_options(isy_data: IsyData, node: Node, control: str) -> list[str]:
-    """Resolve the option list for an aux SELECT control.
-
-    The control's *editor* is the source of truth: ``names`` (narrowed
-    by ``subset`` — only the listed raw ints are valid, including combo
-    specs like ``0-2,6,7``) gives the option strings in raw-int order.
-    That covers the keypad backlight too (``I_BL_KP`` carries the full
-    0-127 "On N / Off M" ``names`` table). ``UOM_TO_STATES`` is the
-    fallback for the few index UOMs that lean on the global table rather
-    than per-editor names (slated to be retired once everything resolves
-    from editors); RAMP_RATE keeps its bespoke table.
-    """
+    """Aux SELECT options. Editor ``names`` (narrowed by ``subset``) is
+    the source of truth; ``UOM_TO_STATES`` covers a few global index UOMs;
+    RAMP_RATE has its own bespoke table."""
     if control == PROP_RAMP_RATE:
         return RAMP_RATE_OPTIONS
     rng = range_for_control(isy_data.root, node, control)

@@ -1,4 +1,4 @@
-"""Support the Universal Devices IoX (eisy / Polisy) controllers."""
+"""Support the Universal Devices IoX (eisy) controllers."""
 
 from __future__ import annotations
 

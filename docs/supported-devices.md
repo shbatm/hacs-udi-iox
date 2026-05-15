@@ -1,6 +1,6 @@
 # Supported devices
 
-This integration surfaces every device on your eisy / Polisy IoX controller — Insteon, Z-Wave, Zigbee, Matter, and any [PG3 node-server plugin](https://www.universal-devices.com/polyglot/) you have installed. What HA platform each device lands on is driven by `pyisyox`'s classifier reading the nodedef the controller publishes, not a hard-coded device table.
+This integration surfaces every device on your eisy IoX controller — Insteon, Z-Wave, Zigbee, Matter, and any [PG3 node-server plugin](https://www.universal-devices.com/polyglot/) you have installed. What HA platform each device lands on is driven by `pyisyox`'s classifier reading the nodedef the controller publishes, not a hard-coded device table.
 
 Currently supported HA platforms:
 

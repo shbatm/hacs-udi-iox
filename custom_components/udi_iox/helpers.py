@@ -506,14 +506,8 @@ def _categorize_nodes(
 
 
 def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> None:
-    """Categorize the controller's programs onto HA platforms.
-
-    Walks the legacy ``HA.<platform>/<name>/<status|actions>`` folder
-    convention pyisy 3.x consumers established. ``Program.path`` is
-    reconstructed from the ``parentId`` chain by pyisyox at parse
-    time, so this side just splits on the platform prefix and pairs
-    ``status`` / ``actions`` programs by their inner name.
-    """
+    """Walk the ``HA.<platform>/<name>/<status|actions>`` convention,
+    pairing status/actions programs by inner name."""
     by_path: dict[str, Program] = {p.path: p for p in programs.values() if p.path}
 
     for platform in PROGRAM_PLATFORMS:
@@ -553,16 +547,10 @@ def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> Non
 def _categorize_program_devices(
     isy_data: IsyData, programs: dict[str, Program], program_prefix: str
 ) -> None:
-    """Collect every program *outside* the legacy switch convention.
-
-    The ``HA.<platform>/<name>/{status,actions}`` folder layout is the
-    pyisy 3.x "virtual device" pattern (see Home Assistant's `isy994`
-    docs). Programs that follow it are already covered by the
-    platform-specific surfaces in :func:`_categorize_programs` — we
-    leave those untouched. Every *other* program (manually written
-    automation, scheduler, scene helper, …) was previously invisible to
-    HA; this collection drives the rich per-program device fan-out.
-    """
+    """Programs outside the legacy ``HA.<platform>/<name>/{status,actions}``
+    convention — those are already platform-routed by
+    :func:`_categorize_programs`. Everything else gets a per-program
+    device fan-out."""
     legacy_prefixes = tuple(
         f"{program_prefix}{platform}/" for platform in PROGRAM_PLATFORMS
     )

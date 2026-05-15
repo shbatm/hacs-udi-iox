@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-Home Assistant custom component for **Universal Devices eisy / Polisy** controllers running **IoX 6.0+**.
+Home Assistant custom component for **Universal Devices eisy** controllers running **IoX 6.0+**.
 
 ## Legacy Hardware Scope
 
@@ -22,10 +22,10 @@ Before starting the setup flow, gather:
 
 - A **Universal Devices portal account** (the same email + password you use to sign in at <https://my.isy.io>). The eisy on IoX 6+ authenticates against the portal — local admin credentials are not supported by the integration yet.
   - If you don't have a portal account, follow the "Sign up" link on <https://my.isy.io> and link your controller there first.
-- The **base URL of your eisy / Polisy**, including the scheme and port. Examples:
+- The **base URL of your eisy**, including the scheme and port. Examples:
   - `https://eisy.local:443` (default portal-mode port on the local network)
   - `https://192.168.1.50:443` (by IP)
-  - `https://polisy.example.com:443` (with a non-default hostname)
+  - `https://eisy.example.com:443` (with a non-default hostname)
 
   The default port for portal (JWT) auth is `443`. Visit `https://<your-controller>/desc` in a browser to confirm the controller responds — if you get a self-signed-cert warning, that's normal.
 
@@ -39,7 +39,7 @@ This is a HACS Custom Repository:
 
 ### Setup parameters
 
-The initial setup flow asks for the following. HA also recognises eisy / Polisy controllers via SSDP and DHCP discovery — if your controller is on the same network as HA, the integration usually surfaces it automatically and prefills the `host` field; you only need to enter credentials.
+The initial setup flow asks for the following. HA also recognises eisy controllers via SSDP and DHCP discovery — if your controller is on the same network as HA, the integration usually surfaces it automatically and prefills the `host` field; you only need to enter credentials.
 
 | Parameter | Required | Description |
 | --- | --- | --- |

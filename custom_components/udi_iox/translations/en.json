@@ -10,11 +10,11 @@
           "verify_ssl": "Verify SSL certificate"
         },
         "description": "Host must be a full URL, e.g., {sample_ip}\n\nSign in with your Universal Devices portal account.",
-        "title": "Connect to your eisy / Polisy"
+        "title": "Connect to your eisy"
       },
       "reauth_confirm": {
         "description": "The Universal Devices portal credentials for {host} are no longer valid.",
-        "title": "Reauthenticate your eisy / Polisy",
+        "title": "Reauthenticate your eisy",
         "data": {
           "username": "Universal Devices portal email",
           "password": "Universal Devices portal password"

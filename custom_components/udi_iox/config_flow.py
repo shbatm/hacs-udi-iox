@@ -279,7 +279,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
     ) -> config_entries.ConfigFlowResult:
         """Handle a discovered IoX device via DHCP."""
         friendly_name = discovery_info.hostname
-        # eisy / Polisy serve the IoX API over HTTPS on :443.
+        # eisy serves the IoX API over HTTPS on :443.
         url = f"https://{discovery_info.ip}:{HTTPS_PORT}"
         mac = discovery_info.macaddress
         isy_mac = (
