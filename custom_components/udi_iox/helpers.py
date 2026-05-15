@@ -278,6 +278,37 @@ def _fan_out_commands(
         isy_data.aux_properties[Platform.BUTTON].append((node, cmd.id))
 
 
+def _suggested_area_for_node(controller: Controller, node: Node) -> str | None:
+    """Walk ``node.parent_address`` until a folder is hit; return its name.
+
+    Mirrors HA core ``isy994``'s ``node.folder``-as-``suggested_area``
+    pattern (the property pyisy 3.x exposes off the parent walk). HA
+    only consults ``suggested_area`` when the user hasn't manually
+    assigned one, so this is purely additive — renaming an IoX folder
+    later does not override a manual area assignment.
+
+    Climbs through node ancestors as well so a sub-button of a multi-
+    button device whose primary lives inside a folder still resolves
+    to that folder. Returns ``None`` for nodes at the root of the IoX
+    tree (no folder ancestor).
+    """
+    # ``visited`` guards against a parent-address cycle. Real IoX
+    # hardware shouldn't produce one, but the loop's upper bound is
+    # otherwise unbounded — cheap insurance against corrupt state.
+    visited: set[str] = set()
+    address = node.parent_address
+    while address and address not in visited:
+        visited.add(address)
+        folder = controller.folders.get(address)
+        if folder is not None:
+            return folder.name or None
+        parent_node = controller.nodes.get(address)
+        if parent_node is None:
+            return None
+        address = parent_node.parent_address
+    return None
+
+
 def _generate_device_info(controller: Controller, node: Node, host: str) -> DeviceInfo:
     """Generate the device info for a node that gets its own HA device.
 
@@ -303,6 +334,7 @@ def _generate_device_info(controller: Controller, node: Node, host: str) -> Devi
         name=node.name,
         via_device=via_device,
         configuration_url=host,
+        suggested_area=_suggested_area_for_node(controller, node),
     )
 
     model: str = str(node.address).rpartition(" ")[0] or node.address
