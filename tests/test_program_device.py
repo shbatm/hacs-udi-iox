@@ -26,7 +26,6 @@ from custom_components.udi_iox.binary_sensor import (
 from custom_components.udi_iox.button import (
     ISYProgramRunButton,
     ISYProgramRunElseButton,
-    ISYProgramRunIfButton,
     ISYProgramRunThenButton,
     ISYProgramStopButton,
 )
@@ -188,7 +187,6 @@ def test_run_at_startup_switch_calls_matching_pyisyox_verbs() -> None:
         (ISYProgramRunButton, "run"),
         (ISYProgramRunThenButton, "run_then"),
         (ISYProgramRunElseButton, "run_else"),
-        (ISYProgramRunIfButton, "run_if"),
         (ISYProgramStopButton, "stop"),
     ],
 )

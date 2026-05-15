@@ -27,7 +27,6 @@ from .models import IsyConfigEntry, IsyData
 from .program_device import (
     PROGRAM_RUN_BUTTON_SUFFIX,
     PROGRAM_RUN_ELSE_BUTTON_SUFFIX,
-    PROGRAM_RUN_IF_BUTTON_SUFFIX,
     PROGRAM_RUN_THEN_BUTTON_SUFFIX,
     PROGRAM_STOP_BUTTON_SUFFIX,
     ISYProgramDeviceEntity,
@@ -152,7 +151,6 @@ async def async_setup_entry(
         ISYProgramRunButton
         | ISYProgramRunThenButton
         | ISYProgramRunElseButton
-        | ISYProgramRunIfButton
         | ISYProgramStopButton
     ] = []
     for program in isy_data.program_devices:
@@ -162,7 +160,6 @@ async def async_setup_entry(
         program_buttons.append(ISYProgramRunButton(isy_data, program, program_dev))
         program_buttons.append(ISYProgramRunThenButton(isy_data, program, program_dev))
         program_buttons.append(ISYProgramRunElseButton(isy_data, program, program_dev))
-        program_buttons.append(ISYProgramRunIfButton(isy_data, program, program_dev))
         program_buttons.append(ISYProgramStopButton(isy_data, program, program_dev))
 
     async_add_entities([*entities, *program_buttons])
@@ -354,11 +351,11 @@ class _ISYProgramButtonBase(ISYProgramDeviceEntity, ButtonEntity):
     """Shared scaffolding for the per-program-device manual run buttons.
 
     Each subclass binds one verb on :class:`pyisyox.Program` (``run``,
-    ``run_then``, ``run_else``, ``run_if``, ``stop``) and translates
-    failures to :class:`HomeAssistantError`. The ``_verb`` /
-    ``_verb_label`` ClassVars are declared without defaults so a
-    forgotten subclass override surfaces immediately at runtime
-    instead of silently dispatching to ``getattr(node, "")``.
+    ``run_then``, ``run_else``, ``stop``) and translates failures to
+    :class:`HomeAssistantError`. The ``_verb`` / ``_verb_label``
+    ClassVars are declared without defaults so a forgotten subclass
+    override surfaces immediately at runtime instead of silently
+    dispatching to ``getattr(node, "")``.
     """
 
     _verb: ClassVar[str]
@@ -424,23 +421,6 @@ class ISYProgramRunElseButton(_ISYProgramButtonBase):
     ) -> None:
         super().__init__(
             isy_data, program, device_info, suffix=PROGRAM_RUN_ELSE_BUTTON_SUFFIX
-        )
-
-
-class ISYProgramRunIfButton(_ISYProgramButtonBase):
-    """Re-evaluate the program's ``if`` condition without running clauses."""
-
-    _verb = "run_if"
-    _verb_label = "re-evaluate"
-    _attr_translation_key = "program_run_if"
-    _attr_entity_registry_enabled_default = False
-    _attr_icon = "mdi:refresh"
-
-    def __init__(
-        self, isy_data: IsyData, program: Program, device_info: DeviceInfo
-    ) -> None:
-        super().__init__(
-            isy_data, program, device_info, suffix=PROGRAM_RUN_IF_BUTTON_SUFFIX
         )
 
 
