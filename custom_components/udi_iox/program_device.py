@@ -101,11 +101,6 @@ PROGRAM_DEVICE_ENTITY_SUFFIXES: dict[Platform, tuple[str, ...]] = {
         PROGRAM_RUN_ELSE_BUTTON_SUFFIX,
         PROGRAM_STOP_BUTTON_SUFFIX,
     ),
-    # Platform.EVENT is intentionally not yet listed here. A "ran"
-    # event entity (firing on every program-status transition) is the
-    # natural next entity to add — but ProgramStatusEvent only carries
-    # status / running with no documented action vocabulary, so the
-    # event_types list needs design work. Tracked as a follow-up.
 }
 
 
