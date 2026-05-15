@@ -1,6 +1,6 @@
 # Universal Devices IoX Integration Context
 
-This repository contains a Home Assistant custom component for **Universal Devices eisy / Polisy** controllers running **IoX 6.0+**.
+This repository contains a Home Assistant custom component for **Universal Devices eisy** controllers running **IoX 6.0+**. (Polisy is end-of-life; auto-discovery is removed and the README "Legacy Hardware Scope" section documents the manual-config path that still works on the same wire.)
 
 ## Project Overview
 
@@ -10,7 +10,7 @@ This repository contains a Home Assistant custom component for **Universal Devic
     - **Clean Break:** This is a rewrite/fork of `hacs-isy994` specifically for IoX 6+ hardware. It is designed to coexist with the legacy `isy994` integration.
     - **Classifier-Driven:** Entity routing is driven by `pyisyox`'s classifier reading device nodedefs rather than hard-coded tables.
     - **Platform Coverage:** Supports binary sensors, buttons, climate, covers, fans, lights, locks, numbers, selects, sensors, and switches.
-    - **Discovery:** Supports SSDP and DHCP discovery for eisy/Polisy hardware.
+    - **Discovery:** Supports SSDP and DHCP discovery for eisy hardware (Polisy auto-discovery removed in PR #58).
 
 ## Building and Running
 

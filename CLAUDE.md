@@ -4,14 +4,14 @@ Guidance for Claude Code (claude.ai/code) when working in this repo.
 
 ## Overview
 
-`hacs-udi-iox` is a Home Assistant **HACS custom component** for **Universal Devices eisy / Polisy** controllers running **IoX 6.0+**. It registers under HA domain `udi_iox` and consumes [`pyisyox`](https://github.com/automicus/pyisyox) **6.x**.
+`hacs-udi-iox` is a Home Assistant **HACS custom component** for **Universal Devices eisy** controllers running **IoX 6.0+**. It registers under HA domain `udi_iox` and consumes [`pyisyox`](https://github.com/automicus/pyisyox) **6.x**. (Polisy is end-of-life; auto-discovery is removed and the README "Legacy Hardware Scope" section documents the manual-config path that still works on the same wire.)
 
 This repo was forked from `hacs-isy994` to host the IoX-6+ rewrite without breaking ISY-994 users on the existing repo. The two integrations register distinct HA domains and coexist on the same HA instance.
 
 | Repo | Library | Hardware | Domain |
 |---|---|---|---|
 | `hacs-isy994` (sibling) | `pyisy` 3.x | ISY-994 | `isy994` |
-| `hacs-udi-iox` (this) | `pyisyox` 6.x | eisy / Polisy on IoX 6+ | `udi_iox` |
+| `hacs-udi-iox` (this) | `pyisyox` 6.x | eisy on IoX 6+ | `udi_iox` |
 
 **Critical rule**: do not regress `hacs-isy994` from this repo. `pyisyox` 6.x and `pyisy` 3.x are independent libraries with different public surfaces.
 
