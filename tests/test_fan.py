@@ -178,7 +178,7 @@ async def test_continuous_fan_uses_ranged_value_when_no_subset() -> None:
 
 async def test_fan_attrs_set_to_none_when_status_unknown() -> None:
     """``_update_fan_attrs`` clears ``is_on`` / ``percentage`` to ``None``
-    when the underlying status is None (lines 127-128)."""
+    when the underlying status is None."""
     from pyisyox.client import NodePropertyValue
     from pyisyox.constants import ISY_VALUE_UNKNOWN
     from pyisyox.testing import (
@@ -218,7 +218,7 @@ async def test_fan_attrs_set_to_none_when_status_unknown() -> None:
 
 async def test_async_on_update_refreshes_attrs_and_dispatches() -> None:
     """``async_on_update`` recomputes the cached attrs and chains to
-    the parent (lines 136-137)."""
+    the parent."""
     from unittest.mock import patch
 
     from pyisyox.client import NodePropertyValue
@@ -252,7 +252,7 @@ async def test_async_on_update_refreshes_attrs_and_dispatches() -> None:
 
 
 async def test_turn_on_uses_default_percentage_when_none_provided() -> None:
-    """``async_turn_on(percentage=None)`` falls through to ``67`` (line 162)."""
+    """``async_turn_on(percentage=None)`` falls through to ``67``."""
     from unittest.mock import AsyncMock, patch
 
     from pyisyox.testing import (
@@ -284,7 +284,7 @@ async def test_turn_on_uses_default_percentage_when_none_provided() -> None:
 
 async def test_fan_program_entity_is_on_reads_status_program() -> None:
     """``ISYFanProgramEntity.is_on`` returns the status program's bool
-    (line 187)."""
+    ."""
     from pyisyox import Program
     from pyisyox.testing import make_controller, make_load_result, make_program_record
 
@@ -302,7 +302,7 @@ async def test_fan_program_entity_is_on_reads_status_program() -> None:
 
 async def test_async_setup_entry_creates_program_fan_entities(hass) -> None:
     """A program in ``isy_data.programs[FAN]`` flows into an
-    ``ISYFanProgramEntity`` (line 60-61)."""
+    ``ISYFanProgramEntity``."""
     from unittest.mock import MagicMock
 
     from pyisyox import Program

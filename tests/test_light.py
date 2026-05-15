@@ -148,8 +148,8 @@ async def test_turn_on_scales_brightness_for_multirange_zwave_editor() -> None:
 
 
 async def test_is_on_and_brightness_handle_unknown_status() -> None:
-    """``is_on`` returns False when status is unknown (line 77-78);
-    ``brightness`` returns None (line 85-86)."""
+    """``is_on`` returns False when status is unknown;
+    ``brightness`` returns None."""
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -170,7 +170,7 @@ async def test_is_on_and_brightness_handle_unknown_status() -> None:
 
 async def test_brightness_passes_through_non_percentage_uom() -> None:
     """A non-percentage UOM returns the raw status value (no scale)
-    (line 90)."""
+    ."""
     from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
         make_controller,
@@ -202,7 +202,7 @@ async def test_brightness_passes_through_non_percentage_uom() -> None:
 
 async def test_async_on_update_records_last_brightness() -> None:
     """``async_on_update`` saves the current brightness so a
-    later DON-without-level can restore it (lines 105-114).
+    later DON-without-level can restore it.
     Both UOM 51 (percent) and the raw 0-255 path are exercised."""
     from unittest.mock import patch
 
@@ -256,7 +256,7 @@ async def test_async_on_update_records_last_brightness() -> None:
 
 async def test_turn_on_restores_last_brightness_when_enabled() -> None:
     """``restore_light_state=True`` and brightness=None pulls the
-    cached ``_last_brightness`` (line 126-127)."""
+    cached ``_last_brightness``."""
     from unittest.mock import AsyncMock, patch
 
     from pyisyox import Node
@@ -284,7 +284,7 @@ async def test_turn_on_restores_last_brightness_when_enabled() -> None:
 
 async def test_async_added_to_hass_restores_last_brightness_attr(hass) -> None:
     """``async_added_to_hass`` repopulates ``_last_brightness`` from the
-    persisted state attribute when one is present (lines 162-163)."""
+    persisted state attribute when one is present."""
     from unittest.mock import AsyncMock, MagicMock
 
     from pyisyox.testing import (

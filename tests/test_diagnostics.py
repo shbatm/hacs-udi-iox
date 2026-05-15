@@ -106,7 +106,7 @@ async def test_diagnostics_preserves_node_addresses_and_names(
 
 def test_isy_data_shape_handles_missing_mappings() -> None:
     """``_platform_counts`` returns empty when the mapping is missing /
-    falsy (line 73-74)."""
+    falsy."""
     from custom_components.udi_iox.diagnostics import _isy_data_shape
 
     class _Empty:
@@ -128,7 +128,7 @@ async def test_async_get_device_diagnostics_returns_matched_nodes(
     init_integration: MockConfigEntry,
 ) -> None:
     """``async_get_device_diagnostics`` returns the matching node(s)'
-    ``to_dict()`` plus device-registry header info (lines 139-167)."""
+    ``to_dict()`` plus device-registry header info."""
     from homeassistant.helpers import device_registry as dr
 
     from custom_components.udi_iox.const import DOMAIN
@@ -155,7 +155,7 @@ async def test_async_get_device_diagnostics_handles_unknown_device(
     init_integration: MockConfigEntry,
 ) -> None:
     """A device whose identifiers don't map to any node yields an empty
-    ``nodes`` list — pin that the function doesn't crash (line 153-156)."""
+    ``nodes`` list — pin that the function doesn't crash."""
     from homeassistant.helpers import device_registry as dr
 
     from custom_components.udi_iox.diagnostics import async_get_device_diagnostics

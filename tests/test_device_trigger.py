@@ -232,7 +232,7 @@ async def test_resolve_isy_data_returns_none_when_device_has_no_loaded_entry(
     hass: HomeAssistant,
 ) -> None:
     """A device whose config entry isn't owned by udi_iox / isn't LOADED
-    yields ``None`` (line 83)."""
+    yields ``None``."""
     from custom_components.udi_iox.device_trigger import _resolve_isy_data
 
     # Make a device backed by a non-udi_iox entry — _resolve_isy_data
@@ -253,7 +253,7 @@ async def test_event_entries_skip_non_event_and_non_matching_entries(
 ) -> None:
     """``_event_entries_for_device`` skips entries that aren't event-platform
     entities or whose unique_id doesn't follow the event suffix
-    convention (lines 96, 99)."""
+    convention."""
     from custom_components.udi_iox.device_trigger import _event_entries_for_device
 
     entity_id = "event.hallway_light_hallway_button_b"
@@ -292,7 +292,7 @@ async def test_event_entries_skip_node_with_no_registered_commands(
     init_integration: MockConfigEntry,
 ) -> None:
     """If ``isy_data.node_triggers`` has no commands for an event
-    entity's address, the iterator skips it (line 103)."""
+    entity's address, the iterator skips it."""
     from custom_components.udi_iox.device_trigger import _event_entries_for_device
 
     entity_id = "event.hallway_light_hallway_button_b"
@@ -313,7 +313,7 @@ async def test_attach_trigger_ignores_state_with_no_new_state(
     service_calls: list[ServiceCall],
 ) -> None:
     """A state-removal event (new_state=None) is silently ignored
-    (line 169)."""
+    ."""
     entity_id = "event.hallway_light_hallway_button_b"
     device = _device_for_event_entity(hass, entity_id)
     assert device is not None

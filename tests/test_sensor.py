@@ -188,7 +188,7 @@ async def test_sensor_native_value_uses_formatted_for_string_types() -> None:
 
 async def test_check_volume_flow_rate_uom_handles_list_uom() -> None:
     """``_check_volume_flow_rate_uom`` accepts a list UOM (legacy
-    ISYv4 firmware shape) and uses the first entry (lines 81-84)."""
+    ISYv4 firmware shape) and uses the first entry."""
     from homeassistant.components.sensor import SensorDeviceClass
 
     from custom_components.udi_iox.sensor import _check_volume_flow_rate_uom
@@ -207,7 +207,7 @@ async def test_async_setup_entry_skips_program_sensors_without_device_info(
 ) -> None:
     """A program in ``program_devices`` whose DeviceInfo wasn't
     registered is silently skipped — none of the four per-program
-    sensors get created (lines 316-317)."""
+    sensors get created."""
     from unittest.mock import MagicMock
 
     from pyisyox import Program
@@ -246,7 +246,7 @@ async def test_async_setup_entry_skips_program_sensors_without_device_info(
 async def test_aux_sensor_setup_classifies_apparent_and_reactive_power(hass) -> None:
     """A CV (Volt-Amperes) and CC (VAR) aux property attached to a
     PROP_CURRENT_POWER reading classifies as APPARENT_POWER /
-    REACTIVE_POWER respectively (lines 277-285)."""
+    REACTIVE_POWER respectively."""
     from unittest.mock import MagicMock
 
     from homeassistant.components.sensor import SensorDeviceClass
@@ -312,7 +312,7 @@ async def test_aux_sensor_setup_classifies_apparent_and_reactive_power(hass) -> 
 
 async def test_aux_sensor_setup_exercises_uom_decode_branches(hass) -> None:
     """Drives ``get_native_uom`` through its enum / on-off / double-temp /
-    list-UOM legacy branches (lines 221, 224, 240, 243)."""
+    list-UOM legacy branches."""
     from unittest.mock import MagicMock
 
     from pyisyox.client import NodePropertyValue
@@ -344,15 +344,15 @@ async def test_aux_sensor_setup_exercises_uom_decode_branches(hass) -> None:
         )
         return make_node(rec, controller)
 
-    # legacy list-UOM (line 221)
+    # legacy list-UOM
     n1 = _aux("AA AA AA 1", ["7"])
-    # UOM in UOM_TO_STATES (line 224) — UOM 66 maps to HVAC heat/cool state enum
+    # UOM in UOM_TO_STATES — UOM 66 maps to HVAC heat/cool state enum
     n2 = _aux("AA AA AA 2", "66")
-    # UOM_INDEX (line 240) — UOM 25 is the index type
+    # UOM_INDEX — UOM 25 is the index type
     n3 = _aux("AA AA AA 3", "25")
-    # UOM_DOUBLE_TEMP (line 243)
+    # UOM_DOUBLE_TEMP
     n4 = _aux("AA AA AA 4", UOM_DOUBLE_TEMP)
-    # UOM_ON_OFF directly (line 240)
+    # UOM_ON_OFF directly
     n5 = _aux("AA AA AA 5", UOM_ON_OFF)
 
     isy_data = isy_data_for(controller)

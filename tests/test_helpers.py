@@ -937,7 +937,7 @@ def test_suggested_area_root_node_has_none(isy_data, options, controller):
 
 def test_convert_isy_value_handles_double_temp_uom() -> None:
     """``UOM_DOUBLE_TEMP`` divides the raw value by two and rounds
-    to one decimal (line 633-634)."""
+    to one decimal."""
     from custom_components.udi_iox.const import UOM_DOUBLE_TEMP
     from custom_components.udi_iox.helpers import convert_isy_value_to_hass
 
@@ -946,7 +946,7 @@ def test_convert_isy_value_handles_double_temp_uom() -> None:
 
 
 def test_convert_isy_value_returns_none_for_empty_or_unparseable() -> None:
-    """Empty / non-numeric / None inputs return None (lines 625-628)."""
+    """Empty / non-numeric / None inputs return None."""
     from custom_components.udi_iox.helpers import convert_isy_value_to_hass
 
     assert convert_isy_value_to_hass(None, "1", "0") is None
@@ -956,21 +956,21 @@ def test_convert_isy_value_returns_none_for_empty_or_unparseable() -> None:
 
 def test_convert_isy_value_uses_fallback_precision() -> None:
     """``fallback_precision`` rounds when the property has no
-    declared precision (line 640)."""
+    declared precision."""
     from custom_components.udi_iox.helpers import convert_isy_value_to_hass
 
     assert convert_isy_value_to_hass(1.23456, "1", "0", fallback_precision=2) == 1.23
 
 
 def test_convert_isy_value_returns_raw_when_no_precision_or_fallback() -> None:
-    """A precision of 0 with no fallback returns the raw float (line 641)."""
+    """A precision of 0 with no fallback returns the raw float."""
     from custom_components.udi_iox.helpers import convert_isy_value_to_hass
 
     assert convert_isy_value_to_hass(42, "1", "0") == 42.0
 
 
 def test_convert_isy_value_scales_by_explicit_precision() -> None:
-    """Non-zero precision divides by 10**precision (line 638)."""
+    """Non-zero precision divides by 10**precision."""
     from custom_components.udi_iox.helpers import convert_isy_value_to_hass
 
     assert convert_isy_value_to_hass(760, "17", "1") == 76.0
@@ -978,7 +978,7 @@ def test_convert_isy_value_scales_by_explicit_precision() -> None:
 
 def test_primary_platform_for_native_lock_branch() -> None:
     """An ``is_lock`` node short-circuits to LOCK regardless of the
-    classifier (line 126)."""
+    classifier."""
     from unittest.mock import MagicMock
 
     from homeassistant.const import Platform
@@ -996,7 +996,7 @@ def test_primary_platform_for_native_falls_back_to_switch_when_classifier_missin
     None
 ):
     """When all type-introspection flags are False AND classifier
-    result is None, the historical SWITCH fallback fires (line 132)."""
+    result is None, the historical SWITCH fallback fires."""
     from unittest.mock import MagicMock
 
     from homeassistant.const import Platform
@@ -1012,7 +1012,7 @@ def test_primary_platform_for_native_falls_back_to_switch_when_classifier_missin
 
 def test_categorize_skips_groups_with_ignore_identifier_in_name() -> None:
     """A group whose name contains ``CONF_IGNORE_STRING`` is silently
-    skipped (line 374)."""
+    skipped."""
     from types import MappingProxyType
 
     from pyisyox.testing import (

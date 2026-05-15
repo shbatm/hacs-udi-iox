@@ -454,7 +454,7 @@ async def test_index_select_resolves_via_editor_names() -> None:
 
 async def test_select_options_uses_editor_names_with_subset() -> None:
     """When the resolved range has both ``names`` and a ``subset``, the
-    options come from the subset keys mapped through names (line 66-67)."""
+    options come from the subset keys mapped through names."""
     from unittest.mock import MagicMock, patch
 
     from custom_components.udi_iox.select import _select_options
@@ -504,7 +504,7 @@ async def test_async_setup_entry_skips_aux_with_no_options(hass) -> None:
 
 async def test_aux_index_select_async_added_restores_optimistic_state(hass) -> None:
     """A write-only aux select restores its last selected option
-    on add (lines 178-184)."""
+    on add."""
     from unittest.mock import AsyncMock, MagicMock
 
     from homeassistant.components.select import SelectEntityDescription
@@ -539,8 +539,8 @@ async def test_aux_index_select_async_added_restores_optimistic_state(hass) -> N
 
 async def test_async_setup_entry_creates_backlight_and_aux_index_entities(hass) -> None:
     """An aux-property CMD_BACKLIGHT control creates an
-    ``ISYBacklightSelectEntity`` (lines 113-115); a UOM_TO_STATES
-    control creates an ``ISYAuxControlIndexSelectEntity`` (line 123)."""
+    ``ISYBacklightSelectEntity``; a UOM_TO_STATES
+    control creates an ``ISYAuxControlIndexSelectEntity``."""
     from unittest.mock import MagicMock
 
     from pyisyox.client import NodePropertyValue
@@ -587,7 +587,7 @@ async def test_async_setup_entry_creates_backlight_and_aux_index_entities(hass) 
 
 async def test_aux_index_select_current_option_uses_uom_to_states_lookup() -> None:
     """When the property's UOM is in ``UOM_TO_STATES``, the current
-    option resolves through that map (line 196-197). Drive the readback
+    option resolves through that map. Drive the readback
     path by patching ``_has_readback`` to True."""
     from unittest.mock import patch
 
@@ -679,7 +679,7 @@ async def test_backlight_select_async_added_restores_state_and_subscribes(hass) 
 
 async def test_backlight_memory_write_skips_when_value_matches_current() -> None:
     """If the memory-write decodes to the option already selected, the
-    handler bails out without firing async_write_ha_state (line 287)."""
+    handler bails out without firing async_write_ha_state."""
     from types import SimpleNamespace
     from unittest.mock import patch
 

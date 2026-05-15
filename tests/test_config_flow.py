@@ -353,7 +353,7 @@ async def test_validate_input_translates_underlying_errors(
     hass, raised: str, expected: str
 ) -> None:
     """``validate_input`` maps each pyisyox connect error to the
-    corresponding flow exception (lines 151-156)."""
+    corresponding flow exception."""
     import importlib
 
     from custom_components.udi_iox import config_flow as cf
@@ -380,7 +380,7 @@ async def test_validate_input_translates_underlying_errors(
 
 async def test_ssdp_aborts_when_existing_entry_is_ignored(hass) -> None:
     """An SSDP rediscovery of an ignored entry aborts with
-    ``already_configured`` rather than updating the host (line 271-272)."""
+    ``already_configured`` rather than updating the host."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id="aabbccddeeff",
@@ -401,8 +401,8 @@ async def test_ssdp_aborts_when_existing_entry_is_ignored(hass) -> None:
 
 async def test_dhcp_rediscovery_preserves_existing_port(hass) -> None:
     """A DHCP rediscovery (which passes ``port=None``) keeps the
-    entry's existing port via the ``elif parsed_url.port`` branch
-    (lines 278-279)."""
+     entry's existing port via the ``elif parsed_url.port`` branch
+    ."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id="aa:bb:cc:dd:ee:01",
@@ -421,7 +421,7 @@ async def test_dhcp_rediscovery_preserves_existing_port(hass) -> None:
 
 async def test_ssdp_discovery_uses_https_port_for_https_scheme(hass) -> None:
     """An https:// SSDP URL with no explicit port defaults to HTTPS_PORT
-    (lines 344-345)."""
+    ."""
     info = _ssdp_info(host="9.9.9.9")
     info.ssdp_location = "https://9.9.9.9/desc.xml"
     info.upnp[ssdp.ATTR_UPNP_PRESENTATION_URL] = "https://9.9.9.9/"

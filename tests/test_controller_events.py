@@ -548,7 +548,7 @@ def test_unsubscribing_lifecycle_listener_twice_is_safe(
 def test_unsubscribing_variable_listener_twice_is_safe(
     events, event_controller
 ) -> None:
-    """Variable unsubscribe is also idempotent (lines 222-223)."""
+    """Variable unsubscribe is also idempotent."""
     cb = MagicMock()
     unsub = events.subscribe_variable(1, "1", cb)
     unsub()
@@ -556,7 +556,7 @@ def test_unsubscribing_variable_listener_twice_is_safe(
 
 
 def test_unsubscribing_program_listener_twice_is_safe(events, event_controller) -> None:
-    """Program-status unsubscribe is idempotent (lines 254-255)."""
+    """Program-status unsubscribe is idempotent."""
     cb = MagicMock()
     unsub = events.subscribe_program("0001", cb)
     unsub()
@@ -566,7 +566,7 @@ def test_unsubscribing_program_listener_twice_is_safe(events, event_controller) 
 def test_unsubscribing_ws_status_listener_twice_is_safe(
     events, event_controller
 ) -> None:
-    """WS-status unsubscribe is idempotent (lines 275-276)."""
+    """WS-status unsubscribe is idempotent."""
     cb = MagicMock()
     unsub = events.subscribe_ws_status(cb)
     unsub()
@@ -577,7 +577,7 @@ def test_lifecycle_listener_exception_does_not_break_others(
     events, event_controller, caplog
 ) -> None:
     """A raising lifecycle listener is logged but doesn't block siblings
-    (lines 427-428)."""
+    ."""
     import logging
 
     boom = MagicMock(side_effect=RuntimeError("nope"))
@@ -595,7 +595,7 @@ def test_lifecycle_listener_exception_does_not_break_others(
 
 def test_program_listener_exception_does_not_break_others(events, caplog) -> None:
     """A raising program listener is logged but doesn't block siblings
-    (lines 438-443)."""
+    ."""
     import logging
 
     from pyisyox import ProgramStatusEvent
@@ -614,7 +614,7 @@ def test_program_listener_exception_does_not_break_others(events, caplog) -> Non
 
 def test_ws_status_listener_exception_does_not_break_others(events, caplog) -> None:
     """A raising ws-status listener is logged but doesn't block siblings
-    (lines 519-520)."""
+    ."""
     import logging
 
     boom = MagicMock(side_effect=RuntimeError("nope"))
@@ -631,7 +631,7 @@ def test_variable_wildcard_listener_exception_isolation(
     events, event_controller, caplog
 ) -> None:
     """A wildcard-variable listener exception doesn't block other
-    listeners (lines 348-349)."""
+    listeners."""
     import logging
 
     boom = MagicMock(side_effect=RuntimeError("nope"))
@@ -655,7 +655,7 @@ def test_variable_event_with_missing_var_element_is_dropped(
     events, event_controller
 ) -> None:
     """An event_info that parses but has no ``<var>`` element is
-    silently dropped (line 376)."""
+    silently dropped."""
     cb = MagicMock()
     events.subscribe_variable(1, "1", cb)
     fire_event(
@@ -669,7 +669,7 @@ def test_variable_event_with_missing_type_or_id_is_dropped(
     events, event_controller
 ) -> None:
     """A ``<var>`` element without ``type`` / ``id`` is dropped
-    (lines 385-386)."""
+    ."""
     cb = MagicMock()
     events.subscribe_variable(1, "1", cb)
     fire_event(
@@ -683,7 +683,7 @@ def test_variable_event_with_unparseable_value_is_dropped(
     events, event_controller
 ) -> None:
     """A ``<val>`` payload that isn't an int is dropped
-    (lines 392-395)."""
+    ."""
     cb = MagicMock()
     events.subscribe_variable(1, "1", cb)
     fire_event(
@@ -700,7 +700,7 @@ def test_variable_event_with_unparseable_value_is_dropped(
 def test_variable_event_with_unparseable_init_is_dropped(
     events, event_controller
 ) -> None:
-    """Same for ``<init>`` on the init action (lines 400-401)."""
+    """Same for ``<init>`` on the init action."""
     cb = MagicMock()
     events.subscribe_variable(1, "1", cb)
     fire_event(
@@ -718,7 +718,7 @@ def test_variable_event_with_no_value_or_init_is_dropped(
     events, event_controller
 ) -> None:
     """An event whose action is value but the body has no ``<val>``
-    yields ``value=None`` and is dropped (line 484)."""
+    yields ``value=None`` and is dropped."""
     cb = MagicMock()
     events.subscribe_variable(1, "1", cb)
     fire_event(

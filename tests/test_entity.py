@@ -22,8 +22,7 @@ from tests.conftest import isy_data_for
 
 
 def test_node_status_int_returns_none_on_unknown_value() -> None:
-    """``node.status.value == ISY_VALUE_UNKNOWN`` short-circuits to None
-    (line 67)."""
+    """``node.status.value == ISY_VALUE_UNKNOWN`` short-circuits to None."""
     fake = MagicMock()
     fake.status = NodePropertyValue(
         id="ST", value=ISY_VALUE_UNKNOWN, formatted="?", uom="0", name="Status"
@@ -32,7 +31,7 @@ def test_node_status_int_returns_none_on_unknown_value() -> None:
 
 
 def test_node_status_int_returns_none_on_unparseable_value() -> None:
-    """A non-numeric ``value`` returns None (lines 70-71)."""
+    """A non-numeric ``value`` returns None."""
     fake = MagicMock()
     fake.status = NodePropertyValue(
         id="ST", value="banana", formatted="?", uom="0", name="Status"
@@ -52,8 +51,7 @@ def test_strip_parent_prefix_removes_label_prefix() -> None:
 
 
 def test_isy_entity_unavailable_when_ws_disconnected() -> None:
-    """``ISYEntity.available`` returns False when the WS is down
-    (line 209)."""
+    """``ISYEntity.available`` returns False when the WS is down."""
     from custom_components.udi_iox.entity import ISYEntity
 
     controller = make_controller(make_load_result())
@@ -69,7 +67,7 @@ def test_isy_entity_unavailable_when_ws_disconnected() -> None:
 
 def test_isy_entity_address_falls_back_to_dict_keys() -> None:
     """For a raw dict node (legacy program / variable record), ``address``
-    falls back to ``dict.get('address', dict.get('id', ''))`` (line 125)."""
+    falls back to ``dict.get('address', dict.get('id', ''))``."""
     from custom_components.udi_iox.entity import ISYEntity
 
     entity = ISYEntity.__new__(ISYEntity)
@@ -81,7 +79,7 @@ def test_isy_entity_address_falls_back_to_dict_keys() -> None:
 
 def test_isy_node_entity_async_on_update_marks_available_and_writes() -> None:
     """``ISYNodeEntity.async_on_update`` refreshes ``_attr_available``
-    from ``node.enabled`` and triggers a state write (lines 414-415)."""
+    from ``node.enabled`` and triggers a state write."""
     from custom_components.udi_iox.entity import ISYNodeEntity
 
     controller = make_controller(make_load_result())
@@ -102,7 +100,7 @@ def test_isy_node_entity_async_on_update_marks_available_and_writes() -> None:
 
 def test_isy_program_entity_async_on_update_writes_state() -> None:
     """``ISYProgramEntity._on_program_status`` calls
-    ``async_write_ha_state`` (line 526)."""
+    ``async_write_ha_state``."""
     from custom_components.udi_iox.entity import ISYProgramEntity
 
     entity = ISYProgramEntity.__new__(ISYProgramEntity)
@@ -117,7 +115,7 @@ def test_isy_program_entity_async_on_update_writes_state() -> None:
 
 def test_isy_node_entity_lifecycle_handler_filters_other_addresses() -> None:
     """``_on_lifecycle`` ignores frames for unrelated addresses /
-    actions (lines 278-281)."""
+    actions."""
     from pyisyox import NodeLifecycleAction, NodeLifecycleEvent
 
     from custom_components.udi_iox.entity import ISYNodeEntity
@@ -165,7 +163,7 @@ def test_isy_node_entity_lifecycle_handler_filters_other_addresses() -> None:
 
 async def test_isy_entity_get_zwave_parameter_translates_node_command_error() -> None:
     """``async_get_zwave_parameter`` wraps NodeCommandError in
-    HomeAssistantError (lines 414-415-ish; the wrapper)."""
+    HomeAssistantError."""
     from unittest.mock import AsyncMock
 
     from homeassistant.exceptions import HomeAssistantError

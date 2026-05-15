@@ -399,7 +399,7 @@ async def test_async_get_zwave_parameter_returns_parsed_dict(
 
 async def test_valid_iox_command_validator() -> None:
     """``_valid_iox_command`` upper-cases and validates against the
-    pyisyox COMMAND_FRIENDLY_NAME table (lines 68-71)."""
+    pyisyox COMMAND_FRIENDLY_NAME table."""
     import voluptuous as vol
 
     from custom_components.udi_iox.services import _valid_iox_command
@@ -413,7 +413,7 @@ async def test_select_isy_data_skips_entries_with_none_runtime_data(
     hass, service_controller
 ) -> None:
     """An entry whose ``runtime_data`` is ``None`` (mid-setup) is
-    silently skipped (line 133-134)."""
+    silently skipped."""
     from custom_components.udi_iox.services import _select_isy_data
 
     none_entry = MagicMock()
@@ -424,7 +424,7 @@ async def test_select_isy_data_skips_entries_with_none_runtime_data(
 
 async def test_select_isy_data_filters_by_uuid(hass, service_controller) -> None:
     """``isy_name`` filters out controllers whose uuid doesn't match
-    (line 135-136)."""
+    ."""
     from custom_components.udi_iox.services import _select_isy_data
 
     isy_data = isy_data_for(service_controller)
@@ -440,7 +440,7 @@ async def test_async_setup_services_no_op_when_already_registered(
     hass, service_controller
 ) -> None:
     """A second ``async_setup_services`` call is a no-op when one of the
-    integration services is already registered (line 144-147)."""
+    integration services is already registered."""
     await _wire_services_with_entry(hass, service_controller)
     # Second call should hit the early-return branch.
     async_setup_services(hass)
@@ -450,7 +450,7 @@ async def test_send_program_command_no_matching_controller_raises(
     hass, service_controller
 ) -> None:
     """A ``isy=`` argument that doesn't match any controller raises
-    immediately rather than silently no-op'ing (line 161-162)."""
+    immediately rather than silently no-op'ing."""
     await _wire_services_with_entry(hass, service_controller)
     with pytest.raises(HomeAssistantError, match="No IoX controller matched"):
         await hass.services.async_call(
@@ -463,7 +463,7 @@ async def test_send_program_command_no_matching_controller_raises(
 
 async def test_entity_targeted_services_dispatch(hass, service_controller) -> None:
     """The five entity-targeted handlers each route through
-    ``entity_service_call`` (lines 205, 220, 236, 251, 266)."""
+    ``entity_service_call``."""
     from homeassistant.helpers.entity import Entity
 
     class _Stub(Entity):

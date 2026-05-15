@@ -287,7 +287,7 @@ async def test_async_setup_entry_skips_program_switches_without_device_info(
     hass,
 ) -> None:
     """A program in ``program_devices`` whose DeviceInfo wasn't
-    registered is silently skipped (lines 87-88)."""
+    registered is silently skipped."""
     from unittest.mock import MagicMock
 
     from pyisyox import Program
@@ -315,7 +315,7 @@ async def test_async_setup_entry_skips_program_switches_without_device_info(
 
 async def test_switch_turn_off_translates_node_command_error() -> None:
     """A controller-side rejection on turn_off becomes HomeAssistantError
-    (lines 132-133)."""
+    ."""
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.exceptions import HomeAssistantError
@@ -344,7 +344,7 @@ async def test_switch_turn_off_translates_node_command_error() -> None:
 
 async def test_switch_turn_on_translates_node_command_error() -> None:
     """A controller-side rejection on turn_on becomes HomeAssistantError
-    (lines 141-142)."""
+    ."""
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.exceptions import HomeAssistantError
@@ -373,7 +373,7 @@ async def test_switch_turn_on_translates_node_command_error() -> None:
 
 async def test_enable_switch_async_on_update_writes_state() -> None:
     """``ISYEnableSwitchEntity.async_on_update`` calls
-    ``async_write_ha_state`` (line 243)."""
+    ``async_write_ha_state``."""
     from unittest.mock import patch
 
     from pyisyox.testing import (
@@ -418,7 +418,7 @@ async def test_enable_switch_async_on_update_writes_state() -> None:
 )
 async def test_program_enable_switch_translates_errors(verb: str, match: str) -> None:
     """``ISYProgramEnableSwitch`` enable/disable errors surface as
-    HomeAssistantError (lines 303-304, 312-313)."""
+    HomeAssistantError."""
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.exceptions import HomeAssistantError
@@ -451,7 +451,7 @@ async def test_program_run_at_startup_switch_translates_errors(
     verb: str, match: str
 ) -> None:
     """``ISYProgramRunAtStartupSwitch`` enable/disable errors surface as
-    HomeAssistantError (lines 342-343, 351-352)."""
+    HomeAssistantError."""
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.exceptions import HomeAssistantError

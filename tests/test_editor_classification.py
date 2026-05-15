@@ -110,18 +110,18 @@ def test_unit_for_uom(uom: str, expected: str | None) -> None:
     assert unit_for_uom(uom) == expected
 
 
-# --- resolve_editor coverage (lines 79, 92) and the binary-UOM /
-# pure-subset platform branches (lines 150, 157) ---
+# --- resolve_editor coverage and the binary-UOM /
+# pure-subset platform branches ---
 
 
 @pytest.mark.parametrize(
     ("editor", "writable", "expected"),
     [
-        # Binary UOM 2 + writable=False (line 150 BINARY_SENSOR branch).
+        # Binary UOM 2 + writable=False → BINARY_SENSOR.
         (_e("X", uom="2", min=0, max=1), False, Platform.BINARY_SENSOR),
         # Binary UOM 78 + writable=True → SWITCH.
         (_e("X", uom="78", min=0, max=1), True, Platform.SWITCH),
-        # Pure subset, no names, no numeric bounds → SELECT (line 157).
+        # Pure subset, no names, no numeric bounds → SELECT.
         (_e("X", uom="56", subset="0,1,2"), True, Platform.SELECT),
     ],
 )
@@ -132,7 +132,7 @@ def test_platform_for_control_binary_and_subset_branches(
 
 
 def test_resolve_editor_returns_none_when_node_has_no_nodedef() -> None:
-    """A node without a loaded nodedef short-circuits to None (line 79)."""
+    """A node without a loaded nodedef short-circuits to None."""
     from unittest.mock import MagicMock
 
     from custom_components.udi_iox.editor_classification import resolve_editor
@@ -144,7 +144,7 @@ def test_resolve_editor_returns_none_when_node_has_no_nodedef() -> None:
 
 def test_resolve_editor_returns_none_when_editor_has_no_ranges() -> None:
     """A profile-resolved editor with empty ranges is treated as
-    unusable (line 92)."""
+    unusable."""
     from unittest.mock import MagicMock
 
     from custom_components.udi_iox.editor_classification import resolve_editor
@@ -162,7 +162,7 @@ def test_resolve_editor_returns_none_when_editor_has_no_ranges() -> None:
 
 def test_resolve_editor_walks_accept_command_parameters() -> None:
     """When the control isn't a property, the resolver looks for an
-    accept command whose first parameter has the editor (line 84-87)."""
+    accept command whose first parameter has the editor."""
     from unittest.mock import MagicMock
 
     from custom_components.udi_iox.editor_classification import resolve_editor

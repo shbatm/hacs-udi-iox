@@ -247,8 +247,8 @@ async def test_network_resource_button_translates_run_failure() -> None:
 
 async def test_friendly_name_falls_back_to_titled_command_id() -> None:
     """``_friendly_name`` returns ``command_id.replace('_', ' ').title()``
-    when the nodedef has the command but no human-readable ``name``
-    (lines 65-66)."""
+     when the nodedef has the command but no human-readable ``name``
+    ."""
     from unittest.mock import patch
 
     from pyisyox import Node
@@ -279,7 +279,7 @@ async def test_friendly_name_falls_back_to_titled_command_id() -> None:
 
 async def test_async_setup_entry_skips_program_button_without_device_info(hass) -> None:
     """A program in ``program_devices`` whose DeviceInfo wasn't
-    registered is silently skipped (line 158-159)."""
+    registered is silently skipped."""
     from unittest.mock import MagicMock
 
     from pyisyox import Program
@@ -310,7 +310,7 @@ async def test_async_setup_entry_skips_program_button_without_device_info(hass) 
 
 async def test_node_button_unavailable_when_ws_disconnected() -> None:
     """``available`` returns False when the controller's WS is down,
-    independent of node-enabled (line 207)."""
+    independent of node-enabled."""
     from pyisyox.testing import (
         make_controller,
         make_load_result,
@@ -335,9 +335,9 @@ async def test_node_button_unavailable_when_ws_disconnected() -> None:
 
 
 async def test_on_ws_status_writes_state_and_lifecycle_handler_filters() -> None:
-    """``_on_ws_status`` calls ``async_write_ha_state`` (line 222);
+    """``_on_ws_status`` calls ``async_write_ha_state``;
     ``_on_lifecycle`` ignores frames for other addresses / unrelated
-    actions and refreshes when the address+action match (lines 233-238)."""
+    actions and refreshes when the address+action match."""
     from unittest.mock import patch
 
     from pyisyox import NodeLifecycleAction, NodeLifecycleEvent
@@ -399,7 +399,7 @@ async def test_on_ws_status_writes_state_and_lifecycle_handler_filters() -> None
 
 async def test_program_button_raises_when_verb_missing() -> None:
     """A subclass whose ``_verb`` resolves to ``None`` on the program
-    object raises a clear HomeAssistantError (line 367-368)."""
+    object raises a clear HomeAssistantError."""
     from homeassistant.exceptions import HomeAssistantError
     from pyisyox import Program
     from pyisyox.testing import make_controller, make_load_result, make_program_record
@@ -419,7 +419,7 @@ async def test_program_button_raises_when_verb_missing() -> None:
 
 async def test_program_button_translates_runtime_error() -> None:
     """Any exception during the verb call surfaces as HomeAssistantError
-    (lines 373-374)."""
+    ."""
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.exceptions import HomeAssistantError

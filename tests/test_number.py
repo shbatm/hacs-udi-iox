@@ -545,7 +545,7 @@ async def test_backlight_set_native_value_translates_error() -> None:
 
 async def test_number_description_includes_step_when_editor_has_range() -> None:
     """A control with a resolved editor range gets full
-    min/max/step/uom on its NumberEntityDescription (line 92-104)."""
+    min/max/step/uom on its NumberEntityDescription."""
     from unittest.mock import MagicMock, patch
 
     from custom_components.udi_iox.number import _number_description
@@ -572,8 +572,8 @@ async def test_number_description_includes_step_when_editor_has_range() -> None:
 
 async def test_async_setup_entry_creates_backlight_entity(hass) -> None:
     """A CMD_BACKLIGHT control in aux_properties[NUMBER] creates an
-    ``ISYBacklightNumberEntity`` instead of the generic aux-number
-    (lines 166-168)."""
+     ``ISYBacklightNumberEntity`` instead of the generic aux-number
+    ."""
     from unittest.mock import MagicMock
 
     from pyisyox.constants import CMD_BACKLIGHT
@@ -603,7 +603,7 @@ async def test_async_setup_entry_creates_backlight_entity(hass) -> None:
 
 async def test_aux_writeonly_restores_optimistic_value_on_add(hass) -> None:
     """``async_added_to_hass`` for a write-only aux number restores the
-    last optimistic value (line 217-218)."""
+    last optimistic value."""
     from unittest.mock import AsyncMock, MagicMock
 
     from homeassistant.components.number import NumberEntityDescription
@@ -639,7 +639,7 @@ async def test_aux_writeonly_restores_optimistic_value_on_add(hass) -> None:
 async def test_backlight_async_added_restores_last_value(hass) -> None:
     """The backlight entity restores its last value when both
     ``async_get_last_state`` and ``async_get_last_number_data`` return
-    something usable (lines 411-419)."""
+    something usable."""
     from unittest.mock import AsyncMock, MagicMock
 
     from homeassistant.components.number import NumberEntityDescription
@@ -678,8 +678,8 @@ async def test_backlight_async_added_restores_last_value(hass) -> None:
 
 async def test_backlight_memory_write_skips_when_value_unchanged() -> None:
     """If the computed % matches the current ``native_value`` the
-    handler bails out without firing ``async_write_ha_state``
-    (line 442-443)."""
+     handler bails out without firing ``async_write_ha_state``
+    ."""
     from unittest.mock import patch
 
     from homeassistant.components.number import NumberEntityDescription
@@ -725,7 +725,7 @@ async def test_backlight_memory_write_skips_when_value_unchanged() -> None:
 
 async def test_backlight_set_native_value_success_path() -> None:
     """Successful ``async_set_native_value`` stores the value and
-    fires HA state write (lines 457-458)."""
+    fires HA state write."""
     from unittest.mock import AsyncMock, patch
 
     from homeassistant.components.number import NumberEntityDescription

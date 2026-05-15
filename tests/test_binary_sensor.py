@@ -424,7 +424,7 @@ async def test_async_setup_entry_subnode_with_unknown_parent_logs_and_skips(
 ) -> None:
     """A child subnode that requires a parent (OPENING) but whose primary
     address is missing falls into the ``no device was created for it``
-    branch (line 146-150)."""
+    branch."""
     import logging
 
     # An OPENING-class child whose primary_address points at a node the
@@ -448,7 +448,7 @@ async def test_async_setup_entry_subnode_with_unknown_parent_logs_and_skips(
 async def test_async_setup_entry_node_server_takes_non_insteon_branch(hass) -> None:
     """A non-Insteon node (here a node-server plugin node) routes through
     the simple ``ISYBinarySensorEntity`` constructor — bypassing the
-    Insteon parent/child fan-out (line 111-113)."""
+    Insteon parent/child fan-out."""
     record = make_node_record(
         "n001_test_1",
         "Plugin Sensor",
@@ -467,7 +467,7 @@ async def test_async_setup_entry_node_server_takes_non_insteon_branch(hass) -> N
 
 async def test_async_setup_entry_skips_program_device_without_device_info(hass) -> None:
     """A program in ``program_devices`` whose DeviceInfo wasn't
-    registered (line 226-227) is silently skipped — no entity created."""
+    registered is silently skipped — no entity created."""
     from pyisyox import Program
     from pyisyox.testing import make_program_record
 
@@ -484,8 +484,8 @@ async def test_async_setup_entry_skips_program_device_without_device_info(hass) 
 
 async def test_async_setup_entry_aux_property_creates_entity(hass) -> None:
     """A ``(node, control)`` pair in ``aux_properties[BINARY_SENSOR]``
-    creates an ``ISYBinarySensorEntity`` keyed on the control suffix
-    (lines 232-242)."""
+     creates an ``ISYBinarySensorEntity`` keyed on the control suffix
+    ."""
     record = make_node_record("AA AA AA 1", "Aux", type_="1.0.0.0")
     controller = make_controller(make_load_result(nodes={record.address: record}))
     node = controller.nodes[record.address]
@@ -502,7 +502,7 @@ async def test_async_setup_entry_aux_property_creates_entity(hass) -> None:
 
 async def test_detect_device_type_handles_missing_type_attr() -> None:
     """If ``node.type`` raises AttributeError, the detector returns
-    ``(None, None)`` (line 251-253)."""
+    ``(None, None)``."""
     from custom_components.udi_iox.binary_sensor import _detect_device_type_and_class
 
     class _NoType:
@@ -517,7 +517,7 @@ async def test_detect_device_type_handles_missing_type_attr() -> None:
 
 async def test_insteon_binary_sensor_is_on_returns_none_when_unknown() -> None:
     """Insteon entity exposes None when ``_computed_state`` is None
-    (line 458-459) — important for inverted classes so a None doesn't
+    — important for inverted classes so a None doesn't
     flip to True."""
     record = make_node_record("AA AA AA 1", "Leak", type_="16.8.1.0")
     controller = make_controller(make_load_result(nodes={record.address: record}))
@@ -535,7 +535,7 @@ async def test_insteon_binary_sensor_is_on_returns_none_when_unknown() -> None:
 
 
 async def test_heartbeat_extra_state_attributes_includes_parent_id() -> None:
-    """The heartbeat entity exposes ``parent_entity_id`` (line 585)."""
+    """The heartbeat entity exposes ``parent_entity_id``."""
     main = make_node_record("AA AA AA 1", "Sensor", type_="16.1.1.0")
     sub = make_node_record(
         "AA AA AA 4", "Heartbeat", type_="16.1.1.0", pnode="AA AA AA 1"
@@ -584,9 +584,8 @@ async def test_heartbeat_async_on_update_is_a_no_op() -> None:
 async def test_heartbeat_timer_cancels_previous_and_fires_after_25h(
     hass, freezer
 ) -> None:
-    """Restarting the timer cancels the prior callback (line 543-545),
-    and the elapsed-callback flips ``_computed_state`` to True
-    (line 547-552 — Low Battery)."""
+    """Restarting the timer cancels the prior callback, and the
+    elapsed-callback flips ``_computed_state`` to True (Low Battery)."""
     from datetime import timedelta
 
     from homeassistant.util import dt as dt_util
@@ -629,7 +628,7 @@ async def test_heartbeat_timer_cancels_previous_and_fires_after_25h(
 
 async def test_insteon_async_added_to_hass_subscribes_both_nodes(hass) -> None:
     """``async_added_to_hass`` subscribes to the positive node always,
-    and to the negative node when one is attached (lines 336-355)."""
+    and to the negative node when one is attached."""
     main = make_node_record("AA AA AA 1", "Door", type_="16.9.1.0")
     sub = make_node_record(
         "AA AA AA 2", "Negative", type_="16.9.1.0", pnode="AA AA AA 1"
@@ -665,7 +664,7 @@ async def test_insteon_async_added_to_hass_subscribes_both_nodes(hass) -> None:
 
 async def test_heartbeat_async_added_to_hass_restores_low_battery(hass) -> None:
     """If the prior state was ON (Low Battery), ``async_added_to_hass``
-    restores ``_computed_state`` to True (lines 503-518)."""
+    restores ``_computed_state`` to True."""
     from unittest.mock import AsyncMock
 
     from homeassistant.const import STATE_ON
