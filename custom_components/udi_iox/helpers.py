@@ -265,10 +265,20 @@ def _fan_out_commands(
 ) -> None:
     """Surface a node's accept commands as input / button aux entities.
 
+    Model: an ``accepts`` command *sends* a value; the event stream
+    *reports* properties. The nodedef declares **no** command→property
+    writeback map (``param.init`` is only a UI seed-source — which
+    property pre-fills the input — not "which property this writes").
+    The one authoritative split we have is ``pyisyox.classify``: it
+    claims the controllable primary's verbs in
+    ``controllable_command_ids`` and *excludes* them from
+    ``parameterized_commands``. So every command in this bucket is, by
+    construction, **not** the primary's control — there is nothing to
+    dedupe against the primary here, and no ``init`` heuristic is used
+    (it was a misread of a seed-source as an ownership signal — #64).
+
     * ``parameterized_commands`` → NUMBER / SELECT via editor →
-      ``platform_for_control``. ``init == "ST"`` means controllable
-      owns it (skip); no ``init`` → assumed-state (backlight, plugin
-      write-only setters); editor unresolved → ``NODE_AUX_FILTERS``
+      ``platform_for_control``; editor unresolved → ``NODE_AUX_FILTERS``
       fallback or service-only.
     * ``buttons`` → one BUTTON each (``WDU``, plugin ``DISCOVER``…),
       minus the ones with a dedicated entity class.
@@ -279,8 +289,6 @@ def _fan_out_commands(
     skipped = dedicated | service_only
     for cmd in result.parameterized_commands:
         if cmd.id in skipped:
-            continue
-        if any(p.init == PROP_STATUS for p in cmd.parameters):
             continue
         editor = resolve_editor(controller, node, cmd.id)
         prop = node.properties.get(cmd.id)
