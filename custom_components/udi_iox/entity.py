@@ -232,6 +232,20 @@ class ISYNodeEntity(ISYEntity):
                 prop := self._node_def.properties.get(control)
             ):
                 label = prop.name or None
+            if label is None and self._node_def is not None:
+                # Aux entities are fanned out from cmds.accepts — prefer
+                # the controller-published command name (SETOL → "Set On
+                # Level") over a title-cased id ("Setol"). Plugin
+                # nodedefs name their setters; only the built-in Insteon
+                # set needs the COMMAND_FRIENDLY_NAME fallback below.
+                label = next(
+                    (
+                        cmd.name
+                        for cmd in self._node_def.cmds.accepts
+                        if cmd.id == control and cmd.name
+                    ),
+                    None,
+                )
             if label is None:
                 label = (
                     COMMAND_FRIENDLY_NAME.get(control, control)

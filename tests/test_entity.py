@@ -161,6 +161,47 @@ def test_isy_node_entity_lifecycle_handler_filters_other_addresses() -> None:
     assert write_calls == [1]
 
 
+def test_aux_command_name_uses_nodedef_command_name() -> None:
+    """An aux entity whose ``control`` is a command (not a property) —
+    e.g. a plugin's ``SETOL`` setter — takes its name from the
+    controller-published ``cmds.accepts[].name`` ("Set On Level"),
+    not a title-cased id ("Setol"). Regression for a virtualgeneric
+    node-server node."""
+    from pyisyox.schema.cmd import Command
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef
+
+    from custom_components.udi_iox.entity import ISYNodeEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("n001_1", "Virtual Generic"), controller)
+    isy_data = isy_data_for(controller)
+    nodedef = NodeDef(
+        id="virtualgeneric",
+        family_id="1",
+        instance_id="1",
+        cmds=NodeCommands(accepts=[Command(id="SETOL", name="Set On Level")]),
+    )
+    with patch.object(
+        type(node), "nodedef", new_callable=lambda: property(lambda _s: nodedef)
+    ):
+        entity = ISYNodeEntity(isy_data, node, control="SETOL", unique_id="x_setol")
+    assert entity._attr_name == "Set On Level"
+
+
+def test_aux_command_name_falls_back_when_nodedef_unnamed() -> None:
+    """A command absent from the nodedef (or with an empty name) still
+    falls back to the COMMAND_FRIENDLY_NAME / title-cased path so an
+    unresolved nodedef doesn't blank the entity name."""
+    from custom_components.udi_iox.entity import ISYNodeEntity
+
+    controller = make_controller(make_load_result())
+    node = make_node(make_node_record("n001_1", "Virtual Generic"), controller)
+    isy_data = isy_data_for(controller)
+    # node.nodedef is None (no profile entry for this fixture) → fallback.
+    entity = ISYNodeEntity(isy_data, node, control="SETOL", unique_id="x_setol")
+    assert entity._attr_name == "Setol"
+
+
 async def test_isy_entity_get_zwave_parameter_translates_node_command_error() -> None:
     """``async_get_zwave_parameter`` wraps NodeCommandError in
     HomeAssistantError."""
