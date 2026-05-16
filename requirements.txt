@@ -1,1 +1,1 @@
-pyisyox==6.0.0b3
+pyisyox==6.0.0b5

@@ -377,6 +377,132 @@ def test_zwave_node_with_no_controllable_is_not_a_switch(isy_data, options, cont
     assert scene_data.nodes[Platform.EVENT] == [scene_node]
 
 
+# Encoded editor id (UOM 51, 0-100 %) — decodes scope-free via
+# Editor.from_encoded_id, so resolve_editor() resolves it without
+# grafting an editor into the plugin family. → Platform.NUMBER.
+_ENCODED_PCT_EDITOR = "_51_0_R_0_101_N_IX_DIM_REP"
+
+
+def test_plugin_init_st_setter_surfaces_when_uncontrollable(
+    isy_data, options, controller
+):
+    """``param.init`` is a UI seed-source (which property pre-fills the
+    input), NOT a "the primary owns this" signal — IoX nodedefs declare
+    no command→property writeback map. ``classify`` already excludes the
+    primary's verbs from ``parameterized_commands``, so a setter that
+    lands here is by construction not primary-owned and must surface.
+
+    A node-server nodedef whose only state surface is a setter seeded
+    from ``ST`` (and which classifies with no controllable primary) must
+    surface that setter — pre-#64 it was dropped on ``init == "ST"``,
+    leaving the node with nothing to control.
+    """
+    from pyisyox.schema.cmd import Command, CommandParameter
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef
+
+    setter_def = NodeDef(
+        id="VirtualStatusSetter",
+        family_id="199",  # non-core family → Protocol.NODE_SERVER
+        instance_id="1",
+        cmds=NodeCommands(
+            accepts=[
+                Command(
+                    id="SETST",
+                    name="Set Status",
+                    parameters=[
+                        CommandParameter(editor_id=_ENCODED_PCT_EDITOR, init="ST")
+                    ],
+                )
+            ]
+        ),
+    )
+    rec = make_node_record(
+        "n199_1",
+        "Virtual Generic",
+        nodedef_id="VirtualStatusSetter",
+        family_id="199",
+        instance_id="1",
+    )
+    node = make_node(rec, controller)
+    with patch.object(
+        Node, "nodedef", new_callable=lambda: property(lambda _self: setter_def)
+    ):
+        _categorize(isy_data, node, options, controller=controller)
+
+    assert (node, "SETST") in isy_data.aux_properties[Platform.NUMBER]
+
+
+def test_virtualgeneric_becomes_switch_with_level_setter_aux(
+    isy_data, options, controller
+):
+    """End-to-end on the real ``virtualgeneric`` shape (#64 / Virtual#11)
+    against pyisyox ≥ 6.0.0b5: parameterless ``DON``/``DOF`` + ``BRT``/
+    ``DIM`` + multilevel ``ST``/``OL`` + ``SETST``(init=ST) / ``SETOL``
+    (init=OL).
+
+    Prong 2 (pyisyox b5): a parameterless ``DON`` is not HA-dimmable, so
+    ``classify`` returns SWITCH (not LIGHT) and claims only ``DON``/
+    ``DOF``. Prong 1 (this change): ``SETST``/``SETOL`` are *not* the
+    primary's verbs, so the deleted ``init`` skip no longer drops them —
+    both surface as NUMBER level controls. Net: a working switch plus
+    "Set Status" / "Set On Level" numbers, instead of a broken
+    brightness slider.
+    """
+    from pyisyox.schema.cmd import Command, CommandParameter
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
+
+    vgeneric = NodeDef(
+        id="virtualgeneric",
+        family_id="199",
+        instance_id="1",
+        properties={
+            "ST": NodeProperty(id="ST", editor_id=_ENCODED_PCT_EDITOR),
+            "OL": NodeProperty(id="OL", editor_id=_ENCODED_PCT_EDITOR),
+        },
+        cmds=NodeCommands(
+            accepts=[
+                Command(id="DON", name="On"),  # parameterless — not dimmable
+                Command(id="DOF", name="Off"),
+                Command(id="BRT", name="Brighten"),
+                Command(id="DIM", name="Dim"),
+                Command(
+                    id="SETST",
+                    name="Set Status",
+                    parameters=[
+                        CommandParameter(editor_id=_ENCODED_PCT_EDITOR, init="ST")
+                    ],
+                ),
+                Command(
+                    id="SETOL",
+                    name="Set On Level",
+                    parameters=[
+                        CommandParameter(editor_id=_ENCODED_PCT_EDITOR, init="OL")
+                    ],
+                ),
+            ]
+        ),
+    )
+    rec = make_node_record(
+        "n199_3",
+        "Virtual Generic",
+        nodedef_id="virtualgeneric",
+        family_id="199",
+        instance_id="1",
+    )
+    node = make_node(rec, controller)
+    with patch.object(
+        Node, "nodedef", new_callable=lambda: property(lambda _self: vgeneric)
+    ):
+        _categorize(isy_data, node, options, controller=controller)
+
+    assert node in isy_data.nodes[Platform.SWITCH]
+    assert node not in isy_data.nodes[Platform.LIGHT]
+    number_aux = {
+        cmd for n, cmd in isy_data.aux_properties[Platform.NUMBER] if n is node
+    }
+    assert {"SETST", "SETOL"} <= number_aux
+
+
 def test_zwave_switch_with_declared_sends_skips_event(isy_data, options, controller):
     """A Z-Wave binary-switch nodedef declares ``sends=[DON,DOF]`` but the
     device only ever emits ``ST`` on the wire (and eisy echoes spurious
@@ -738,10 +864,15 @@ def test_native_insteon_root_keeps_comms_error_sensor(isy_data, options, control
 
 
 def test_plugin_dimmer_aux_commands_classified_by_editor(isy_data, options):
-    """A PG3 dimmer's parameterised setters land on the HA platform
-    their *editor* implies: a pure-enum editor (``names``, no numeric
-    bounds) → SELECT; the generic ``INTEGER`` editor → NUMBER. The node
-    itself routes onto LIGHT via the classifier's controllable.
+    """A PG3 node's parameterised setters land on the HA platform their
+    *editor* implies: a pure-enum editor (``names``, no numeric bounds)
+    → SELECT; the generic ``INTEGER`` editor → NUMBER.
+
+    The ``PluginDimmer`` testing fixture declares a *parameterless*
+    ``DON`` (it would set level via a setter, like the real
+    ``virtualgeneric``), so against pyisyox ≥ 6.0.0b5 the classifier
+    correctly routes it to SWITCH, not LIGHT — see #64 prong 2. The
+    editor-driven aux routing under test is independent of that.
     """
     from pyisyox.testing import (
         make_controller,
@@ -761,7 +892,8 @@ def test_plugin_dimmer_aux_commands_classified_by_editor(isy_data, options):
         host="https://eisy.local",
     )
 
-    assert node in isy_data.nodes[Platform.LIGHT]
+    assert node in isy_data.nodes[Platform.SWITCH]
+    assert node not in isy_data.nodes[Platform.LIGHT]
     assert (node, "SETMODE") in isy_data.aux_properties[Platform.SELECT]
     assert (node, "THRESHOLD") in isy_data.aux_properties[Platform.NUMBER]
     # SETMODE's enum editor must not be mistaken for a slider, and the
