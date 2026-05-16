@@ -8,7 +8,6 @@ from homeassistant.components.select import SelectEntity, SelectEntityDescriptio
 from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
-    EntityCategory,
     Platform,
     UnitOfTime,
 )
@@ -33,7 +32,7 @@ from pyisyox.constants import (
 
 from .const import _LOGGER, BACKLIGHT_MEMORY_FILTER
 from .editor_classification import range_for_control
-from .entity import ISYNodeEntity, _resolve_device_info
+from .entity import ISYNodeEntity, _resolve_device_info, aux_entity_category
 from .models import IsyConfigEntry, IsyData
 
 
@@ -87,7 +86,7 @@ async def async_setup_entry(
         options = _select_options(isy_data, node, control)
         description = SelectEntityDescription(
             key=f"{node.address}_{control}",
-            entity_category=EntityCategory.CONFIG,
+            entity_category=aux_entity_category(control),
             options=options,
         )
         entity_detail: dict = {

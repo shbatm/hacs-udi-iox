@@ -18656,7 +18656,7 @@
         'binary_sensor': 0,
         'button': 21,
         'number': 2,
-        'select': 2,
+        'select': 3,
         'sensor': 6,
         'switch': 5,
       }),

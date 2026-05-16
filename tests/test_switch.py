@@ -80,6 +80,79 @@ async def test_enable_switch_toggles_node_enabled() -> None:
     assert [c.args for c in set_enabled.await_args_list] == [(False,), (True,)]
 
 
+async def test_aux_control_switch_readback_optimistic_and_send() -> None:
+    """A coalesced boolean aux switch (i3 ``*Flags`` GVx / plugin bool
+    setter): readback coerces the wire string numerically (``bool("0")``
+    truthiness would pin it on); a write-only control is optimistic and
+    ``assumed_state``; ``_async_send`` issues ``control`` with ``1``/``0``
+    and wraps ``NodeCommandError``."""
+    from unittest.mock import AsyncMock, patch
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pyisyox import NodeCommandError
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.runtime import Node
+    from pyisyox.schema.cmd import Command, CommandParameter
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.switch import ISYAuxControlSwitchEntity
+
+    controller = make_controller(make_load_result())
+    record = make_node_record(
+        "AA AA AA 1",
+        "Flags",
+        properties={
+            "GV1": NodePropertyValue(
+                id="GV1", value="0", formatted="Off", uom="2", precision=0
+            )
+        },
+    )
+    node = make_node(record, controller)
+    nd = NodeDef(
+        id="I3Flags",
+        family_id="1",
+        instance_id="1",
+        properties={"GV1": NodeProperty(id="GV1", editor_id="I3_ON_OFF")},
+        cmds=NodeCommands(
+            accepts=[
+                Command(
+                    id="GV1",
+                    parameters=[CommandParameter(editor_id="I3_ON_OFF", init="GV1")],
+                )
+            ]
+        ),
+    )
+    with patch.object(Node, "nodedef", new_callable=lambda: property(lambda _s: nd)):
+        entity = ISYAuxControlSwitchEntity(
+            isy_data_for(controller), node=node, control="GV1", unique_id="x_GV1"
+        )
+        # Readback: "0" must be off, not bool("0")==True.
+        assert entity._has_readback is True
+        assert entity.assumed_state is False
+        assert entity.is_on is False
+        record.properties["GV1"] = NodePropertyValue(
+            id="GV1", value="1", formatted="On", uom="2", precision=0
+        )
+        assert entity.is_on is True
+
+        send = AsyncMock()
+        with patch.object(type(node), "send_command", send):
+            await entity.async_turn_on()
+            await entity.async_turn_off()
+        assert [c.args for c in send.await_args_list] == [("GV1", 1), ("GV1", 0)]
+
+        send_err = AsyncMock(side_effect=NodeCommandError("nope"))
+        with patch.object(type(node), "send_command", send_err):  # noqa: SIM117
+            with pytest.raises(HomeAssistantError):
+                await entity.async_turn_on()
+
+
 async def test_enable_switch_always_available_and_tracks_record() -> None:
     """The enable switch must never go unavailable (else there'd be no
     way to switch a disabled node back on), and ``is_on`` follows the

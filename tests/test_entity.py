@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from homeassistant.const import EntityCategory
 from pyisyox.client import NodePropertyValue
 from pyisyox.constants import ISY_VALUE_UNKNOWN
 from pyisyox.testing import (
@@ -16,9 +17,21 @@ from pyisyox.testing import (
 
 from custom_components.udi_iox.entity import (
     _strip_parent_prefix,
+    aux_entity_category,
     node_status_int,
 )
 from tests.conftest import isy_data_for
+
+
+def test_aux_entity_category_st_is_primary_control() -> None:
+    """A coalesced control that writes the node's status (``ST`` — a
+    node-server ``virtualtemp`` setpoint, an i3 flags ``GV0`` "Mode")
+    is the device's main control: no category. Every other aux control
+    is configuration."""
+    assert aux_entity_category("ST") is None
+    assert aux_entity_category("GV1") is EntityCategory.CONFIG
+    assert aux_entity_category("OL") is EntityCategory.CONFIG
+    assert aux_entity_category("enabled") is EntityCategory.CONFIG
 
 
 def test_node_status_int_returns_none_on_unknown_value() -> None:

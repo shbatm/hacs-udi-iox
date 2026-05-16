@@ -40,7 +40,8 @@ from pyisyox.constants import (
 
 from .const import BACKLIGHT_MEMORY_FILTER
 from .editor_classification import range_for_control, unit_for_uom
-from .entity import ISYNodeEntity, _resolve_device_info
+from .entity import ISYNodeEntity, _resolve_device_info, aux_entity_category
+from .helpers import convert_isy_value_to_hass
 from .models import IsyConfigEntry, IsyData
 
 ISY_MAX_SIZE = (2**32) / 2
@@ -84,15 +85,14 @@ def _number_description(
     """
     if (desc := CONTROL_DESC.get(control)) is not None:
         return desc
+    category = aux_entity_category(control)
     rng = range_for_control(isy_data.root, node, control)
     if rng is None:
-        return NumberEntityDescription(
-            key=control, entity_category=EntityCategory.CONFIG
-        )
+        return NumberEntityDescription(key=control, entity_category=category)
     step = rng.step if rng.step is not None else 10 ** (-max(0, rng.precision))
     return NumberEntityDescription(
         key=control,
-        entity_category=EntityCategory.CONFIG,
+        entity_category=category,
         native_unit_of_measurement=unit_for_uom(rng.uom),
         native_min_value=float(rng.min) if rng.min is not None else 0.0,
         native_max_value=float(rng.max) if rng.max is not None else 100.0,
@@ -227,12 +227,13 @@ class ISYAuxControlNumberEntity(ISYNodeEntity, RestoreNumber):
         if node_prop is None or not node_prop.value:
             return None
 
-        # pyisyox already normalised the value to the control's editor
-        # unit (e.g. a classic-Insteon ``OL`` 0-255 byte → 0-100%).
-        try:
-            return int(float(node_prop.value))
-        except (TypeError, ValueError):
-            return None
+        # pyisyox normalised UOM + precision (``954`` prec 1 → ``95.4``);
+        # ``convert_isy_value_to_hass`` is the shared sensor decoder —
+        # keeps the fractional value (``int()`` would truncate
+        # ``95.4`` → ``95``) and the non-numeric → ``None`` path.
+        return convert_isy_value_to_hass(
+            node_prop.value, node_prop.uom, node_prop.precision
+        )
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

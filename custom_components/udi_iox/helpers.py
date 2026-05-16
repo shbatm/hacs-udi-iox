@@ -13,13 +13,12 @@ from typing import Any, cast
 from homeassistant.const import ATTR_MANUFACTURER, ATTR_MODEL, Platform
 from homeassistant.helpers.entity import DeviceInfo
 from pyisyox import (
+    AuxPlatform,
     ClassificationResult,
     ControllablePlatform,
     Controller,
     Node,
     Program,
-    Reading,
-    ReadingPlatform,
     Variable,
     classify,
 )
@@ -27,9 +26,6 @@ from pyisyox.constants import (
     CMD_BEEP,
     PROP_BUSY,
     PROP_COMMS_ERROR,
-    PROP_ON_LEVEL,
-    PROP_RAMP_RATE,
-    PROP_STATUS,
     TAG_ENABLED,
     Protocol,
 )
@@ -52,15 +48,14 @@ from .const import (
     UOM_DOUBLE_TEMP,
     UOM_ISYV4_DEGREES,
 )
-from .editor_classification import BINARY_UOMS, platform_for_control, resolve_editor
+from .editor_classification import BINARY_UOMS
 from .models import IsyData
 
-#: ST / OL / RR — the dimmer's own controls. ST is the primary entity;
-#: OL / RR surface as aux NUMBER / SELECT entities via the nodedef's
-#: ``OL`` / ``RR`` accept commands (see ``_fan_out_commands``), so they
-#: must be excluded from the read-only sensor fan-out.
-ROOT_AUX_CONTROLS = {PROP_ON_LEVEL, PROP_RAMP_RATE}
-SKIP_AUX_PROPS = {PROP_BUSY, PROP_COMMS_ERROR, PROP_STATUS, *ROOT_AUX_CONTROLS}
+#: Aux controls the consumer drops as a matter of HA *policy* (not
+#: capability — controllable-ownership / coalescing is single-sourced in
+#: ``pyisyox.classify``). ``BUSY`` is transient noise; ``COMMS_ERROR``
+#: already has a dedicated root-scaffold sensor (see ``_categorize_nodes``).
+_CONSUMER_SKIP_CONTROLS = frozenset({PROP_BUSY, PROP_COMMS_ERROR})
 
 
 #: Map a controllable platform from the classifier to the HA platform
@@ -75,9 +70,16 @@ _CONTROLLABLE_TO_HA_PLATFORM: dict[ControllablePlatform, Platform] = {
     # surface it yet — fall through to sensor for now.
 }
 
-_READING_TO_HA_PLATFORM: dict[ReadingPlatform, Platform] = {
-    ReadingPlatform.SENSOR: Platform.SENSOR,
-    ReadingPlatform.BINARY_SENSOR: Platform.BINARY_SENSOR,
+#: Map a coalesced aux-control's candidate platform to the HA platform
+#: enum. The candidate is advisory — consumer overrides
+#: (dedicated/service-only) and the per-device dedup sit on top.
+_AUX_TO_HA_PLATFORM: dict[AuxPlatform, Platform] = {
+    AuxPlatform.SENSOR: Platform.SENSOR,
+    AuxPlatform.BINARY_SENSOR: Platform.BINARY_SENSOR,
+    AuxPlatform.NUMBER: Platform.NUMBER,
+    AuxPlatform.SELECT: Platform.SELECT,
+    AuxPlatform.SWITCH: Platform.SWITCH,
+    AuxPlatform.BUTTON: Platform.BUTTON,
 }
 
 
@@ -217,24 +219,6 @@ def _register_event_node(
     isy_data.node_triggers[node.address] = trigger_cmds
 
 
-def _fan_out_readings(isy_data: IsyData, node: Node, readings: list[Reading]) -> None:
-    """Append each plugin-classified reading as an aux-property entity."""
-    for reading in readings:
-        ha_platform = _READING_TO_HA_PLATFORM[reading.platform]
-        isy_data.aux_properties[ha_platform].append((node, reading.property.id))
-
-
-def _fan_out_native_aux(isy_data: IsyData, node: Node) -> None:
-    """Surface native-node aux properties as sensor / binary_sensor entities."""
-    for control, prop in node.properties.items():
-        if control in SKIP_AUX_PROPS:
-            continue
-        platform = (
-            Platform.BINARY_SENSOR if prop.uom in BINARY_UOMS else Platform.SENSOR
-        )
-        isy_data.aux_properties[platform].append((node, control))
-
-
 #: Accept commands the integration surfaces through a *dedicated* entity
 #: rather than the generic command fan-out, keyed by the protocol whose
 #: device-root scaffold provides that entity — skip them here so they
@@ -257,66 +241,69 @@ _SERVICE_ONLY_COMMANDS_BY_PROTOCOL: dict[str, frozenset[str]] = {
 }
 
 
-def _fan_out_commands(
-    isy_data: IsyData,
-    node: Node,
-    controller: Controller,
-    result: ClassificationResult,
-) -> None:
-    """Surface a node's accept commands as input / button aux entities.
+def _fan_out_aux(isy_data: IsyData, node: Node, result: ClassificationResult) -> None:
+    """Render ``result.aux_controls`` onto HA aux platforms.
 
-    Model: an ``accepts`` command *sends* a value; the event stream
-    *reports* properties. The nodedef declares **no** command→property
-    writeback map (``param.init`` is only a UI seed-source — which
-    property pre-fills the input — not "which property this writes").
-    The one authoritative split we have is ``pyisyox.classify``: it
-    claims the controllable primary's verbs in
-    ``controllable_command_ids`` and *excludes* them from
-    ``parameterized_commands``. So every command in this bucket is, by
-    construction, **not** the primary's control — there is nothing to
-    dedupe against the primary here, and no ``init`` heuristic is used
-    (it was a misread of a seed-source as an ownership signal — #64).
-
-    * ``parameterized_commands`` → NUMBER / SELECT via editor →
-      ``platform_for_control``; editor unresolved → ``NODE_AUX_FILTERS``
-      fallback or service-only.
-    * ``buttons`` → one BUTTON each (``WDU``, plugin ``DISCOVER``…),
-      minus the ones with a dedicated entity class.
+    ``pyisyox.classify`` owns the capability split (controllable
+    ownership, ``QUERY`` exclusion, read/write coalescing). This applies
+    only consumer policy: protocol-skips for bespoke-entity (Insteon
+    ``BEEP``) / service (Z-Wave ``CONFIG``) controls, the
+    ``{BUSY, COMMS_ERROR}`` drop, and the ``NODE_AUX_FILTERS`` fallback
+    when no editor resolved a candidate.
     """
     protocol_key = node.protocol or ""
     dedicated = _DEDICATED_COMMANDS_BY_PROTOCOL.get(protocol_key, frozenset())
     service_only = _SERVICE_ONLY_COMMANDS_BY_PROTOCOL.get(protocol_key, frozenset())
-    skipped = dedicated | service_only
-    for cmd in result.parameterized_commands:
-        if cmd.id in skipped:
+    for ac in result.aux_controls:
+        if (
+            ac.id in _CONSUMER_SKIP_CONTROLS
+            or ac.id in dedicated
+            or ac.id in service_only
+        ):
             continue
-        editor = resolve_editor(controller, node, cmd.id)
-        prop = node.properties.get(cmd.id)
-        platform = platform_for_control(
-            editor, prop.uom if prop is not None else None, writable=True
+        platform = (
+            _AUX_TO_HA_PLATFORM.get(ac.candidate_platform)
+            if ac.candidate_platform is not None
+            else None
         )
-        if platform is Platform.SWITCH:
-            # No aux-command switch entity class yet; leave to service.
-            _LOGGER.debug(
-                "Bool aux command %s/%s not surfaced as a switch yet; use the service",
-                node.address,
-                cmd.id,
-            )
-            continue
         if platform is None:
-            platform = NODE_AUX_FILTERS.get(cmd.id)
+            # Editor didn't resolve a candidate — fall back to the static
+            # control→platform map, else leave it to the service.
+            platform = NODE_AUX_FILTERS.get(ac.id)
         if platform is None:
             _LOGGER.debug(
-                "No editor-resolved platform for %s/%s; leaving it to the service",
+                "No platform for aux control %s/%s; left to the service",
                 node.address,
-                cmd.id,
+                ac.id,
             )
             continue
-        isy_data.aux_properties[platform].append((node, cmd.id))
-    for cmd in result.buttons:
-        if cmd.id in skipped:
-            continue
-        isy_data.aux_properties[Platform.BUTTON].append((node, cmd.id))
+        isy_data.aux_properties[platform].append((node, ac.id))
+
+
+def _dedupe_device_aux(isy_data: IsyData) -> None:
+    """Collapse aux entities duplicated across one HA device's nodes.
+
+    Sub-nodes fold onto the primary's device, so a control every
+    sub-node reports (a KeypadLinc's ``BL``/``WDU``) would emit N
+    identical entities. Dedup per ``(HA-device, control)``: own-device
+    node wins, else the first sub-node — so a sub-node-only control (i3
+    ``*Flags`` ``GVx``) still surfaces once, attributed to that sub-node.
+    """
+    for platform, items in isy_data.aux_properties.items():
+        kept: dict[tuple[str, str], tuple[Node, str]] = {}
+        for node, control in items:
+            device = (
+                node.address
+                if _has_own_device(node)
+                else (node.primary_address or node.address)
+            )
+            key = (device, control)
+            current = kept.get(key)
+            if current is None or (
+                _has_own_device(node) and not _has_own_device(current[0])
+            ):
+                kept[key] = (node, control)
+        isy_data.aux_properties[platform] = list(kept.values())
 
 
 def _suggested_area_for_node(controller: Controller, node: Node) -> str | None:
@@ -456,8 +443,7 @@ def _categorize_nodes(
                     result.controllable, Platform.SENSOR
                 )
                 isy_data.nodes[ha_platform].append(node)
-            _fan_out_readings(isy_data, node, result.readings)
-            _fan_out_commands(isy_data, node, controller, result)
+            _fan_out_aux(isy_data, node, result)
             # NODE_PARALLEL_PLATFORMS (e.g. EVENT) — the classifier's
             # ``triggers`` list IS the nodedef's ``cmds.sends``; wire it
             # onto the EVENT platform so plugin verbs (DOORBELL_PRESS,
@@ -481,13 +467,12 @@ def _categorize_nodes(
             # needs the node on ``isy_data.nodes[BINARY_SENSOR]``.
             #
             # Z-Wave per-property readings (battery, temperature, …)
-            # land on subnodes rather than the primary, so no
-            # ``_fan_out_native_aux`` here — unlike the Insteon branch
-            # below where the primary itself can carry aux properties.
+            # land on subnodes; ``_fan_out_aux`` + the per-device dedup
+            # handle that.
             if _is_native_binary_sensor(node):
                 isy_data.nodes[Platform.BINARY_SENSOR].append(node)
-                if result is not None and _is_device_root(node):
-                    _fan_out_commands(isy_data, node, controller, result)
+                if result is not None:
+                    _fan_out_aux(isy_data, node, result)
                 continue
             native_platform: Platform | None = None
             if result is not None and result.controllable is not None:
@@ -509,9 +494,7 @@ def _categorize_nodes(
             if native_platform is not None:
                 isy_data.nodes[native_platform].append(node)
             if result is not None:
-                _fan_out_readings(isy_data, node, result.readings)
-                if _is_device_root(node):
-                    _fan_out_commands(isy_data, node, controller, result)
+                _fan_out_aux(isy_data, node, result)
             # EVENT entity registration is restricted to nodes with **no
             # primary platform** — i.e. true scene-controller / paddle
             # nodes (Z-Wave central scene endpoints, ``UZW0010``-shaped
@@ -537,9 +520,8 @@ def _categorize_nodes(
         # node falls through to EVENT-only and never surfaces stateful.
         if _is_native_binary_sensor(node):
             isy_data.nodes[Platform.BINARY_SENSOR].append(node)
-            _fan_out_native_aux(isy_data, node)
-            if result is not None and _is_device_root(node):
-                _fan_out_commands(isy_data, node, controller, result)
+            if result is not None:
+                _fan_out_aux(isy_data, node, result)
             if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
                 _register_event_node(isy_data, node, _node_trigger_commands(node))
             continue
@@ -554,19 +536,20 @@ def _categorize_nodes(
         # are real load controllers — trust the nodedef and surface them
         # as switches.
         if primary is None:
+            # No primary entity (KeypadButton_ADV, RemoteLinc2_ADV,
+            # i3 ``*Flags`` …) — but the node may still carry aux
+            # controls (i3 flag setters); surface them.
+            if result is not None:
+                _fan_out_aux(isy_data, node, result)
             if Platform.EVENT in NODE_PARALLEL_PLATFORMS:
                 _register_event_node(isy_data, node, _node_trigger_commands(node))
             continue
 
         isy_data.nodes[primary].append(node)
-        _fan_out_native_aux(isy_data, node)
-        # Accept-command aux entities attach to the device, so only the
-        # device root carries them (a native sub-node — FanLinc fan side,
-        # KeypadLinc sub-button — has no HA device of its own; its
-        # commands belong to the primary). Plugin children each have
-        # their own device, so the plugin branch above isn't gated.
-        if result is not None and _is_device_root(node):
-            _fan_out_commands(isy_data, node, controller, result)
+        # Per-node fan-out; ``_dedupe_device_aux`` collapses per-device
+        # duplicates afterward.
+        if result is not None:
+            _fan_out_aux(isy_data, node, result)
 
         # Parallel: native Insteon LIGHT/SWITCH nodes whose nodedef
         # declares sent verbs also feed the EVENT platform.
@@ -576,6 +559,9 @@ def _categorize_nodes(
             and node.protocol == Protocol.INSTEON
         ):
             _register_event_node(isy_data, node, _node_trigger_commands(node))
+
+    # Collapse per-device aux duplicates (see ``_dedupe_device_aux``).
+    _dedupe_device_aux(isy_data)
 
 
 def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> None:

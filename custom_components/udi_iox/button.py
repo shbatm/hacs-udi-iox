@@ -23,6 +23,7 @@ from pyisyox import (
 from pyisyox.constants import TAG_ENABLED, Protocol
 
 from .const import CONF_NETWORK, DOMAIN
+from .entity import _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 from .program_device import (
     PROGRAM_RUN_BUTTON_SUFFIX,
@@ -113,6 +114,11 @@ async def async_setup_entry(
     # commands with a required parameter live in result.parameterized_commands
     # and aren't surfaced here.
     for node, command_id in isy_data.aux_properties[Platform.BUTTON]:
+        # Folded sub-nodes aren't their own DeviceInfo key — resolve
+        # through the primary like the other aux platforms.
+        node_device_info = _resolve_device_info(device_info, node)
+        if node_device_info is None:
+            continue
         entities.append(
             ISYNodeCommandButtonEntity(
                 isy_data,
@@ -120,7 +126,7 @@ async def async_setup_entry(
                 command_id=command_id,
                 name=_command_label(node, command_id),
                 unique_id=f"{isy_data.uid_base(node)}_{command_id}",
-                device_info=device_info[node.address],
+                device_info=node_device_info,
             )
         )
 

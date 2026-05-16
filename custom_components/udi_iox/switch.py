@@ -10,13 +10,18 @@ from homeassistant.components.switch import (
     SwitchEntity,
     SwitchEntityDescription,
 )
-from homeassistant.const import EntityCategory, Platform
+from homeassistant.const import (
+    STATE_ON,
+    EntityCategory,
+    Platform,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from pyisyox import Group, Node, NodeCommandError, Program
-from pyisyox.constants import CMD_OFF, CMD_ON
+from homeassistant.helpers.restore_state import RestoreEntity
+from pyisyox import Group, Node, NodeCommandError, NodePropertyValue, Program
+from pyisyox.constants import CMD_OFF, CMD_ON, TAG_ENABLED
 
 from .entity import (
     ISYGroupEntity,
@@ -24,6 +29,7 @@ from .entity import (
     ISYProgramEntity,
     NodeEventType,
     _resolve_device_info,
+    aux_entity_category,
     node_status_int,
 )
 from .models import IsyConfigEntry, IsyData
@@ -57,6 +63,7 @@ async def async_setup_entry(
         | ISYGroupSwitchEntity
         | ISYSwitchProgramEntity
         | ISYEnableSwitchEntity
+        | ISYAuxControlSwitchEntity
     ] = []
     device_info = isy_data.devices
     for node in isy_data.nodes[Platform.SWITCH]:
@@ -92,22 +99,36 @@ async def async_setup_entry(
         )
 
     for node, control in isy_data.aux_properties[Platform.SWITCH]:
-        # Currently only used for enable switches, will need to be updated for
-        # NS support by making sure control == TAG_ENABLED
-        description = ISYSwitchEntityDescription(
-            key=control,
-            device_class=SwitchDeviceClass.SWITCH,
-            name=control.title(),
-            entity_category=EntityCategory.CONFIG,
-        )
+        unique_id = f"{isy_data.uid_base(node)}_{control}"
+        resolved_device_info = _resolve_device_info(device_info, node)
+        if control == TAG_ENABLED:
+            # The node-lifecycle enable/disable flag — bespoke entity
+            # (reads ``node.enabled``, sends ``Node.set_enabled``).
+            entities.append(
+                ISYEnableSwitchEntity(
+                    isy_data,
+                    node=node,
+                    control=control,
+                    unique_id=unique_id,
+                    description=ISYSwitchEntityDescription(
+                        key=control,
+                        device_class=SwitchDeviceClass.SWITCH,
+                        name=control.title(),
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                    device_info=resolved_device_info,
+                )
+            )
+            continue
+        # A coalesced boolean aux control (Insteon i3 ``*Flags`` GVx):
+        # a binary-editor accept command paired with its readback property.
         entities.append(
-            ISYEnableSwitchEntity(
+            ISYAuxControlSwitchEntity(
                 isy_data,
                 node=node,
                 control=control,
-                unique_id=f"{isy_data.uid_base(node)}_{control}",
-                description=description,
-                device_info=_resolve_device_info(device_info, node),
+                unique_id=unique_id,
+                device_info=resolved_device_info,
             )
         )
     async_add_entities(entities)
@@ -259,6 +280,77 @@ class ISYEnableSwitchEntity(ISYNodeEntity, SwitchEntity):
                 f"Unable to {verb} device {self._node.address}: {err}"
             ) from err
         self.async_write_ha_state()
+
+
+class ISYAuxControlSwitchEntity(ISYNodeEntity, RestoreEntity, SwitchEntity):
+    """A coalesced boolean aux control as a switch (Insteon i3
+    ``*Flags`` GVx, plugin bool setters).
+
+    Readback if the control is a nodedef property, else optimistic
+    (restored across restarts via :class:`RestoreEntity`).
+    """
+
+    _attr_device_class = SwitchDeviceClass.SWITCH
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the aux-control switch entity."""
+        super().__init__(*args, **kwargs)
+        self._attr_entity_category = aux_entity_category(self._control)
+        self._optimistic_value: bool | None = None
+
+    @property
+    def _has_readback(self) -> bool:
+        """True when the controller reports this control as a property."""
+        nodedef = self._node.nodedef
+        return nodedef is not None and self._control in nodedef.properties
+
+    @property
+    def assumed_state(self) -> bool:
+        """A write-only control has no readback — its state is optimistic."""
+        return not self._has_readback
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last set value for a write-only control."""
+        await super().async_added_to_hass()
+        if not self._has_readback and (last := await self.async_get_last_state()):
+            self._optimistic_value = last.state == STATE_ON
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the control is currently on."""
+        if not self._has_readback:
+            return self._optimistic_value
+
+        node_prop: NodePropertyValue | None = self._node.properties.get(self._control)
+        if node_prop is None or not node_prop.value:
+            return None
+        # pyisyox normalised the value to the control's editor unit; a
+        # binary editor lands on 0 / non-zero (1, 100, 255 — all "on").
+        try:
+            return bool(int(float(node_prop.value)))
+        except (TypeError, ValueError):
+            return None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Send the control's "on" value."""
+        await self._async_send(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Send the control's "off" value."""
+        await self._async_send(False)
+
+    async def _async_send(self, turn_on: bool) -> None:
+        """Send ``control`` with ``1`` / ``0`` (codec-encoded on the wire)."""
+        try:
+            await self._node.send_command(self._control, int(turn_on))
+        except NodeCommandError as err:
+            verb = "on" if turn_on else "off"
+            raise HomeAssistantError(
+                f"Could not turn {verb} {self.name} for {self._node.address}: {err}"
+            ) from err
+        if not self._has_readback:
+            self._optimistic_value = turn_on
+            self.async_write_ha_state()
 
 
 class ISYProgramEnableSwitch(ISYProgramDeviceEntity, SwitchEntity):

@@ -436,17 +436,19 @@ def test_virtualgeneric_becomes_switch_with_level_setter_aux(
     isy_data, options, controller
 ):
     """End-to-end on the real ``virtualgeneric`` shape (#64 / Virtual#11)
-    against pyisyox ≥ 6.0.0b5: parameterless ``DON``/``DOF`` + ``BRT``/
+    against pyisyox ≥ 6.0.0b6: parameterless ``DON``/``DOF`` + ``BRT``/
     ``DIM`` + multilevel ``ST``/``OL`` + ``SETST``(init=ST) / ``SETOL``
     (init=OL).
 
     Prong 2 (pyisyox b5): a parameterless ``DON`` is not HA-dimmable, so
     ``classify`` returns SWITCH (not LIGHT) and claims only ``DON``/
-    ``DOF``. Prong 1 (this change): ``SETST``/``SETOL`` are *not* the
-    primary's verbs, so the deleted ``init`` skip no longer drops them —
-    both surface as NUMBER level controls. Net: a working switch plus
-    "Set Status" / "Set On Level" numbers, instead of a broken
-    brightness slider.
+    ``DOF``. Aux coalescing (#160 / hacs#67): ``SETST``/``SETOL`` are not
+    the primary's verbs, so they survive — but each is now folded with
+    the status its parameter's ``init`` names (``SETST`` ⇄ ``ST``,
+    ``SETOL`` ⇄ ``OL``), so the NUMBER aux controls are keyed by the
+    *status* id (read + write in one entity, named "Status" / "On
+    Level"), not the raw command id. Net: a working switch plus two
+    read/write level numbers, instead of a broken brightness slider.
     """
     from pyisyox.schema.cmd import Command, CommandParameter
     from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
@@ -500,7 +502,9 @@ def test_virtualgeneric_becomes_switch_with_level_setter_aux(
     number_aux = {
         cmd for n, cmd in isy_data.aux_properties[Platform.NUMBER] if n is node
     }
-    assert {"SETST", "SETOL"} <= number_aux
+    # Coalesced onto the init-linked status ids, not the raw setter ids.
+    assert {"ST", "OL"} <= number_aux
+    assert {"SETST", "SETOL"}.isdisjoint(number_aux)
 
 
 def test_zwave_switch_with_declared_sends_skips_event(isy_data, options, controller):
@@ -686,22 +690,43 @@ def test_root_dimmer_fans_aux_props_to_number_select(isy_data, options, controll
 def test_aux_property_with_binary_uom_routes_to_binary_sensor(
     isy_data, options, controller
 ):
-    """Aux properties with UOM 2 / 78 / 79 fan out to BINARY_SENSOR,
-    not SENSOR."""
-    record = make_classified_node_record(
-        "AA BB CC 1",
-        "Mixed-UOM Device",
-        target="switch",
+    """A read-only aux *property* whose editor UOM is binary (2 / 78 /
+    79) fans out to BINARY_SENSOR; a non-binary one to SENSOR.
+
+    Nodedef-driven (#160 / hacs#67): the split is the classifier's
+    editor-UOM read on the *nodedef* property, surfaced as the aux
+    control's ``candidate_platform`` — not a walk of runtime-reported
+    ``NodePropertyValue`` UOMs (a node never reports a property absent
+    from its nodedef; ``/api/status`` is merged at load). The two GVx
+    here are declared properties with encoded editor ids that resolve
+    scope-free (UOM 2 = boolean → BINARY_SENSOR; UOM 51 = percent →
+    SENSOR). ``DON``/``DOF`` make it a SWITCH so ST/OL/RR are
+    controllable-owned and don't leak into the aux set.
+    """
+    from pyisyox.schema.cmd import Command
+    from pyisyox.schema.nodedef import NodeCommands, NodeDef, NodeProperty
+
+    mixed_def = NodeDef(
+        id="MixedUOM",
+        family_id="1",
+        instance_id="1",
         properties={
-            "ST": NodePropertyValue(id="ST", value="100", uom="51"),
-            # GVx aux property with UOM 2 → binary
-            "GV1": NodePropertyValue(id="GV1", value="0", uom="2"),
-            # GVy aux property with a non-binary UOM → sensor
-            "GV2": NodePropertyValue(id="GV2", value="50", uom="51"),
+            "ST": NodeProperty(id="ST", editor_id=_ENCODED_PCT_EDITOR),
+            "GV1": NodeProperty(id="GV1", editor_id="_2_0"),  # UOM 2 → binary
+            "GV2": NodeProperty(id="GV2", editor_id="_51_0"),  # UOM 51 → sensor
         },
+        cmds=NodeCommands(
+            accepts=[Command(id="DON", name="On"), Command(id="DOF", name="Off")]
+        ),
+    )
+    record = make_classified_node_record(
+        "AA BB CC 1", "Mixed-UOM Device", target="switch"
     )
     node = make_node(record, controller)
-    _categorize(isy_data, node, options, controller=controller)
+    with patch.object(
+        Node, "nodedef", new_callable=lambda: property(lambda _self: mixed_def)
+    ):
+        _categorize(isy_data, node, options, controller=controller)
 
     assert (node, "GV1") in [
         (n, c) for n, c in isy_data.aux_properties[Platform.BINARY_SENSOR]
@@ -900,14 +925,11 @@ def test_plugin_dimmer_aux_commands_classified_by_editor(isy_data, options):
     # INTEGER setter must not become a 1000-option dropdown.
     assert (node, "SETMODE") not in isy_data.aux_properties[Platform.NUMBER]
     assert (node, "THRESHOLD") not in isy_data.aux_properties[Platform.SELECT]
-    # A bool-editor *command* resolves to SWITCH but isn't surfaced yet —
-    # no aux-command switch entity exists, so it produces nothing.
-    for platform in (
-        Platform.SWITCH,
-        Platform.NUMBER,
-        Platform.SELECT,
-        Platform.BUTTON,
-    ):
+    # A bool-editor *command* with no ``init`` (write-only) resolves to
+    # SWITCH and is now surfaced — ``ISYAuxControlSwitchEntity`` drives
+    # it optimistically (hacs#67). It must land *only* on SWITCH.
+    assert (node, "INVERT") in isy_data.aux_properties[Platform.SWITCH]
+    for platform in (Platform.NUMBER, Platform.SELECT, Platform.BUTTON):
         assert (node, "INVERT") not in isy_data.aux_properties[platform]
 
 

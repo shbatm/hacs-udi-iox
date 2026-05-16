@@ -49,6 +49,48 @@ async def test_binary_sensor_entities(
 # --- Direct entity tests (lift binary_sensor.py coverage) ---
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("0", False),  # bool("0") is True in Python — the bug this guards
+        ("1", True),
+        ("100", True),  # UOM-78/79 on-off / open-closed form
+        ("0.0", False),
+        ("", None),
+        ("n/a", None),  # non-numeric plugin reading → unknown
+    ],
+)
+async def test_aux_binary_sensor_is_on_coerces_numerically(raw, expected) -> None:
+    """A coalesced aux binary control (e.g. ``virtualgeneric`` ``GV0``)
+    reports a *string* value; ``is_on`` must coerce it numerically, not
+    by Python string-truthiness (which pins it permanently on)."""
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.binary_sensor import ISYBinarySensorEntity
+
+    controller = make_controller(make_load_result())
+    record = make_node_record(
+        "AA AA AA 1",
+        "Dimmer 38",
+        properties={
+            "GV0": NodePropertyValue(
+                id="GV0", value=raw, formatted=raw, uom="2", precision=0
+            )
+        },
+    )
+    node = make_node(record, controller)
+    entity = ISYBinarySensorEntity(
+        isy_data_for(controller), node=node, control="GV0", unique_id="x_GV0"
+    )
+    assert entity.is_on is expected
+
+
 async def test_detect_device_type_and_class_insteon_matches_known_prefix() -> None:
     """An Insteon type matching one of BINARY_SENSOR_DEVICE_TYPES_ISY's
     prefixes returns its device_class + the raw type string."""
