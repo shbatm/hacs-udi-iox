@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.const import EntityCategory
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity import DeviceInfo, Entity, EntityDescription
@@ -55,6 +56,19 @@ def _resolve_device_info(
     if node.primary_address is not None:
         return devices.get(node.primary_address)
     return None
+
+
+def aux_entity_category(control: str) -> EntityCategory | None:
+    """HA placement policy for a coalesced aux control.
+
+    A control that writes the node's primary status (``ST``) *is* the
+    device's main control — a node-server ``virtualtemp`` setpoint and
+    an i3 flags ``GV0`` "Mode" both coalesce to control id ``ST`` (via
+    ``param.init="ST"``) — so it gets no category and sits with the
+    primary controls. Every other aux control (on-level, backlight, the
+    i3 ``GVx`` flags) is device configuration.
+    """
+    return None if control == PROP_STATUS else EntityCategory.CONFIG
 
 
 def node_status_int(node: Node) -> int | None:

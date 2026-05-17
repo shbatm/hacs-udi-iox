@@ -294,11 +294,21 @@ class ISYBinarySensorEntity(ISYNodeEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        """Get whether the ISY binary sensor device is on."""
-        value = self._node.properties[self._control].value
-        if value is None:
+        """Get whether the ISY binary sensor device is on.
+
+        ``NodePropertyValue.value`` is a *string* off the wire ("0" /
+        "1"; "0" / "100" for the UOM-78/79 on-off/open-closed forms).
+        Coerce numerically — ``bool("0")`` is ``True`` in Python, so
+        string-truthiness pins every binary sensor permanently on.
+        Non-numeric / empty → ``None`` (unknown).
+        """
+        node_prop = self._node.properties.get(self._control)
+        if node_prop is None or node_prop.value is None or node_prop.value == "":
             return None
-        return bool(value)
+        try:
+            return bool(int(float(node_prop.value)))
+        except (TypeError, ValueError):
+            return None
 
 
 class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
