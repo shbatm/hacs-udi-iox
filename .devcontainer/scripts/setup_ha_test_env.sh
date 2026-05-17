@@ -22,11 +22,12 @@ VENV_PYTHON="${VENV}/bin/python"
 echo "Updating pip, setuptools, and wheel..."
 ${VENV_PYTHON} -m pip install -U pip "setuptools>=70.0" wheel
 
-# Minimum HA version. Floor is 2026.5: the scene-member group display
-# uses HA's Entity.group framework (homeassistant.helpers.group), and
-# 2026.3 already gated for the local-brand-assets Brands Proxy API.
-# Keep in sync with hacs.json "homeassistant" + the CI test job.
-HA_SPEC="homeassistant[tests]>=2026.5"
+# Minimum HA version. Floor is 2026.4: the scene-member group display
+# uses HA's Entity.group framework (homeassistant.helpers.group), which
+# landed in core 6ac0c163aa5 (#160860, "Improve group entities"), first
+# released in 2026.4.0. Keep in sync with hacs.json "homeassistant" +
+# the CI test job.
+HA_SPEC="homeassistant[tests]>=2026.4"
 
 echo "Building/pulling wheelhouse for Home Assistant (may take a while first run)..."
 set +e
