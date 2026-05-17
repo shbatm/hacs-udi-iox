@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -82,16 +83,42 @@ def node_status_int(node: Node) -> int | None:
         return None
 
 
-def _strip_parent_prefix(name: str, parent_name: str | None) -> str:
-    """Strip a parent device's name from the front of a sub-node label.
+_NAME_TOKEN = re.compile(r"[^\s.\-:_]+")
 
-    ``"Hallway Keypad B"`` under device ``"Hallway Keypad"`` → ``"B"``;
-    HA prepends the device name via ``has_entity_name``, so leaving the
-    full prefix doubles it (``"Hallway Keypad Hallway Keypad B"``).
+
+def _strip_parent_prefix(name: str, parent_name: str | None) -> str:
+    """Strip the parent device's *leading token run* from a sub-node label.
+
+    HA prepends the device name via ``has_entity_name``, so any leading
+    tokens the sub-node repeats from its device double up
+    (``"Hallway Keypad Hallway Keypad B"``).
+
+    An exact ``str.startswith`` only catches the case where the device
+    name is a verbatim prefix. IoX routinely names the device after the
+    *primary* sub-node, which carries a distinguishing suffix the child
+    lacks — ``"Kitchen Refrigerator Leak.Dry"`` (device) vs
+    ``"Kitchen Refrigerator Leak HB"`` (child), or
+    ``"Main Bedroom Fan Light"`` vs ``"Main Bedroom Ceiling Fan"`` — so
+    the shared run is real but not a prefix. Compare token-wise instead
+    (separators ``\\s . - : _``, case-insensitive) and slice the
+    *original* string so the kept remainder's casing and punctuation
+    survive (``"…B-Hallway"`` stays ``"KP.B-Hallway"``, not ``"KP B
+    Hallway"``).
     """
-    if parent_name and name.startswith(parent_name):
-        return name[len(parent_name) :].lstrip(" -_:.") or name
-    return name
+    if not parent_name:
+        return name
+    parent_tokens = _NAME_TOKEN.findall(parent_name)
+    child_tokens = list(_NAME_TOKEN.finditer(name))
+    shared = 0
+    for ptok, match in zip(parent_tokens, child_tokens, strict=False):
+        if ptok.casefold() != match.group().casefold():
+            break
+        shared += 1
+    # Nothing shared, or the child is wholly contained in the device
+    # name — keep the full label rather than emit an empty/odd name.
+    if not shared or shared >= len(child_tokens):
+        return name
+    return name[child_tokens[shared].start() :]
 
 
 class ISYEntity(Entity):

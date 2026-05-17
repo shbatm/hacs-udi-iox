@@ -61,6 +61,25 @@ def test_strip_parent_prefix_removes_label_prefix() -> None:
     assert _strip_parent_prefix("Foo Bar", "Other") == "Foo Bar"
     # No parent → return as-is.
     assert _strip_parent_prefix("Foo Bar", None) == "Foo Bar"
+    # Shared leading run, but the device name carries a distinguishing
+    # suffix the child lacks (not a verbatim prefix) — token compare.
+    assert (
+        _strip_parent_prefix(
+            "Kitchen Refrigerator Leak HB", "Kitchen Refrigerator Leak.Dry"
+        )
+        == "HB"
+    )
+    assert (
+        _strip_parent_prefix("Main Bedroom Ceiling Fan", "Main Bedroom Fan Light")
+        == "Ceiling Fan"
+    )
+    # Remainder punctuation/casing is preserved verbatim (not re-joined).
+    assert (
+        _strip_parent_prefix("Bedroom Hall KP.A-Hallway", "Bedroom Hall")
+        == "KP.A-Hallway"
+    )
+    # Child wholly contained in the device name → keep full label.
+    assert _strip_parent_prefix("Hallway Light", "Hallway Light") == "Hallway Light"
 
 
 def test_isy_entity_unavailable_when_ws_disconnected() -> None:
