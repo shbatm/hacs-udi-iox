@@ -118,7 +118,7 @@
     'state': 'unknown',
   })
 # ---
-# name: test_select_entities[select.hallway_light_hallway_button_b_backlight-entry]
+# name: test_select_entities[select.hallway_light_button_b_backlight-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -263,7 +263,7 @@
     'disabled_by': None,
     'domain': 'select',
     'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'select.hallway_light_hallway_button_b_backlight',
+    'entity_id': 'select.hallway_light_button_b_backlight',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -271,12 +271,12 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': 'Hallway Button B Backlight',
+    'object_id_base': 'Button B Backlight',
     'options': dict({
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Hallway Button B Backlight',
+    'original_name': 'Button B Backlight',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'suggested_object_id': None,
@@ -286,11 +286,11 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_select_entities[select.hallway_light_hallway_button_b_backlight-state]
+# name: test_select_entities[select.hallway_light_button_b_backlight-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       'assumed_state': True,
-      'friendly_name': 'Hallway Light Hallway Button B Backlight',
+      'friendly_name': 'Hallway Light Button B Backlight',
       'options': list([
         'On  0 / Off 0',
         'On  1 / Off 0',
@@ -423,7 +423,7 @@
       ]),
     }),
     'context': <ANY>,
-    'entity_id': 'select.hallway_light_hallway_button_b_backlight',
+    'entity_id': 'select.hallway_light_button_b_backlight',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
