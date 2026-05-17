@@ -83,7 +83,7 @@ def node_status_int(node: Node) -> int | None:
         return None
 
 
-_NAME_TOKEN = re.compile(r"[^\s.\-:_]+")
+_NAME_TOKEN = re.compile(r"[^\s.:_-]+")
 
 
 def _strip_parent_prefix(name: str, parent_name: str | None) -> str:
