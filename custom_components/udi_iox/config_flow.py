@@ -269,9 +269,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
                             parsed_url.scheme,
                             new_netloc,
                             parsed_url.path,
+                            parsed_url.params,
                             parsed_url.query,
                             parsed_url.fragment,
-                            None,
                         )
                     ),
                 },
