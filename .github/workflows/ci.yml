@@ -62,7 +62,7 @@ jobs:
           # HA + helpers), the integration's runtime deps, and the test
           # toolchain. ``--pre`` tracks the same HA pre-release the
           # devcontainer / snapshots were generated against.
-          python -m pip install --pre --prefer-binary "homeassistant[tests]>=2026.5"
+          python -m pip install --pre --prefer-binary "homeassistant[tests]>=2026.4"
           python -m pip install -r requirements.txt
           python -m pip install -U pytest pytest-asyncio pytest-timeout \
             pytest-homeassistant-custom-component
