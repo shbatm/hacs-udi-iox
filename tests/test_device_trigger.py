@@ -50,7 +50,7 @@ async def test_get_triggers_lists_per_event_type(
     # The hallway sub-button (KeypadLinc-style) is the only fixture node
     # routed to Platform.EVENT — it folds under its parent device, so its
     # device is the hallway-light root.
-    entity_id = "event.hallway_light_hallway_button_b"
+    entity_id = "event.hallway_light_button_b"
     device = _device_for_event_entity(hass, entity_id)
     assert device is not None
 
@@ -86,7 +86,7 @@ async def test_attach_trigger_fires_on_matching_event_type(
     service_calls: list[ServiceCall],
 ) -> None:
     """The action runs each time the entity's event_type attribute matches."""
-    entity_id = "event.hallway_light_hallway_button_b"
+    entity_id = "event.hallway_light_button_b"
     device = _device_for_event_entity(hass, entity_id)
     assert device is not None
 
@@ -144,7 +144,7 @@ async def test_attach_trigger_does_not_fire_on_reconnect(
     """A WS reconnect (unavailable → known) must not re-fire the last press."""
     from homeassistant.const import STATE_UNAVAILABLE
 
-    entity_id = "event.hallway_light_hallway_button_b"
+    entity_id = "event.hallway_light_button_b"
     device = _device_for_event_entity(hass, entity_id)
     assert device is not None
 
@@ -256,7 +256,7 @@ async def test_event_entries_skip_non_event_and_non_matching_entries(
     convention."""
     from custom_components.udi_iox.device_trigger import _event_entries_for_device
 
-    entity_id = "event.hallway_light_hallway_button_b"
+    entity_id = "event.hallway_light_button_b"
     device = _device_for_event_entity(hass, entity_id)
     assert device is not None
     isy_data = init_integration.runtime_data
@@ -295,7 +295,7 @@ async def test_event_entries_skip_node_with_no_registered_commands(
     entity's address, the iterator skips it."""
     from custom_components.udi_iox.device_trigger import _event_entries_for_device
 
-    entity_id = "event.hallway_light_hallway_button_b"
+    entity_id = "event.hallway_light_button_b"
     device = _device_for_event_entity(hass, entity_id)
     assert device is not None
     isy_data = init_integration.runtime_data
@@ -314,7 +314,7 @@ async def test_attach_trigger_ignores_state_with_no_new_state(
 ) -> None:
     """A state-removal event (new_state=None) is silently ignored
     ."""
-    entity_id = "event.hallway_light_hallway_button_b"
+    entity_id = "event.hallway_light_button_b"
     device = _device_for_event_entity(hass, entity_id)
     assert device is not None
 
