@@ -31,6 +31,27 @@ async def test_switch_entities(
     await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)
 
 
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
+async def test_scene_exposes_member_entities_for_more_info(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """An ISY scene publishes its member nodes via HA's ``group_entities``
+    capability, resolved across domains, so they render in the scene's
+    more-info dialog. Fixture: "Living Room Scene" (55090) has the
+    "Garage Outlet" switch (BB BB BB 1) as its sole member."""
+    entries = er.async_entries_for_config_entry(
+        entity_registry, init_integration.entry_id
+    )
+    scene = next(e for e in entries if e.unique_id.endswith("_55090"))
+    member = next(e for e in entries if e.unique_id.endswith("_BB BB BB 1"))
+
+    state = hass.states.get(scene.entity_id)
+    assert state is not None
+    assert state.attributes.get("group_entities") == [member.entity_id]
+
+
 async def test_enable_switch_toggles_node_enabled() -> None:
     """The per-device enable switch calls ``Node.set_enabled`` (the v6
     replacement for PyISY 3.x's ``Node.enable()`` / ``disable()``)."""

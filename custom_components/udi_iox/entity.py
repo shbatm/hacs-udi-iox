@@ -7,9 +7,12 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import EntityCategory
+from homeassistant.core import Event as HassEvent
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo, Entity, EntityDescription
+from homeassistant.helpers.group import Group as HAEntityGroup
 from pyisyox import (
     Event,
     Folder,
@@ -200,6 +203,79 @@ class ISYEntity(Entity):
         self.async_write_ha_state()
 
 
+class _ISYSceneGroup(HAEntityGroup):
+    """Resolve an ISY scene's member nodes to their HA entity_ids so
+    they render in the scene's more-info dialog (HA's ``group_entities``
+    capability attribute — same mechanism MQTT groups use).
+
+    Core's ``IntegrationSpecificGroup`` resolves members under the group
+    entity's *own* domain; ISY scene members span domains (light /
+    switch / fan / …), so resolve by ``(platform, unique_id)`` across
+    every domain instead. Mirrors core's registry-event invalidation so
+    members that register after the scene still appear.
+    """
+
+    _member_entity_ids: list[str] | None = None
+
+    def __init__(self, entity: Entity, member_unique_ids: list[str]) -> None:
+        """Store the scene's member unique-ids (``{uuid}_{address}``)."""
+        super().__init__(entity)
+        self._member_unique_ids = member_unique_ids
+
+    @property
+    def member_entity_ids(self) -> list[str]:
+        """Member entity_ids, resolved + cached (registry-keyed)."""
+        if self._member_entity_ids is not None:
+            return self._member_entity_ids
+        registry = er.async_get(self._entity.hass)
+        want = set(self._member_unique_ids)
+        resolved = {
+            entry.unique_id: entry.entity_id
+            for entry in registry.entities.values()
+            if entry.platform == DOMAIN and entry.unique_id in want
+        }
+        self._member_entity_ids = [
+            resolved[uid] for uid in self._member_unique_ids if uid in resolved
+        ]
+        return self._member_entity_ids
+
+    @callback
+    def async_added_to_hass(self) -> None:
+        """Register + invalidate the cache on member registry changes."""
+        super().async_added_to_hass()
+        entity = self._entity
+        registry = er.async_get(entity.hass)
+        want = set(self._member_unique_ids)
+
+        @callback
+        def _handle_registry_updated(event: HassEvent[Any]) -> None:
+            action = event.data["action"]
+            entity_id = event.data["entity_id"]
+            if action in {"create", "update"}:
+                entry = registry.async_get(entity_id)
+                relevant = (
+                    entry is not None
+                    and entry.platform == DOMAIN
+                    and entry.unique_id in want
+                )
+            elif action == "remove":
+                relevant = (
+                    self._member_entity_ids is not None
+                    and entity_id in self._member_entity_ids
+                )
+            else:
+                relevant = False
+            if relevant:
+                self._member_entity_ids = None
+                entity.async_write_ha_state()
+
+        entity.async_on_remove(
+            entity.hass.bus.async_listen(
+                er.EVENT_ENTITY_REGISTRY_UPDATED, _handle_registry_updated
+            )
+        )
+
+
 class ISYGroupEntity(ISYEntity):
     """Representation of a ISY Group entity."""
 
@@ -210,6 +286,24 @@ class ISYGroupEntity(ISYEntity):
     # specific node device for single-controller scenes).
     _attr_has_entity_name = False
     _node: Group
+
+    def __init__(
+        self,
+        isy_data: IsyData,
+        node: Group,
+        device_info: DeviceInfo | None = None,
+        unique_id: str | None = None,
+    ) -> None:
+        """Expose the scene's members via HA's group framework.
+
+        ``self.group`` must be set before ``async_internal_added_to_hass``
+        runs (core binds it there), so do it in ``__init__``.
+        """
+        super().__init__(isy_data, node, device_info=device_info, unique_id=unique_id)
+        uuid = isy_data.uuid
+        member_unique_ids = [f"{uuid}_{address}" for address in node.member_addresses]
+        if member_unique_ids:
+            self.group = _ISYSceneGroup(self, member_unique_ids)
 
     @property
     def extra_state_attributes(self) -> dict:
