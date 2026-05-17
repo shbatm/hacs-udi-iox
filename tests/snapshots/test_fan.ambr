@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_fan_entities[fan.fanlinc_lamp_fanlinc_motor-entry]
+# name: test_fan_entities[fan.fanlinc_lamp_motor-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -15,7 +15,7 @@
     'disabled_by': None,
     'domain': 'fan',
     'entity_category': None,
-    'entity_id': 'fan.fanlinc_lamp_fanlinc_motor',
+    'entity_id': 'fan.fanlinc_lamp_motor',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -23,12 +23,12 @@
     'labels': set({
     }),
     'name': None,
-    'object_id_base': 'FanLinc Motor',
+    'object_id_base': 'Motor',
     'options': dict({
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'FanLinc Motor',
+    'original_name': 'Motor',
     'platform': 'udi_iox',
     'previous_unique_id': None,
     'suggested_object_id': None,
@@ -38,10 +38,10 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_fan_entities[fan.fanlinc_lamp_fanlinc_motor-state]
+# name: test_fan_entities[fan.fanlinc_lamp_motor-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp FanLinc Motor',
+      'friendly_name': 'FanLinc Lamp Motor',
       'percentage': 0,
       'percentage_step': 33.333333333333336,
       'preset_mode': None,
@@ -49,7 +49,7 @@
       'supported_features': <FanEntityFeature: 49>,
     }),
     'context': <ANY>,
-    'entity_id': 'fan.fanlinc_lamp_fanlinc_motor',
+    'entity_id': 'fan.fanlinc_lamp_motor',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
