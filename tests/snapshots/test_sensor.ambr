@@ -1,11 +1,13 @@
 # serializer version: 1
 # name: test_sensor_entities[sensor.fanlinc_lamp_responding-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -19,6 +21,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Responding',
     'options': dict({
     }),
     'original_device_class': None,
@@ -26,6 +29,7 @@
     'original_name': 'Responding',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_EE EE EE 1_ERR',
@@ -47,11 +51,13 @@
 # ---
 # name: test_sensor_entities[sensor.garage_outlet_responding-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -65,6 +71,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Responding',
     'options': dict({
     }),
     'original_device_class': None,
@@ -72,6 +79,7 @@
     'original_name': 'Responding',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_BB BB BB 1_ERR',
@@ -93,11 +101,13 @@
 # ---
 # name: test_sensor_entities[sensor.hallway_light_responding-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -111,6 +121,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Responding',
     'options': dict({
     }),
     'original_device_class': None,
@@ -118,6 +129,7 @@
     'original_name': 'Responding',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 1_ERR',
@@ -139,13 +151,15 @@
 # ---
 # name: test_sensor_entities[sensor.living_thermostat_humidity-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -159,6 +173,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Humidity',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.HUMIDITY: 'humidity'>,
@@ -166,6 +181,7 @@
     'original_name': 'Humidity',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_DD DD DD 1_CLIHUM',
@@ -189,11 +205,13 @@
 # ---
 # name: test_sensor_entities[sensor.living_thermostat_responding-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -207,6 +225,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Responding',
     'options': dict({
     }),
     'original_device_class': None,
@@ -214,6 +233,7 @@
     'original_name': 'Responding',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_DD DD DD 1_ERR',
@@ -235,11 +255,13 @@
 # ---
 # name: test_sensor_entities[sensor.sunset_lights_last_finish-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -253,6 +275,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Last finish',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
@@ -260,6 +283,7 @@
     'original_name': 'Last finish',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': 'program_last_finish',
     'unique_id': 'aa:bb:cc:dd:ee:ff_0010_last_finish',
@@ -282,11 +306,13 @@
 # ---
 # name: test_sensor_entities[sensor.sunset_lights_last_run-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -300,6 +326,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Last run',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
@@ -307,6 +334,7 @@
     'original_name': 'Last run',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': 'program_last_run',
     'unique_id': 'aa:bb:cc:dd:ee:ff_0010_last_run',
@@ -329,11 +357,13 @@
 # ---
 # name: test_sensor_entities[sensor.sunset_lights_next_scheduled_run-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -347,6 +377,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Next scheduled run',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.TIMESTAMP: 'timestamp'>,
@@ -354,6 +385,7 @@
     'original_name': 'Next scheduled run',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': 'program_next_scheduled',
     'unique_id': 'aa:bb:cc:dd:ee:ff_0010_next_scheduled',
@@ -376,8 +408,9 @@
 # ---
 # name: test_sensor_entities[sensor.sunset_lights_running-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'options': list([
@@ -387,6 +420,7 @@
       ]),
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -400,6 +434,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Running',
     'options': dict({
     }),
     'original_device_class': <SensorDeviceClass.ENUM: 'enum'>,
@@ -407,6 +442,7 @@
     'original_name': 'Running',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': 'program_running',
     'unique_id': 'aa:bb:cc:dd:ee:ff_0010_running',

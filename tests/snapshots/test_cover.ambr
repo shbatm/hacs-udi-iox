@@ -1,11 +1,13 @@
 # serializer version: 1
 # name: test_cover_entities[cover.living_room_blind-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -19,6 +21,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': None,
     'options': dict({
     }),
     'original_device_class': None,
@@ -26,6 +29,7 @@
     'original_name': None,
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': <CoverEntityFeature: 7>,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_n100_blind1',
@@ -37,6 +41,7 @@
     'attributes': ReadOnlyDict({
       'current_position': 0,
       'friendly_name': 'Living Room Blind',
+      'is_closed': True,
       'supported_features': <CoverEntityFeature: 7>,
     }),
     'context': <ANY>,

@@ -1,8 +1,9 @@
 # serializer version: 1
-# name: test_number_entities[number.boost_mode-entry]
+# name: test_number_entities[number.eisy_local_variables_boost_mode-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 2147483648.0,
@@ -11,12 +12,13 @@
       'step': 1,
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
     'domain': 'number',
     'entity_category': None,
-    'entity_id': 'number.boost_mode',
+    'entity_id': 'number.eisy_local_variables_boost_mode',
     'has_entity_name': False,
     'hidden_by': None,
     'icon': None,
@@ -24,6 +26,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Boost Mode',
     'options': dict({
     }),
     'original_device_class': None,
@@ -31,16 +34,17 @@
     'original_name': 'Boost Mode',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_1.10',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_number_entities[number.boost_mode-state]
+# name: test_number_entities[number.eisy_local_variables_boost_mode-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Boost Mode',
+      'friendly_name': 'eisy.local Variables Boost Mode',
       'last_edited': None,
       'max': 2147483648.0,
       'min': -2147483648.0,
@@ -48,17 +52,18 @@
       'step': 1,
     }),
     'context': <ANY>,
-    'entity_id': 'number.boost_mode',
+    'entity_id': 'number.eisy_local_variables_boost_mode',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '5',
   })
 # ---
-# name: test_number_entities[number.boost_mode_initial_value-entry]
+# name: test_number_entities[number.eisy_local_variables_boost_mode_initial_value-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 2147483648.0,
@@ -67,12 +72,13 @@
       'step': 1,
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
     'domain': 'number',
     'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'number.boost_mode_initial_value',
+    'entity_id': 'number.eisy_local_variables_boost_mode_initial_value',
     'has_entity_name': False,
     'hidden_by': None,
     'icon': None,
@@ -80,6 +86,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Boost Mode Initial Value',
     'options': dict({
     }),
     'original_device_class': None,
@@ -87,16 +94,17 @@
     'original_name': 'Boost Mode Initial Value',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_1.10_init',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_number_entities[number.boost_mode_initial_value-state]
+# name: test_number_entities[number.eisy_local_variables_boost_mode_initial_value-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Boost Mode Initial Value',
+      'friendly_name': 'eisy.local Variables Boost Mode Initial Value',
       'last_edited': None,
       'max': 2147483648.0,
       'min': -2147483648.0,
@@ -104,7 +112,7 @@
       'step': 1,
     }),
     'context': <ANY>,
-    'entity_id': 'number.boost_mode_initial_value',
+    'entity_id': 'number.eisy_local_variables_boost_mode_initial_value',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
@@ -113,8 +121,9 @@
 # ---
 # name: test_number_entities[number.fanlinc_lamp_on_level-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 100.0,
@@ -123,6 +132,7 @@
       'step': 1.0,
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -136,6 +146,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'On Level',
     'options': dict({
     }),
     'original_device_class': None,
@@ -143,6 +154,7 @@
     'original_name': 'On Level',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_EE EE EE 1_OL',
@@ -169,8 +181,9 @@
 # ---
 # name: test_number_entities[number.hallway_light_on_level-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 100.0,
@@ -179,6 +192,7 @@
       'step': 1.0,
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -192,6 +206,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'On Level',
     'options': dict({
     }),
     'original_device_class': None,
@@ -199,6 +214,7 @@
     'original_name': 'On Level',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 1_OL',

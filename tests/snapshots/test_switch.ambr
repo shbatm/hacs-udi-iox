@@ -1,11 +1,74 @@
 # serializer version: 1
-# name: test_switch_entities[switch.fanlinc_lamp_enabled-entry]
+# name: test_switch_entities[switch.eisy_local_movie_mode-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'switch',
+    'entity_category': None,
+    'entity_id': 'switch.eisy_local_movie_mode',
+    'has_entity_name': False,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Movie Mode',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:script-text-outline',
+    'original_name': 'Movie Mode',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_0001',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_switch_entities[switch.eisy_local_movie_mode-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'actions_enabled': True,
+      'actions_last_finish': None,
+      'actions_last_run': None,
+      'actions_next_scheduled_run': None,
+      'friendly_name': 'eisy.local Movie Mode',
+      'icon': 'mdi:script-text-outline',
+      'run_at_startup': None,
+      'running': None,
+      'status_enabled': True,
+      'status_last_finish': None,
+      'status_last_run': None,
+      'status_next_scheduled_run': None,
+    }),
+    'context': <ANY>,
+    'entity_id': 'switch.eisy_local_movie_mode',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_switch_entities[switch.fanlinc_lamp_enabled-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -19,6 +82,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Enabled',
     'options': dict({
     }),
     'original_device_class': <SwitchDeviceClass.SWITCH: 'switch'>,
@@ -26,6 +90,7 @@
     'original_name': 'Enabled',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_EE EE EE 1_enabled',
@@ -48,11 +113,13 @@
 # ---
 # name: test_switch_entities[switch.front_door_lock_enabled-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -66,6 +133,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Enabled',
     'options': dict({
     }),
     'original_device_class': <SwitchDeviceClass.SWITCH: 'switch'>,
@@ -73,6 +141,7 @@
     'original_name': 'Enabled',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_CC CC CC 1_enabled',
@@ -95,11 +164,13 @@
 # ---
 # name: test_switch_entities[switch.garage_outlet-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -113,6 +184,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': None,
     'options': dict({
     }),
     'original_device_class': None,
@@ -120,6 +192,7 @@
     'original_name': None,
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_BB BB BB 1',
@@ -141,11 +214,13 @@
 # ---
 # name: test_switch_entities[switch.garage_outlet_enabled-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -159,6 +234,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Enabled',
     'options': dict({
     }),
     'original_device_class': <SwitchDeviceClass.SWITCH: 'switch'>,
@@ -166,6 +242,7 @@
     'original_name': 'Enabled',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_BB BB BB 1_enabled',
@@ -186,13 +263,67 @@
     'state': 'on',
   })
 # ---
-# name: test_switch_entities[switch.hallway_light_enabled-entry]
+# name: test_switch_entities[switch.garage_outlet_living_room_scene-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'switch',
+    'entity_category': None,
+    'entity_id': 'switch.garage_outlet_living_room_scene',
+    'has_entity_name': False,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Living Room Scene',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': 'mdi:google-circles-communities',
+    'original_name': 'Living Room Scene',
+    'platform': 'udi_iox',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': 'aa:bb:cc:dd:ee:ff_55090',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_switch_entities[switch.garage_outlet_living_room_scene-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Garage Outlet Living Room Scene',
+      'group_all_on': False,
+      'icon': 'mdi:google-circles-communities',
+    }),
+    'context': <ANY>,
+    'entity_id': 'switch.garage_outlet_living_room_scene',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_switch_entities[switch.hallway_light_enabled-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -206,6 +337,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Enabled',
     'options': dict({
     }),
     'original_device_class': <SwitchDeviceClass.SWITCH: 'switch'>,
@@ -213,6 +345,7 @@
     'original_name': 'Enabled',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 1_enabled',
@@ -233,61 +366,15 @@
     'state': 'on',
   })
 # ---
-# name: test_switch_entities[switch.living_room_scene-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': None,
-    'config_entry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'switch',
-    'entity_category': None,
-    'entity_id': 'switch.living_room_scene',
-    'has_entity_name': False,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': 'mdi:google-circles-communities',
-    'original_name': 'Living Room Scene',
-    'platform': 'udi_iox',
-    'previous_unique_id': None,
-    'supported_features': 0,
-    'translation_key': None,
-    'unique_id': 'aa:bb:cc:dd:ee:ff_55090',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_switch_entities[switch.living_room_scene-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'friendly_name': 'Living Room Scene',
-      'group_all_on': False,
-      'icon': 'mdi:google-circles-communities',
-    }),
-    'context': <ANY>,
-    'entity_id': 'switch.living_room_scene',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'off',
-  })
-# ---
 # name: test_switch_entities[switch.living_thermostat_enabled-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -301,6 +388,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Enabled',
     'options': dict({
     }),
     'original_device_class': <SwitchDeviceClass.SWITCH: 'switch'>,
@@ -308,6 +396,7 @@
     'original_name': 'Enabled',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_DD DD DD 1_enabled',
@@ -328,70 +417,15 @@
     'state': 'on',
   })
 # ---
-# name: test_switch_entities[switch.movie_mode-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
-    'area_id': None,
-    'capabilities': None,
-    'config_entry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'switch',
-    'entity_category': None,
-    'entity_id': 'switch.movie_mode',
-    'has_entity_name': False,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': 'mdi:script-text-outline',
-    'original_name': 'Movie Mode',
-    'platform': 'udi_iox',
-    'previous_unique_id': None,
-    'supported_features': 0,
-    'translation_key': None,
-    'unique_id': 'aa:bb:cc:dd:ee:ff_0001',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_switch_entities[switch.movie_mode-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      'actions_enabled': True,
-      'actions_last_finish': None,
-      'actions_last_run': None,
-      'actions_next_scheduled_run': None,
-      'friendly_name': 'Movie Mode',
-      'icon': 'mdi:script-text-outline',
-      'run_at_startup': None,
-      'running': None,
-      'status_enabled': True,
-      'status_last_finish': None,
-      'status_last_run': None,
-      'status_next_scheduled_run': None,
-    }),
-    'context': <ANY>,
-    'entity_id': 'switch.movie_mode',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'off',
-  })
-# ---
 # name: test_switch_entities[switch.sunset_lights_enabled-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -405,6 +439,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Enabled',
     'options': dict({
     }),
     'original_device_class': None,
@@ -412,6 +447,7 @@
     'original_name': 'Enabled',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': 'program_enable',
     'unique_id': 'aa:bb:cc:dd:ee:ff_0010_enable',
@@ -434,11 +470,13 @@
 # ---
 # name: test_switch_entities[switch.sunset_lights_run_at_startup-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -452,6 +490,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Run at startup',
     'options': dict({
     }),
     'original_device_class': None,
@@ -459,6 +498,7 @@
     'original_name': 'Run at startup',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': 'program_run_at_startup',
     'unique_id': 'aa:bb:cc:dd:ee:ff_0010_run_at_startup',
