@@ -20,6 +20,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.udi_iox.diagnostics import (
     TO_REDACT_ENTRY_DATA,
     _redact_controller_uuid,
+    _redact_entry_title,
     _redact_portal_host,
     async_get_config_entry_diagnostics,
 )
@@ -49,6 +50,30 @@ def test_redact_portal_host_masks_subdomain_keeps_none() -> None:
     assert _redact_portal_host("my-eisy-1234.isy.io") == "**REDACTED**"
     assert _redact_portal_host(None) is None
     assert _redact_portal_host("") is None
+
+
+def test_redact_entry_title_strips_host_every_spelling() -> None:
+    """``CONF_HOST`` is redacted in ``entry.data`` but the host also
+    rides along in the entry title / hub device name — strip every
+    spelling (full value, netloc, bare hostname), longest first."""
+    # Title is "<name> (<bare hostname>)" — mask just the hostname.
+    assert (
+        _redact_entry_title("My eisy (eisy.local)", "http://eisy.local:8080")
+        == "My eisy (**REDACTED**)"
+    )
+    # No controller name → title is the bare hostname (fixture case).
+    assert _redact_entry_title("eisy.local", "http://eisy.local:8080") == "**REDACTED**"
+    # host:port in the title → netloc masked before bare host, so no
+    # leftover ":8080".
+    assert (
+        _redact_entry_title("Skynet ISY (eisy.local:8080)", "https://eisy.local:8080")
+        == "Skynet ISY (**REDACTED**)"
+    )
+    # Scheme-less host still masks.
+    assert _redact_entry_title("foo (eisy.local)", "eisy.local") == "foo (**REDACTED**)"
+    # Nothing to do.
+    assert _redact_entry_title(None, "http://x") is None
+    assert _redact_entry_title("Title", None) == "Title"
 
 
 async def test_async_get_config_entry_diagnostics_snapshot(
