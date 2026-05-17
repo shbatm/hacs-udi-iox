@@ -269,7 +269,11 @@
       None,
     ]),
     'area_id': None,
-    'capabilities': None,
+    'capabilities': dict({
+      'group_entities': list([
+        'switch.garage_outlet',
+      ]),
+    }),
     'config_entry_id': <ANY>,
     'config_subentry_id': <ANY>,
     'device_class': None,
@@ -305,6 +309,9 @@
     'attributes': ReadOnlyDict({
       'friendly_name': 'Garage Outlet Living Room Scene',
       'group_all_on': False,
+      'group_entities': list([
+        'switch.garage_outlet',
+      ]),
       'icon': 'mdi:google-circles-communities',
     }),
     'context': <ANY>,
