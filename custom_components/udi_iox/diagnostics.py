@@ -9,6 +9,7 @@ addresses and names stay verbatim so bug reports keep triage context.
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlparse
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
@@ -46,6 +47,24 @@ def _redact_portal_host(portal_host: str | None) -> str | None:
     if not portal_host:
         return None
     return _REDACTED
+
+
+def _redact_entry_title(title: str | None, host: str | None) -> str | None:
+    """Strip the controller host out of a name.
+
+    ``CONF_HOST`` is redacted in ``entry.data``, but the host still
+    leaks: the config-entry title is ``"<name> (<hostname>)"`` and the
+    hub device name falls back to the host when the controller has no
+    name. Mask every spelling of the host (full value, ``netloc``, bare
+    ``hostname``), longest first so a substring doesn't unmask the rest.
+    """
+    if not title or not host:
+        return title
+    parsed = urlparse(host)
+    candidates = (c for c in (host, parsed.netloc, parsed.hostname) if c)
+    for candidate in sorted(set(candidates), key=len, reverse=True):
+        title = title.replace(candidate, _REDACTED)
+    return title
 
 
 def _isy_data_shape(isy_data: Any) -> dict[str, Any]:
@@ -92,7 +111,7 @@ async def async_get_config_entry_diagnostics(
 
     return {
         "entry": {
-            "title": entry.title,
+            "title": _redact_entry_title(entry.title, entry.data.get(CONF_HOST)),
             "version": entry.version,
             "domain": entry.domain,
             "data": async_redact_data(dict(entry.data), TO_REDACT_ENTRY_DATA),
@@ -131,7 +150,7 @@ async def async_get_device_diagnostics(
     return {
         "device": {
             "id": device.id,
-            "name": device.name,
+            "name": _redact_entry_title(device.name, entry.data.get(CONF_HOST)),
             "model": device.model,
             "manufacturer": device.manufacturer,
             "sw_version": device.sw_version,

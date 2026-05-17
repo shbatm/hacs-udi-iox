@@ -18637,7 +18637,7 @@
         'enable_programs': True,
         'enable_variables': True,
       }),
-      'title': 'eisy.local',
+      'title': '**REDACTED**',
       'version': 1,
     }),
     'event_triggers': dict({
