@@ -1,17 +1,19 @@
 # serializer version: 1
-# name: test_binary_sensor_entities[binary_sensor.front_door_open-entry]
+# name: test_binary_sensor_entities[binary_sensor.eisy_local_front_door_open-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
     'domain': 'binary_sensor',
     'entity_category': None,
-    'entity_id': 'binary_sensor.front_door_open',
+    'entity_id': 'binary_sensor.eisy_local_front_door_open',
     'has_entity_name': False,
     'hidden_by': None,
     'icon': None,
@@ -19,6 +21,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Front Door Open',
     'options': dict({
     }),
     'original_device_class': None,
@@ -26,23 +29,24 @@
     'original_name': 'Front Door Open',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_0003',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_binary_sensor_entities[binary_sensor.front_door_open-state]
+# name: test_binary_sensor_entities[binary_sensor.eisy_local_front_door_open-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Front Door Open',
+      'friendly_name': 'eisy.local Front Door Open',
       'status_enabled': True,
       'status_last_finish': None,
       'status_last_run': None,
       'status_next_scheduled_run': None,
     }),
     'context': <ANY>,
-    'entity_id': 'binary_sensor.front_door_open',
+    'entity_id': 'binary_sensor.eisy_local_front_door_open',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
@@ -51,11 +55,13 @@
 # ---
 # name: test_binary_sensor_entities[binary_sensor.sunset_lights_status-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -69,6 +75,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Status',
     'options': dict({
     }),
     'original_device_class': None,
@@ -76,6 +83,7 @@
     'original_name': 'Status',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': 'program_status',
     'unique_id': 'aa:bb:cc:dd:ee:ff_0010_status',

@@ -1,8 +1,9 @@
 # serializer version: 1
 # name: test_select_entities[select.fanlinc_lamp_ramp_rate-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'options': list([
@@ -41,6 +42,7 @@
       ]),
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -54,6 +56,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Ramp Rate',
     'options': dict({
     }),
     'original_device_class': None,
@@ -61,6 +64,7 @@
     'original_name': 'Ramp Rate',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_EE EE EE 1_RR',
@@ -116,8 +120,9 @@
 # ---
 # name: test_select_entities[select.hallway_light_hallway_button_b_backlight-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'options': list([
@@ -252,6 +257,7 @@
       ]),
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -265,6 +271,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Hallway Button B Backlight',
     'options': dict({
     }),
     'original_device_class': None,
@@ -272,6 +279,7 @@
     'original_name': 'Hallway Button B Backlight',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 2_BL',
@@ -424,8 +432,9 @@
 # ---
 # name: test_select_entities[select.hallway_light_ramp_rate-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'options': list([
@@ -464,6 +473,7 @@
       ]),
     }),
     'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
     'device_class': None,
     'device_id': <ANY>,
     'disabled_by': None,
@@ -477,6 +487,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Ramp Rate',
     'options': dict({
     }),
     'original_device_class': None,
@@ -484,6 +495,7 @@
     'original_name': 'Ramp Rate',
     'platform': 'udi_iox',
     'previous_unique_id': None,
+    'suggested_object_id': None,
     'supported_features': 0,
     'translation_key': None,
     'unique_id': 'aa:bb:cc:dd:ee:ff_AA AA AA 1_RR',

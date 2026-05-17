@@ -58,6 +58,10 @@ from pyisyox.testing import (  # noqa: E402
 from pytest_homeassistant_custom_component.common import (  # noqa: E402
     MockConfigEntry,
 )
+from pytest_homeassistant_custom_component.syrupy import (  # noqa: E402
+    HomeAssistantSnapshotExtension,
+)
+from syrupy.assertion import SnapshotAssertion  # noqa: E402
 
 from custom_components.udi_iox.const import (  # noqa: E402
     CONF_ENABLE_NETWORKING,
@@ -285,6 +289,20 @@ def populated_controller():
 # restrict which platforms are forwarded, then depend on ``init_integration``
 # which builds + sets up a ``MockConfigEntry``.
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    """Use HA's syrupy extension.
+
+    Without this override syrupy falls back to its default extension,
+    which serialises HA registry objects differently and writes to
+    ``__snapshots__/`` instead of ``snapshots/`` — every
+    ``snapshot_platform`` assertion then fails with "snapshot does not
+    exist". (Lost in the hacs-isy994 fork bootstrap; never caught
+    because CI ran no pytest job.)
+    """
+    return snapshot.use_extension(HomeAssistantSnapshotExtension)
 
 
 class _StubControllerEvents:
