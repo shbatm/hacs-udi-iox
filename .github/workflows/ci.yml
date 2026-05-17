@@ -64,7 +64,9 @@ jobs:
           # devcontainer / snapshots were generated against.
           python -m pip install --pre --prefer-binary "homeassistant[tests]>=2026.3"
           python -m pip install -r requirements.txt
-          python -m pip install -U pytest pytest-asyncio \
+          python -m pip install -U pytest pytest-asyncio pytest-timeout \
             pytest-homeassistant-custom-component
       - name: Run pytest
-        run: python -m pytest tests/ -q --no-cov
+        # --timeout caps a hung async fixture / stray network call so the
+        # job fails fast instead of spinning to the runner limit.
+        run: python -m pytest tests/ -q --no-cov --timeout=60
