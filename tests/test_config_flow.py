@@ -14,13 +14,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant import config_entries, data_entry_flow
-from homeassistant.components import ssdp
 from homeassistant.const import (
     CONF_HOST,
     CONF_PASSWORD,
     CONF_USERNAME,
     CONF_VERIFY_SSL,
 )
+from homeassistant.helpers.service_info import ssdp
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.udi_iox.config_flow import UDN_UUID_PREFIX

@@ -10,7 +10,6 @@ from urllib.parse import urlparse, urlunparse
 
 import voluptuous as vol
 from homeassistant import config_entries, core, exceptions
-from homeassistant.components import ssdp
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
@@ -21,7 +20,11 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
-from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
+from homeassistant.helpers.service_info.ssdp import (
+    ATTR_UPNP_FRIENDLY_NAME,
+    ATTR_UPNP_UDN,
+    SsdpServiceInfo,
+)
 from pyisyox import (
     Controller,
     ISYConnectionError,
@@ -310,11 +313,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
         if not model_version.startswith("6."):
             return self.async_abort(reason="unsupported_firmware")
 
-        friendly_name = discovery_info.upnp[ssdp.ATTR_UPNP_FRIENDLY_NAME]
+        friendly_name = discovery_info.upnp[ATTR_UPNP_FRIENDLY_NAME]
         url = discovery_info.ssdp_location
         assert isinstance(url, str)
         parsed_url = urlparse(url)
-        mac = discovery_info.upnp[ssdp.ATTR_UPNP_UDN]
+        mac = discovery_info.upnp[ATTR_UPNP_UDN]
         mac = mac.removeprefix(UDN_UUID_PREFIX)
         url = url.removesuffix(ISY_URL_POSTFIX)
 
