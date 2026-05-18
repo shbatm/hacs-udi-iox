@@ -49,6 +49,7 @@ from .const import (
     UOM_ISYV4_DEGREES,
 )
 from .editor_classification import BINARY_UOMS
+from .entity import _pnode_group_naming
 from .models import IsyData
 
 #: Aux controls the consumer drops as a matter of HA *policy* (not
@@ -329,6 +330,10 @@ def _suggested_area_for_node(controller: Controller, node: Node) -> str | None:
 def _generate_device_info(controller: Controller, node: Node, host: str) -> DeviceInfo:
     """Generate the device info for a node that gets its own HA device.
 
+    The device name is the pnode group's shared prefix
+    (:func:`_pnode_group_naming`) — ``"… Leak"`` for a leak sensor whose
+    primary node is ``"… Leak.Dry"`` — not the primary's raw label.
+
     For node-server plugin children (``primary_address`` set + protocol
     is ``NODE_SERVER``), anchor ``via_device`` on the controller node
     instead of the eisy root so HA renders the hub→sensor hierarchy
@@ -348,7 +353,7 @@ def _generate_device_info(controller: Controller, node: Node, host: str) -> Devi
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"{uuid}_{node.address}")},
         manufacturer=manufacturer,
-        name=node.name,
+        name=_pnode_group_naming(controller.nodes, node)[0],
         via_device=via_device,
         configuration_url=host,
         suggested_area=_suggested_area_for_node(controller, node),
