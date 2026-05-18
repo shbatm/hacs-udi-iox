@@ -28,6 +28,7 @@ from pyisyox.constants import (
     COMMAND_FRIENDLY_NAME,
     ISY_VALUE_UNKNOWN,
     PROP_STATUS,
+    Protocol,
 )
 from pyisyox.schema.editor import EditorRange
 from pyisyox.schema.nodedef import NodeDef
@@ -122,6 +123,106 @@ def _strip_parent_prefix(name: str, parent_name: str | None) -> str:
     if not shared or shared >= len(child_tokens):
         return name
     return name[child_tokens[shared].start() :]
+
+
+def _common_token_run(names: list[str]) -> int:
+    """Count of leading tokens common (case-insensitive) to every name.
+
+    Tokens are the same ``\\s . - : _``-delimited runs
+    :func:`_strip_parent_prefix` uses. Returns ``0`` if the list is
+    empty or any name has no tokens.
+    """
+    token_lists = [_NAME_TOKEN.findall(n) for n in names]
+    if not token_lists or any(not toks for toks in token_lists):
+        return 0
+    shared = 0
+    for group in zip(*token_lists, strict=False):
+        first = group[0].casefold()
+        if any(tok.casefold() != first for tok in group):
+            break
+        shared += 1
+    return shared
+
+
+def _pnode_group_naming(
+    nodes: dict[str, Node], primary: Node
+) -> tuple[str, str | None]:
+    """Device name + primary-entity label for a pnode hardware group.
+
+    IoX names each node of a multi-node device independently — a leak
+    sensor is ``"<area> Leak.Dry"`` / ``".Wet"`` / ``".HB"``. Naming the
+    HA device after the *primary* sub-node (``"… Leak.Dry"``) and
+    leaving the primary entity unnamed makes the device card and the
+    primary entity both read ``"… Leak.Dry"``.
+
+    Instead, use the *shared leading token run* across the primary and
+    its folded sub-nodes as the device name (``"… Leak"``) and the
+    primary's residual suffix as its entity label (``"Dry"``).
+
+    Returns ``(device_name, primary_label)``. ``primary_label`` is
+    ``None`` — primary stays unnamed, inheriting the device name as
+    before — unless **every member** (primary + folded sub-nodes)
+    continues past the shared token prefix with a *non-space* separator
+    (``-``/``.``/``_``/``:``) and a residual. That separator is IoX's
+    "facet of one device" marker: a leak (``… Leak.Dry``/``.Wet``/
+    ``.HB``), a motion sensor (``Motion Sensor-Sensor``/``-Dusk.Dawn``/
+    ``-Low Bat``), a dual outlet (``Test Outlet.1 On-Off Top``/``.2
+    On-Off Bot``) → device = shared prefix, primary entity = its
+    residual. A plain space is just an ordinary compound name, left
+    alone: ``Hallway Light`` + ``Hallway Button B``, a FanLinc
+    ``FanLinc Lamp`` + ``FanLinc Motor``, a KeypadLinc whose primary
+    *is* the prefix — those keep today's device name and the existing
+    :func:`_strip_parent_prefix` child handling, no id churn.
+    """
+    # Folded sub-nodes only: node-server children carry a primary_address
+    # but own their device, so they must not shorten the primary's name.
+    subs = [
+        n
+        for n in nodes.values()
+        if n.primary_address == primary.address
+        and n.protocol != Protocol.NODE_SERVER
+        and n.name
+    ]
+    if not subs:
+        return primary.name, None
+    members = [primary, *subs]
+    shared = _common_token_run([m.name for m in members])
+    if shared < 1:
+        return primary.name, None
+    prim_cut = prim_res = 0
+    for m in members:
+        toks = list(_NAME_TOKEN.finditer(m.name))
+        if len(toks) <= shared:
+            return primary.name, None  # no residual (primary == prefix)
+        gap = m.name[toks[shared - 1].end() : toks[shared].start()]
+        if not any(c in "-._:" for c in gap):
+            return primary.name, None  # space-delimited compound name
+        if m is primary:
+            prim_cut, prim_res = toks[shared - 1].end(), toks[shared].start()
+    return primary.name[:prim_cut], primary.name[prim_res:]
+
+
+def _primary_status_label(
+    node: Node, node_def: NodeDef | None, primary_label: str | None
+) -> str | None:
+    """Name for an own-device primary's status (``ST``) entity.
+
+    The pnode-group residual wins (``"Dry"`` for a leak primary). Else,
+    a *node-server* node whose nodedef names ``ST`` takes that name with
+    the generic ``"Status"`` token stripped — ``"Current"`` stays
+    ``"Current"``, ``"Switch Status"`` (a nodedef quirk) → ``"Switch"``,
+    a bare ``"Status"`` → nothing → unnamed (the primary then just reads
+    as the device, matching the eisy UI: device = node name). Native
+    Insteon/Z-Wave is unnamed regardless (gated to node-server).
+    """
+    if primary_label is not None:
+        return primary_label
+    if node.protocol == Protocol.NODE_SERVER and node_def is not None:
+        st = node_def.properties.get(PROP_STATUS)
+        if st is not None and st.name:
+            kept = [t for t in _NAME_TOKEN.findall(st.name) if t.casefold() != "status"]
+            return " ".join(kept) or None
+    return None
 
 
 class ISYEntity(Entity):
@@ -344,19 +445,34 @@ class ISYNodeEntity(ISYEntity):
 
         # Name composition (has_entity_name=True; ``_attr_name`` is the
         # suffix or ``None`` to use the device name as-is):
-        # - Primary on a node owning its DeviceInfo → ``None``.
+        # - Primary on a node owning its DeviceInfo → its residual suffix
+        #   past the pnode-group's shared prefix ("Dry" for a leak's
+        #   "… Leak.Dry" primary under device "… Leak"); else a
+        #   node-server node's nodedef ST name ("Current" on a
+        #   virtualtemp); else ``None`` (native primary / KeypadLinc →
+        #   unnamed, inherits the device name).
         # - Primary on a folded sub-node → sub-name with parent prefix
         #   stripped (avoids duplicating the device prefix).
         # - Aux → property label or COMMAND_FRIENDLY_NAME, prefixed with
         #   the sub-name on folded sub-nodes so e.g. a sub-node "Ramp
-        #   Rate" doesn't render identically to the parent's.
+        #   Rate" doesn't render identically to the parent's. On an
+        #   own-device primary it stays the bare label on the (possibly
+        #   shortened) device name — button/switch build their names
+        #   outside this block, so this matches them.
         self._node_def = node.nodedef
         node_owns_device = (
-            node.primary_address is None or node.protocol == "node_server"
+            node.primary_address is None or node.protocol == Protocol.NODE_SERVER
+        )
+        primary_label = (
+            _pnode_group_naming(isy_data.root.nodes, node)[1]
+            if node_owns_device
+            else None
         )
         if control == PROP_STATUS:
             if node_owns_device:
-                name: str | None = None
+                name: str | None = _primary_status_label(
+                    node, self._node_def, primary_label
+                )
             else:
                 parent = isy_data.root.nodes.get(node.primary_address)
                 parent_name = parent.name if parent is not None else None
@@ -388,6 +504,10 @@ class ISYNodeEntity(ISYEntity):
                     .title()
                 )
             if node_owns_device:
+                # Aux keeps its bare label on the (now possibly
+                # shortened) device name — same across every platform
+                # (button/switch build names independently of this
+                # block, so prefixing here would desync them).
                 name = label
             else:
                 parent = isy_data.root.nodes.get(node.primary_address)
