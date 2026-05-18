@@ -78,7 +78,12 @@ CONF_RESTORE_LIGHT_STATE = "restore_light_state"
 CONF_SENSOR_STRING = "sensor_string"
 
 DEFAULT_IGNORE_STRING = "{IGNORE ME}"
-DEFAULT_SENSOR_STRING = "sensor"
+# Bracketed marker (not the bare word "sensor"): the string is matched
+# verbatim AND stripped from device/entity names, so a plain word would
+# both over-match (node-server entities legitimately containing
+# "sensor") and mangle real names. Users put "{SENSOR}" in a node's
+# IoX name to force binary_sensor/sensor classification.
+DEFAULT_SENSOR_STRING = "{SENSOR}"
 DEFAULT_RESTORE_LIGHT_STATE = False
 DEFAULT_PROGRAM_STRING = "HA."
 DEFAULT_ENABLE_VARIABLES = True

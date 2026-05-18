@@ -84,7 +84,7 @@ async def test_user_step_advances_to_options_step(hass) -> None:
     assert defaults["enable_programs"] is True
     assert defaults["enable_networking"] is False
     assert defaults["restore_light_state"] is False
-    assert defaults["sensor_string"] == "sensor"
+    assert defaults["sensor_string"] == "{SENSOR}"
     assert defaults["ignore_string"] == "{IGNORE ME}"
 
 

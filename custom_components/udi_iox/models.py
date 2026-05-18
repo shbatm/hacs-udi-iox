@@ -60,6 +60,12 @@ class IsyData:
     # sensor, three timestamp sensors, two switches, and five buttons.
     # See ``program_device.py``.
     program_devices: list[Program]
+    # The configured ``sensor_string`` marker (CONF_SENSOR_STRING).
+    # Tested verbatim on the raw IoX name for forced sensor
+    # classification AND stripped from device/entity display names so
+    # the marker never leaks into the UI / entity_id. Empty = no strip
+    # (test fixtures that don't set it).
+    sensor_string: str
     controller_events: IsyControllerEvents
 
     def __init__(self) -> None:
@@ -74,6 +80,7 @@ class IsyData:
         self.devices = {}
         self.node_triggers = {}
         self.program_devices = []
+        self.sensor_string = ""
 
     @property
     def uuid(self) -> str:

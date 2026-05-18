@@ -144,8 +144,24 @@ def _common_token_run(names: list[str]) -> int:
     return shared
 
 
+def _strip_sensor_marker(name: str, marker: str) -> str:
+    """Remove the configured ``sensor_string`` marker from a display name.
+
+    Matched/stripped **verbatim** (exact substring) so the marker never
+    leaks into a device name, entity name, entity_id, or the
+    pnode-grouping token math, while classification still tests the raw
+    IoX name. Whitespace left by a mid-name removal is collapsed; an
+    empty result falls back to the original (a node named only by the
+    marker keeps it rather than becoming nameless).
+    """
+    if not marker or marker not in name:
+        return name
+    stripped = " ".join(name.replace(marker, " ").split())
+    return stripped or name
+
+
 def _pnode_group_naming(
-    nodes: dict[str, Node], primary: Node
+    nodes: dict[str, Node], primary: Node, sensor_string: str = ""
 ) -> tuple[str, str | None]:
     """Device name + primary-entity label for a pnode hardware group.
 
@@ -176,6 +192,9 @@ def _pnode_group_naming(
     """
     # Folded sub-nodes only: node-server children carry a primary_address
     # but own their device, so they must not shorten the primary's name.
+    # Operate on marker-stripped names so the sensor_string never
+    # pollutes the shared-prefix math or the returned device/label.
+    prim_name = _strip_sensor_marker(primary.name, sensor_string)
     subs = [
         n
         for n in nodes.values()
@@ -184,22 +203,23 @@ def _pnode_group_naming(
         and n.name
     ]
     if not subs:
-        return primary.name, None
+        return prim_name, None
     members = [primary, *subs]
-    shared = _common_token_run([m.name for m in members])
+    names = [_strip_sensor_marker(m.name, sensor_string) for m in members]
+    shared = _common_token_run(names)
     if shared < 1:
-        return primary.name, None
+        return prim_name, None
     prim_cut = prim_res = 0
-    for m in members:
-        toks = list(_NAME_TOKEN.finditer(m.name))
+    for m, mname in zip(members, names, strict=False):
+        toks = list(_NAME_TOKEN.finditer(mname))
         if len(toks) <= shared:
-            return primary.name, None  # no residual (primary == prefix)
-        gap = m.name[toks[shared - 1].end() : toks[shared].start()]
+            return prim_name, None  # no residual (primary == prefix)
+        gap = mname[toks[shared - 1].end() : toks[shared].start()]
         if not any(c in "-._:" for c in gap):
-            return primary.name, None  # space-delimited compound name
+            return prim_name, None  # space-delimited compound name
         if m is primary:
             prim_cut, prim_res = toks[shared - 1].end(), toks[shared].start()
-    return primary.name[:prim_cut], primary.name[prim_res:]
+    return prim_name[:prim_cut], prim_name[prim_res:]
 
 
 def _primary_status_label(
@@ -244,7 +264,11 @@ class ISYEntity(Entity):
         """Initialize the entity. ``unique_id`` defaults to ``{uuid}_{address}``."""
         self._isy_data = isy_data
         self._node = node
-        self._attr_name = getattr(node, "name", "") or ""
+        # Match HA's ``Entity._attr_name: str | None``; subclasses below
+        # legitimately reassign a possibly-None composed name.
+        self._attr_name: str | None = _strip_sensor_marker(
+            getattr(node, "name", "") or "", isy_data.sensor_string
+        )
         uuid = isy_data.uuid
         address = self._node_address()
         if device_info is None:
@@ -464,7 +488,7 @@ class ISYNodeEntity(ISYEntity):
             node.primary_address is None or node.protocol == Protocol.NODE_SERVER
         )
         primary_label = (
-            _pnode_group_naming(isy_data.root.nodes, node)[1]
+            _pnode_group_naming(isy_data.root.nodes, node, isy_data.sensor_string)[1]
             if node_owns_device
             else None
         )
@@ -476,7 +500,13 @@ class ISYNodeEntity(ISYEntity):
             else:
                 parent = isy_data.root.nodes.get(node.primary_address)
                 parent_name = parent.name if parent is not None else None
-                name = _strip_parent_prefix(node.name, parent_name)
+                marker = isy_data.sensor_string
+                name = _strip_parent_prefix(
+                    _strip_sensor_marker(node.name, marker),
+                    _strip_sensor_marker(parent_name, marker)
+                    if parent_name is not None
+                    else None,
+                )
         else:
             label: str | None = None
             if self._node_def is not None and (
@@ -512,7 +542,13 @@ class ISYNodeEntity(ISYEntity):
             else:
                 parent = isy_data.root.nodes.get(node.primary_address)
                 parent_name = parent.name if parent is not None else None
-                prefix = _strip_parent_prefix(node.name, parent_name)
+                marker = isy_data.sensor_string
+                prefix = _strip_parent_prefix(
+                    _strip_sensor_marker(node.name, marker),
+                    _strip_sensor_marker(parent_name, marker)
+                    if parent_name is not None
+                    else None,
+                )
                 name = f"{prefix} {label}".strip() if prefix else label
 
         self._attr_name = name

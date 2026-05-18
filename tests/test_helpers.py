@@ -34,7 +34,11 @@ from pyisyox.testing import (
     make_program_record,
 )
 
-from custom_components.udi_iox.helpers import _categorize_nodes, _categorize_programs
+from custom_components.udi_iox.helpers import (
+    _categorize_nodes,
+    _categorize_program_devices,
+    _categorize_programs,
+)
 from custom_components.udi_iox.models import IsyData
 
 
@@ -774,6 +778,46 @@ def test_sensor_identifier_forces_sensor_classification(isy_data, controller):
     assert isy_data.nodes[Platform.LIGHT] == []
 
 
+def test_sensor_string_marker_stripped_from_device_name(isy_data, controller):
+    """#80: the configured sensor_string is matched verbatim on the raw
+    name for forced classification, but stripped from the HA device
+    name so the marker never leaks into the UI / entity_id."""
+    record = make_classified_node_record(
+        "A 1",
+        "Garbage Disposal {SENSOR}",
+        target="switch",
+        properties={"ST": NodePropertyValue(id="ST", value="0", uom="36")},
+    )
+    node = make_node(record, controller)
+    _categorize(
+        isy_data,
+        node,
+        MappingProxyType({"sensor_string": "{SENSOR}"}),
+        controller=controller,
+    )
+
+    assert isy_data.nodes[Platform.SENSOR] == [node]  # classified on raw name
+    assert isy_data.nodes[Platform.SWITCH] == []
+    device_info = isy_data.devices.get(node.address)
+    assert device_info is not None
+    assert device_info["name"] == "Garbage Disposal"  # marker stripped
+
+
+def test_default_sensor_string_does_not_match_bare_word_sensor(isy_data, controller):
+    """#80: the bracketed default ``{SENSOR}`` must not false-match a
+    node-server entity that legitimately contains the word "sensor"
+    (the reason the default changed from the bare word)."""
+    record = make_classified_node_record("A 1", "Flume Water Sensor", target="switch")
+    node = make_node(record, controller)
+    _categorize(isy_data, node, MappingProxyType({}), controller=controller)
+
+    assert isy_data.nodes[Platform.SWITCH] == [node]  # NOT forced to sensor
+    assert isy_data.nodes[Platform.SENSOR] == []
+    device_info = isy_data.devices.get(node.address)
+    assert device_info is not None
+    assert device_info["name"] == "Flume Water Sensor"  # unchanged
+
+
 # --- node-server device hierarchy ------------------------------------
 
 
@@ -1017,6 +1061,84 @@ def test_categorize_programs_ignores_paths_outside_HA_namespace(isy_data, contro
 
     for platform_programs in isy_data.programs.values():
         assert platform_programs == []
+
+
+def test_categorize_programs_skips_ignore_string_in_program_name(isy_data, controller):
+    """#62: a legacy HA.<platform>/ program whose own name carries the
+    ignore string is not surfaced."""
+    status = make_program(
+        make_program_record("0010", "status", path="HA.switch/Foo {IGNORE ME}/status"),
+        controller,
+    )
+    actions = make_program(
+        make_program_record(
+            "0011", "actions", path="HA.switch/Foo {IGNORE ME}/actions"
+        ),
+        controller,
+    )
+
+    _categorize_programs(
+        isy_data, {"0010": status, "0011": actions}, ignore_identifier="{IGNORE ME}"
+    )
+
+    assert isy_data.programs[Platform.SWITCH] == []
+
+
+def test_categorize_programs_skips_ignore_string_in_containing_folder(
+    isy_data, controller
+):
+    """#62: the ignore string in a *containing folder* (path is the
+    slash-joined folder/name chain) suppresses everything under it,
+    even when the program's own leaf name is clean."""
+    status = make_program(
+        make_program_record(
+            "0010", "status", path="HA.switch/{IGNORE ME} Group/Bar/status"
+        ),
+        controller,
+    )
+    actions = make_program(
+        make_program_record(
+            "0011", "actions", path="HA.switch/{IGNORE ME} Group/Bar/actions"
+        ),
+        controller,
+    )
+
+    _categorize_programs(
+        isy_data, {"0010": status, "0011": actions}, ignore_identifier="{IGNORE ME}"
+    )
+
+    assert isy_data.programs[Platform.SWITCH] == []
+
+
+def test_categorize_program_devices_skips_ignore_string(isy_data, controller):
+    """#62: program-as-device fan-out honors the ignore string for both
+    the program's own name and any containing folder; clean programs
+    still fan out."""
+    by_name = make_program(
+        make_program_record(
+            "0030", "My {IGNORE ME} Routine", path="Lighting/My {IGNORE ME} Routine"
+        ),
+        controller,
+    )
+    by_folder = make_program(
+        make_program_record("0031", "Clean", path="{IGNORE ME} Folder/Clean"),
+        controller,
+    )
+    keeper = make_program(
+        make_program_record("0032", "Keeper", path="Lighting/Keeper"),
+        controller,
+    )
+
+    _categorize_program_devices(
+        isy_data,
+        {"0030": by_name, "0031": by_folder, "0032": keeper},
+        program_prefix="HA.",
+        ignore_identifier="{IGNORE ME}",
+    )
+
+    assert keeper in isy_data.program_devices
+    assert by_name not in isy_data.program_devices
+    assert by_folder not in isy_data.program_devices
 
 
 # --- suggested_area: derived from IoX folder ancestry ---------------------

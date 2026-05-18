@@ -327,7 +327,9 @@ def _suggested_area_for_node(controller: Controller, node: Node) -> str | None:
     return None
 
 
-def _generate_device_info(controller: Controller, node: Node, host: str) -> DeviceInfo:
+def _generate_device_info(
+    controller: Controller, node: Node, host: str, sensor_string: str = ""
+) -> DeviceInfo:
     """Generate the device info for a node that gets its own HA device.
 
     The device name is the pnode group's shared prefix
@@ -353,7 +355,7 @@ def _generate_device_info(controller: Controller, node: Node, host: str) -> Devi
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"{uuid}_{node.address}")},
         manufacturer=manufacturer,
-        name=_pnode_group_naming(controller.nodes, node)[0],
+        name=_pnode_group_naming(controller.nodes, node, sensor_string)[0],
         via_device=via_device,
         configuration_url=host,
         suggested_area=_suggested_area_for_node(controller, node),
@@ -405,7 +407,7 @@ def _categorize_nodes(
         # is preserved in HA.
         if _has_own_device(node):
             isy_data.devices[node.address] = _generate_device_info(
-                controller, node, host
+                controller, node, host, sensor_identifier
             )
 
         # Classifier output drives the controllable platform (plugins),
@@ -569,10 +571,26 @@ def _categorize_nodes(
     _dedupe_device_aux(isy_data)
 
 
-def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> None:
+def _categorize_programs(
+    isy_data: IsyData, programs: dict[str, Program], ignore_identifier: str = ""
+) -> None:
     """Walk the ``HA.<platform>/<name>/<status|actions>`` convention,
-    pairing status/actions programs by inner name."""
-    by_path: dict[str, Program] = {p.path: p for p in programs.values() if p.path}
+    pairing status/actions programs by inner name.
+
+    Programs whose name — or any containing folder, since ``path`` is
+    the slash-joined folder/name chain — contains ``ignore_identifier``
+    are skipped, mirroring the node/group loop so the Ignore String
+    option works controller-side for programs too (#62).
+    """
+    by_path: dict[str, Program] = {
+        p.path: p
+        for p in programs.values()
+        if p.path
+        and not (
+            ignore_identifier
+            and (ignore_identifier in p.path or ignore_identifier in (p.name or ""))
+        )
+    }
 
     for platform in PROGRAM_PLATFORMS:
         folder_prefix = f"{DEFAULT_PROGRAM_STRING}{platform}/"
@@ -609,17 +627,30 @@ def _categorize_programs(isy_data: IsyData, programs: dict[str, Program]) -> Non
 
 
 def _categorize_program_devices(
-    isy_data: IsyData, programs: dict[str, Program], program_prefix: str
+    isy_data: IsyData,
+    programs: dict[str, Program],
+    program_prefix: str,
+    ignore_identifier: str = "",
 ) -> None:
     """Programs outside the legacy ``HA.<platform>/<name>/{status,actions}``
     convention — those are already platform-routed by
     :func:`_categorize_programs`. Everything else gets a per-program
-    device fan-out."""
+    device fan-out.
+
+    A program whose name or any containing folder (``path`` is the
+    slash-joined folder/name chain) contains ``ignore_identifier`` is
+    skipped, so the Ignore String option suppresses program devices
+    controller-side (#62).
+    """
     legacy_prefixes = tuple(
         f"{program_prefix}{platform}/" for platform in PROGRAM_PLATFORMS
     )
     for program in programs.values():
         path = program.path or ""
+        if ignore_identifier and (
+            ignore_identifier in path or ignore_identifier in (program.name or "")
+        ):
+            continue
         if any(path.startswith(prefix) for prefix in legacy_prefixes):
             continue
         isy_data.program_devices.append(program)
