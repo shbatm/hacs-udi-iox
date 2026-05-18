@@ -33,8 +33,12 @@ from .const import (
     CONF_ENABLE_NETWORKING,
     CONF_ENABLE_PROGRAMS,
     CONF_ENABLE_VARIABLES,
+    CONF_IGNORE_STRING,
     CONF_NETWORK,
+    CONF_SENSOR_STRING,
+    DEFAULT_IGNORE_STRING,
     DEFAULT_PROGRAM_STRING,
+    DEFAULT_SENSOR_STRING,
     DOMAIN,
     MANUFACTURER,
     PLATFORMS,
@@ -79,6 +83,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     enable_variables = isy_options.get(CONF_ENABLE_VARIABLES, True)
     enable_programs = isy_options.get(CONF_ENABLE_PROGRAMS, True)
     enable_networking = isy_options.get(CONF_ENABLE_NETWORKING, False)
+    ignore_identifier = isy_options.get(CONF_IGNORE_STRING, DEFAULT_IGNORE_STRING)
+    isy_data.sensor_string = isy_options.get(CONF_SENSOR_STRING, DEFAULT_SENSOR_STRING)
 
     controller = Controller(
         host,
@@ -114,9 +120,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
     )
 
     if enable_programs and controller.programs:
-        _categorize_programs(isy_data, controller.programs)
+        _categorize_programs(
+            isy_data, controller.programs, ignore_identifier=ignore_identifier
+        )
         _categorize_program_devices(
-            isy_data, controller.programs, program_prefix=DEFAULT_PROGRAM_STRING
+            isy_data,
+            controller.programs,
+            program_prefix=DEFAULT_PROGRAM_STRING,
+            ignore_identifier=ignore_identifier,
         )
         for program in isy_data.program_devices:
             isy_data.devices[f"program_{program.address}"] = program_device_info(

@@ -97,3 +97,54 @@ async def test_async_remove_config_entry_device_blocks_known_devices(
 
     assert await async_remove_config_entry_device(hass, entry, known_device) is False
     assert await async_remove_config_entry_device(hass, entry, unknown_device) is True
+
+
+async def test_enable_programs_false_gates_legacy_and_device_programs(
+    hass: HomeAssistant,
+    populated_controller,
+) -> None:
+    """CONF_ENABLE_PROGRAMS=False must gate BOTH the legacy
+    ``HA.<platform>/`` virtual entities (``runtime_data.programs``) AND
+    the program-as-device fan-out (``runtime_data.program_devices``).
+
+    ``populated_controller`` seeds both kinds — ``HA.switch/Movie Mode``
+    (legacy) and ``Lighting/Sunset Lights`` (device fan-out) — so an
+    all-empty assertion is non-vacuous.
+    """
+    from custom_components.udi_iox.const import (
+        CONF_ENABLE_NETWORKING,
+        CONF_ENABLE_PROGRAMS,
+        CONF_ENABLE_VARIABLES,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: "http://eisy.local:8080",
+            CONF_USERNAME: "admin",
+            CONF_PASSWORD: "password",
+        },
+        options={
+            CONF_ENABLE_PROGRAMS: False,
+            CONF_ENABLE_VARIABLES: True,
+            CONF_ENABLE_NETWORKING: True,
+        },
+        title="eisy.local",
+        unique_id="aa:bb:cc:dd:ee:ff",
+    )
+    entry.add_to_hass(hass)
+    with (
+        patch(
+            "custom_components.udi_iox.Controller",
+            return_value=populated_controller,
+        ),
+        patch("pyisyox.Controller.connect", new=AsyncMock(return_value=None)),
+        patch("pyisyox.Controller.stop", new=AsyncMock(return_value=None)),
+        patch("custom_components.udi_iox.PLATFORMS", []),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    data = entry.runtime_data
+    assert data.program_devices == []
+    assert all(progs == [] for progs in data.programs.values())
