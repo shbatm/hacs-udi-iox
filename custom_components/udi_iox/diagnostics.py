@@ -128,13 +128,11 @@ def _registry_devices(
     hass: HomeAssistant,
     entry_id: str,
     host: str | None,
-    real_uuid: str,
-    masked_uuid: str,
     key_by_id: dict[str, str | None],
 ) -> list[dict[str, Any]]:
     """HA device-registry rows for this entry — the devices actually
-    created. Host-bearing names redacted; the MAC in identifiers masked;
-    ``via_device`` rendered as the parent's stable key.
+    created. Host-bearing names redacted; identity carried by the
+    pre-masked ``key_by_id`` (``key`` / ``via_device``).
     """
     registry = dr.async_get(hass)
     return [
@@ -211,9 +209,7 @@ async def async_get_config_entry_diagnostics(
             "options": dict(entry.options),
         },
         "controller": _redact_controller_snapshot(controller.to_dict()),
-        "devices": _registry_devices(
-            hass, entry.entry_id, host, real_uuid, masked_uuid, key_by_id
-        ),
+        "devices": _registry_devices(hass, entry.entry_id, host, key_by_id),
         "entities": _registry_entities(
             hass, entry.entry_id, real_uuid, masked_uuid, key_by_id
         ),

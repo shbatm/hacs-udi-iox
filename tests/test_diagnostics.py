@@ -9,8 +9,11 @@ so future changes to the controller fixture don't churn the file.
 
 from __future__ import annotations
 
+import json
+from urllib.parse import urlparse
+
 import pytest
-from homeassistant.const import Platform
+from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -138,11 +141,6 @@ async def test_diagnostics_lists_entities_and_devices_without_leaks(
     created (the controller dump alone doesn't show what HA built),
     and neither the host nor the unmasked controller MAC leaks into
     any of it (incl. unique_ids / device identifiers)."""
-    import json
-    from urllib.parse import urlparse
-
-    from homeassistant.const import CONF_HOST
-
     payload = await async_get_config_entry_diagnostics(hass, init_integration)
 
     entities = payload["entities"]
