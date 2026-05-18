@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .models import IsyConfigEntry
@@ -102,22 +104,119 @@ def _redact_controller_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     return snapshot
 
 
+def _mask_uuid(value: str | None, real_uuid: str, masked_uuid: str) -> str | None:
+    """Swap the controller MAC for its masked form inside an id string."""
+    if not value or not real_uuid:
+        return value
+    return value.replace(real_uuid, masked_uuid)
+
+
+def _device_key(
+    identifiers: set[tuple[str, str]], real_uuid: str, masked_uuid: str
+) -> str | None:
+    """Stable, readable handle for a device — its first (sorted)
+    identifier with the MAC masked. Used instead of the HA registry's
+    random per-run device UUID so the dump (and its snapshot) is
+    deterministic and entity↔device links survive across runs.
+    """
+    for domain, ident in sorted(identifiers):
+        return f"{domain}:{_mask_uuid(ident, real_uuid, masked_uuid)}"
+    return None
+
+
+def _registry_devices(
+    hass: HomeAssistant,
+    entry_id: str,
+    host: str | None,
+    real_uuid: str,
+    masked_uuid: str,
+    key_by_id: dict[str, str | None],
+) -> list[dict[str, Any]]:
+    """HA device-registry rows for this entry — the devices actually
+    created. Host-bearing names redacted; the MAC in identifiers masked;
+    ``via_device`` rendered as the parent's stable key.
+    """
+    registry = dr.async_get(hass)
+    return [
+        {
+            "key": key_by_id.get(d.id),
+            "name": _redact_entry_title(d.name, host),
+            "name_by_user": _redact_entry_title(d.name_by_user, host),
+            "model": d.model,
+            "manufacturer": d.manufacturer,
+            "sw_version": d.sw_version,
+            "via_device": key_by_id.get(d.via_device_id) if d.via_device_id else None,
+            "area_id": d.area_id,
+            "entry_type": d.entry_type,
+        }
+        for d in dr.async_entries_for_config_entry(registry, entry_id)
+    ]
+
+
+def _registry_entities(
+    hass: HomeAssistant,
+    entry_id: str,
+    real_uuid: str,
+    masked_uuid: str,
+    key_by_id: dict[str, str | None],
+) -> list[dict[str, Any]]:
+    """HA entity-registry rows for this entry — the entities actually
+    created, by ``entity_id``. ``device`` is the owning device's stable
+    key (correlates with ``devices[].key``). The controller MAC is the
+    only PII (it prefixes every ``unique_id``); node names/addresses
+    stay verbatim for triage, matching this module's narrow-redaction
+    policy.
+    """
+    registry = er.async_get(hass)
+    return [
+        {
+            "entity_id": e.entity_id,
+            "unique_id": _mask_uuid(e.unique_id, real_uuid, masked_uuid),
+            "platform": e.platform,
+            "device": key_by_id.get(e.device_id) if e.device_id else None,
+            "disabled_by": e.disabled_by,
+            "hidden_by": e.hidden_by,
+            "entity_category": e.entity_category,
+            "original_name": e.original_name,
+            "translation_key": e.translation_key,
+        }
+        for e in er.async_entries_for_config_entry(registry, entry_id)
+    ]
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: IsyConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
     isy_data = entry.runtime_data
     controller = isy_data.root
+    host = entry.data.get(CONF_HOST)
+    real_uuid = controller.config.uuid
+    masked_uuid = _redact_controller_uuid(real_uuid)
+
+    # Map each device's random HA-registry id → its stable key so the
+    # dump never carries a non-deterministic UUID (snapshot-safe) yet
+    # entity→device / device→via_device links stay intact.
+    key_by_id = {
+        d.id: _device_key(d.identifiers, real_uuid, masked_uuid)
+        for d in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+    }
 
     return {
         "entry": {
-            "title": _redact_entry_title(entry.title, entry.data.get(CONF_HOST)),
+            "title": _redact_entry_title(entry.title, host),
             "version": entry.version,
             "domain": entry.domain,
             "data": async_redact_data(dict(entry.data), TO_REDACT_ENTRY_DATA),
             "options": dict(entry.options),
         },
         "controller": _redact_controller_snapshot(controller.to_dict()),
+        "devices": _registry_devices(
+            hass, entry.entry_id, host, real_uuid, masked_uuid, key_by_id
+        ),
+        "entities": _registry_entities(
+            hass, entry.entry_id, real_uuid, masked_uuid, key_by_id
+        ),
         "isy_data_shape": _isy_data_shape(isy_data),
         "event_triggers": {
             address: [cmd.id if hasattr(cmd, "id") else str(cmd) for cmd in commands]
