@@ -356,3 +356,67 @@ async def test_attach_trigger_ignores_state_with_no_new_state(
 
     fired_after = len([c for c in service_calls if c.domain == "test"])
     assert fired_after == fired_before
+
+
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
+async def test_attach_trigger_ignores_unavailable_and_unknown_transitions(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    service_calls: list[ServiceCall],
+) -> None:
+    """Transitions *to* ``unavailable``/``unknown`` must not fire even
+    when the event_type attribute still matches — mirrors HA's
+    documented ``not_to: [unavailable, unknown]`` event-automation
+    guard (restart/reload/availability flips, not a real press)."""
+    entity_id = "event.hallway_light_button_b"
+    device = _device_for_event_entity(hass, entity_id)
+    assert device is not None
+
+    assert await async_setup_component(
+        hass,
+        AUTOMATION_DOMAIN,
+        {
+            AUTOMATION_DOMAIN: [
+                {
+                    "trigger": [
+                        {
+                            CONF_PLATFORM: "device",
+                            CONF_DOMAIN: DOMAIN,
+                            CONF_DEVICE_ID: device.id,
+                            "entity_id": entity_id,
+                            CONF_TYPE: "on",
+                        }
+                    ],
+                    "action": {"service": "test.automation"},
+                }
+            ]
+        },
+    )
+    await hass.async_block_till_done()
+
+    # A genuine press: fresh timestamp, event_type "on" → fires once.
+    hass.states.async_set(
+        entity_id,
+        "2026-05-14T18:00:00+00:00",
+        {"event_type": "on", "event_types": ["on", "off"]},
+    )
+    await hass.async_block_till_done()
+    fired_after_press = len([c for c in service_calls if c.domain == "test"])
+    assert fired_after_press == 1
+
+    # → unavailable / → unknown, event_type still "on": must NOT fire.
+    for dead in ("unavailable", "unknown"):
+        hass.states.async_set(
+            entity_id, dead, {"event_type": "on", "event_types": ["on", "off"]}
+        )
+        await hass.async_block_till_done()
+    assert len([c for c in service_calls if c.domain == "test"]) == 1
+
+    # A real press afterward (unknown → fresh timestamp) still fires.
+    hass.states.async_set(
+        entity_id,
+        "2026-05-14T18:05:00+00:00",
+        {"event_type": "on", "event_types": ["on", "off"]},
+    )
+    await hass.async_block_till_done()
+    assert len([c for c in service_calls if c.domain == "test"]) == 2

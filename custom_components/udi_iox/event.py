@@ -124,7 +124,16 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
         The wildcard subscription delivers *every* control on this node
         (status reports, etc.); only the ones declared in the nodedef's
         ``cmds.sends`` map to an event_type — the rest are ignored.
+
+        The controller replays every node's *current* status on every
+        WebSocket (re)connect (HA restart / config-entry reload / eisy
+        blip). pyisyox holds ``EventStreamStatus.SYNCING`` until that
+        replay drains; until then ``stream_live`` is False and we drop
+        the frame — replayed status is not a live button press, and
+        emitting it fires spurious automations on every connect.
         """
+        if not self._isy_data.controller_events.stream_live:
+            return
         event_type = self._event_type_by_control.get(event.control)
         if event_type is None:
             return
