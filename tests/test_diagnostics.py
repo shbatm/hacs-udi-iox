@@ -28,8 +28,9 @@ from custom_components.udi_iox.diagnostics import (
 
 @pytest.fixture
 def platforms() -> list[Platform]:
-    """No platforms — diagnostics doesn't need entities registered."""
-    return []
+    """Load the switch platform so the diagnostics entity/device
+    sections have real registry rows to capture."""
+    return [Platform.SWITCH]
 
 
 def test_redact_controller_uuid_keeps_oui_masks_device_octets() -> None:
@@ -127,6 +128,41 @@ async def test_diagnostics_preserves_node_addresses_and_names(
         # name might legitimately be empty for some hidden nodes, but
         # the key must be present and not the redact sentinel when set.
         assert node["name"] != "**REDACTED**"
+
+
+async def test_diagnostics_lists_entities_and_devices_without_leaks(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+) -> None:
+    """The payload enumerates the HA entities + devices actually
+    created (the controller dump alone doesn't show what HA built),
+    and neither the host nor the unmasked controller MAC leaks into
+    any of it (incl. unique_ids / device identifiers)."""
+    import json
+    from urllib.parse import urlparse
+
+    from homeassistant.const import CONF_HOST
+
+    payload = await async_get_config_entry_diagnostics(hass, init_integration)
+
+    entities = payload["entities"]
+    devices = payload["devices"]
+    assert entities, "expected entity-registry rows"
+    assert devices, "expected device-registry rows"
+    assert any(e["entity_id"].startswith("switch.") for e in entities)
+    assert all(e["entity_id"] and e["unique_id"] for e in entities)
+    assert all(d["key"] for d in devices)
+    # entity→device links resolve to a real device key.
+    device_keys = {d["key"] for d in devices}
+    assert any(e["device"] in device_keys for e in entities)
+
+    host = init_integration.data[CONF_HOST]
+    bare_host = urlparse(host).hostname or host
+    real_uuid = init_integration.runtime_data.root.config.uuid
+    blob = json.dumps(payload, default=str)
+    assert bare_host not in blob, "host leaked into diagnostics"
+    assert real_uuid not in blob, "unmasked controller MAC leaked"
+    assert _redact_controller_uuid(real_uuid) in blob, "expected masked MAC"
 
 
 def test_isy_data_shape_handles_missing_mappings() -> None:
