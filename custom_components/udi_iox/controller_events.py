@@ -127,7 +127,12 @@ class IsyControllerEvents:
         # to stop entities flapping unavailable on brief blips — that
         # debounce holds True across a fast reconnect, so it must NOT
         # gate event emission (the reconnect replay would leak through).
-        # The ``event`` platform gates on this instead.
+        # The ``event`` platform gates on this instead. Seed semantics:
+        # pyisyox ``ws.connected`` is ``status == CONNECTED`` — i.e.
+        # already post-replay-drained, not merely TCP-connected — so the
+        # initial seed matches ``_ws_connected`` and later ``_on_ws_status``
+        # frames keep it correct (CONNECTED→SYNCING is not a valid
+        # pyisyox transition, so the seed can't start stale-True).
         self._stream_live: bool = ws.connected if ws is not None else True
         # Pending unavailable-flip timer. Set when the WS goes non-
         # CONNECTED so a brief blip-and-reconnect doesn't bounce every
