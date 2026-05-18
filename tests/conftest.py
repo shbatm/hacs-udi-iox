@@ -316,6 +316,10 @@ class _StubControllerEvents:
     """
 
     ws_connected = True
+    # Past the initial status replay by default — direct-entity unit
+    # tests want the event platform to emit; the replay-suppression
+    # test flips this to False explicitly.
+    stream_live = True
 
     @staticmethod
     def _noop_unsub(*_args: object, **_kwargs: object):  # type: ignore[no-untyped-def]

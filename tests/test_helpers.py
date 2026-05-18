@@ -893,11 +893,11 @@ def test_plugin_dimmer_aux_commands_classified_by_editor(isy_data, options):
     *editor* implies: a pure-enum editor (``names``, no numeric bounds)
     → SELECT; the generic ``INTEGER`` editor → NUMBER.
 
-    The ``PluginDimmer`` testing fixture declares a *parameterless*
-    ``DON`` (it would set level via a setter, like the real
-    ``virtualgeneric``), so against pyisyox ≥ 6.0.0b5 the classifier
-    correctly routes it to SWITCH, not LIGHT — see #64 prong 2. The
-    editor-driven aux routing under test is independent of that.
+    The ``PluginDimmer`` testing fixture's ``DON`` carries an
+    ``I_OL`` on-level param (pyisyox ≥ 6.0.0b8 / pyisyox#159), so the
+    classifier correctly routes it to LIGHT — HA can drive brightness
+    via ``DON <level>``. The editor-driven aux routing under test is
+    independent of the primary platform.
     """
     from pyisyox.testing import (
         make_controller,
@@ -917,8 +917,8 @@ def test_plugin_dimmer_aux_commands_classified_by_editor(isy_data, options):
         host="https://eisy.local",
     )
 
-    assert node in isy_data.nodes[Platform.SWITCH]
-    assert node not in isy_data.nodes[Platform.LIGHT]
+    assert node in isy_data.nodes[Platform.LIGHT]
+    assert node not in isy_data.nodes[Platform.SWITCH]
     assert (node, "SETMODE") in isy_data.aux_properties[Platform.SELECT]
     assert (node, "THRESHOLD") in isy_data.aux_properties[Platform.NUMBER]
     # SETMODE's enum editor must not be mistaken for a slider, and the

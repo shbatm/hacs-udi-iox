@@ -120,6 +120,20 @@ class IsyControllerEvents:
         # by the time we wire in; later status frames correct as needed.
         ws = controller.websocket
         self._ws_connected: bool = ws.connected if ws is not None else True
+        # Un-debounced "stream is past the initial status replay" truth,
+        # straight from pyisyox EventStreamStatus (CONNECTED only after
+        # the post-connect replay drains; SYNCING/INITIALIZING/reconnect
+        # => False). Distinct from ``_ws_connected``, which is debounced
+        # to stop entities flapping unavailable on brief blips — that
+        # debounce holds True across a fast reconnect, so it must NOT
+        # gate event emission (the reconnect replay would leak through).
+        # The ``event`` platform gates on this instead. Seed semantics:
+        # pyisyox ``ws.connected`` is ``status == CONNECTED`` — i.e.
+        # already post-replay-drained, not merely TCP-connected — so the
+        # initial seed matches ``_ws_connected`` and later ``_on_ws_status``
+        # frames keep it correct (CONNECTED→SYNCING is not a valid
+        # pyisyox transition, so the seed can't start stale-True).
+        self._stream_live: bool = ws.connected if ws is not None else True
         # Pending unavailable-flip timer. Set when the WS goes non-
         # CONNECTED so a brief blip-and-reconnect doesn't bounce every
         # entity through unavailable. Cleared on reconnect (within the
@@ -283,6 +297,16 @@ class IsyControllerEvents:
         when there's no WS (test fixtures opt out of the upgrade)."""
         return self._ws_connected
 
+    @property
+    def stream_live(self) -> bool:
+        """Whether the stream is past the initial status replay (raw
+        ``EventStreamStatus.CONNECTED``, un-debounced). The ``event``
+        platform gates emission on this so the controller's
+        replay-on-connect (every reconnect/restart/reload) doesn't fire
+        spurious events. Defaults ``True`` when there's no WS (test
+        fixtures opt out of the upgrade)."""
+        return self._stream_live
+
     @callback
     def stop(self) -> None:
         """Drop all controller subscriptions."""
@@ -445,6 +469,10 @@ class IsyControllerEvents:
         WARN on the unavailable flip, INFO on reconnect.
         """
         actually_connected = status == EventStreamStatus.CONNECTED
+        # Track the live/replay state immediately (no debounce) so the
+        # event platform never emits the post-connect status replay,
+        # incl. on a fast reconnect where ``_ws_connected`` stays True.
+        self._stream_live = actually_connected
 
         if actually_connected:
             # Reconnect: cancel any pending unavailable flip; if

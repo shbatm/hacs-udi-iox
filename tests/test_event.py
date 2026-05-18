@@ -111,6 +111,43 @@ async def test_event_on_control_ignores_unknown_verb() -> None:
     assert fired == []
 
 
+async def test_event_on_control_suppressed_until_stream_live() -> None:
+    """While pyisyox is replaying initial status (stream_live False),
+    a matching control must NOT fire — the spurious-on-(re)connect
+    guard. Once the replay drains (stream_live True) it fires."""
+    from unittest.mock import patch
+
+    from pyisyox import Event
+    from pyisyox.testing import make_controller, make_load_result
+
+    controller = make_controller(make_load_result())
+    entity = _build_event_entity(controller)
+    ce = entity._isy_data.controller_events
+    ce.stream_live = False
+
+    evt = Event(
+        seqnum=0,
+        timestamp="",
+        control="DON",
+        action="",
+        node_address="AA AA AA 1",
+    )
+    fired: list = []
+    with (
+        patch.object(
+            type(entity),
+            "_trigger_event",
+            lambda self, ev, attrs=None: fired.append(ev),
+        ),
+        patch.object(type(entity), "async_write_ha_state", lambda self: None),
+    ):
+        entity._on_control(evt)  # during replay → dropped
+        assert fired == []
+        ce.stream_live = True
+        entity._on_control(evt)  # replay drained → fires
+    assert len(fired) == 1
+
+
 async def test_event_on_lifecycle_only_acts_on_node_enabled_for_this_address() -> None:
     """The lifecycle handler ignores events for other nodes and verbs
     that aren't NODE_ENABLED."""

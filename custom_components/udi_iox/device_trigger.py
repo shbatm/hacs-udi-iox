@@ -157,11 +157,17 @@ async def async_attach_trigger(
         new_state = event.data["new_state"]
         if new_state is None:
             return
-        # Skip transitions out of "unavailable" — those happen on WS
-        # reconnect when the EventEntity restores its prior timestamp +
-        # event_type; not a real press. "unknown" is allowed because
-        # that's the entity's pre-first-press state on a fresh reload,
-        # and the first real press transitions out of it.
+        # Mirror HA's documented event-automation guard
+        # (home-assistant.io/integrations/event/#automating-on-a-button-press):
+        #   not_from: [unavailable]
+        #   not_to:   [unavailable, unknown]
+        # A real press always sets state to a fresh timestamp, never
+        # "unknown"/"unavailable", so dropping those transitions never
+        # loses a press — it only suppresses restore-on-restart,
+        # reconnect, and availability flips (defence-in-depth alongside
+        # the SYNCING-gated event platform).
+        if new_state.state in ("unavailable", "unknown"):
+            return
         old_state = event.data["old_state"]
         if old_state is not None and old_state.state == "unavailable":
             return
