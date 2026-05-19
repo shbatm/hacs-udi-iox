@@ -32,7 +32,7 @@
           "enable_networking": "Enable adding network resource entities"
         },
         "data_description": {
-          "sensor_string": "A node whose IoX name contains this exact string is forced to a sensor/binary sensor and the marker is stripped from the HA device and entity name. Use a distinctive bracketed marker (default {SENSOR}).",
+          "sensor_string": "A node whose IoX name contains this exact string is forced to a sensor/binary sensor and the marker is stripped from the HA device and entity name. Use a distinctive bracketed marker that won't occur in a normal device name.",
           "ignore_string": "Any device, program, or folder whose IoX name contains this string is skipped entirely.",
           "restore_light_state": "Restore the previous brightness when turning on a light instead of the device's built-in On Level.",
           "enable_variables": "Disable to skip loading variable entities.",
@@ -128,7 +128,7 @@
           "enable_networking": "Enable adding network resource entities"
         },
         "data_description": {
-          "sensor_string": "A node whose IoX name contains this exact string is forced to a sensor/binary sensor and the marker is stripped from the HA device and entity name. Use a distinctive bracketed marker (default {SENSOR}).",
+          "sensor_string": "A node whose IoX name contains this exact string is forced to a sensor/binary sensor and the marker is stripped from the HA device and entity name. Use a distinctive bracketed marker that won't occur in a normal device name.",
           "ignore_string": "Any device, program, or folder whose IoX name contains this string is skipped entirely.",
           "restore_light_state": "Restore the previous brightness when turning on a light instead of the device's built-in On Level.",
           "enable_variables": "Disable to skip loading variable entities.",
