@@ -46,6 +46,7 @@ from .entity import (
     ISYNodeEntity,
     ISYProgramEntity,
     NodeEventType,
+    _group_device_info,
     _resolve_device_info,
     node_status_int,
 )
@@ -244,18 +245,16 @@ async def async_setup_entry(
         )
 
     # Sensor-marked scenes (hacs-udi-iox#84) — read-only group state.
-    # Single-controller scenes attach to that controller's device (same
-    # rule as the switch counterpart in switch.py); everything else
-    # falls back to the hub.
+    # Device attachment (single-controller → that controller's device,
+    # else hub) is shared with the switch counterpart via
+    # _group_device_info so the rule can't diverge between platforms.
     for group in isy_data.group_sensors:
-        device = None
-        if group.controller_addresses and len(group.controller_addresses) == 1:
-            primary_addr = group.controller_addresses[0]
-            controller_node = isy_data.root.nodes.get(primary_addr)
-            if controller_node is not None:
-                device = _resolve_device_info(devices, controller_node)
         entities.append(
-            ISYGroupBinarySensorEntity(isy_data, node=group, device_info=device)
+            ISYGroupBinarySensorEntity(
+                isy_data,
+                node=group,
+                device_info=_group_device_info(isy_data, group, devices),
+            )
         )
     async_add_entities(entities)
 
