@@ -11,14 +11,16 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from pyisyox import Node, NodeCommandError
+from pyisyox import Group, Node, NodeCommandError
 from pyisyox.constants import CMD_OFF, CMD_ON
 
 from .const import CONF_RESTORE_LIGHT_STATE, UOM_PERCENTAGE
 from .editor_classification import resolve_editor
 from .entity import (
+    ISYGroupEntity,
     ISYNodeEntity,
     NodeEventType,
+    _group_device_info,
     _resolve_device_info,
     node_status_int,
 )
@@ -40,11 +42,22 @@ async def async_setup_entry(
     isy_options = entry.options
     restore_light_state = isy_options.get(CONF_RESTORE_LIGHT_STATE, False)
 
-    entities = []
+    entities: list[ISYLightEntity | ISYGroupLightEntity] = []
     for node in isy_data.nodes[Platform.LIGHT]:
         entities.append(
             ISYLightEntity(
                 isy_data, node, restore_light_state, _resolve_device_info(devices, node)
+            )
+        )
+
+    # State-maintained scenes with a dimmable member (hacs-udi-iox#86) —
+    # on/off light (no brightness; scenes carry no settable level).
+    for group in isy_data.group_lights:
+        entities.append(
+            ISYGroupLightEntity(
+                isy_data,
+                node=group,
+                device_info=_group_device_info(isy_data, group, devices),
             )
         )
 
@@ -161,3 +174,44 @@ class ISYLightEntity(ISYNodeEntity, LightEntity, RestoreEntity):
 
         if last_state.attributes.get(ATTR_LAST_BRIGHTNESS):
             self._last_brightness = last_state.attributes[ATTR_LAST_BRIGHTNESS]
+
+
+class ISYGroupLightEntity(ISYGroupEntity, LightEntity):
+    """A state-maintained IoX scene with a dimmable member, as a light.
+
+    Dimmable scenes are routed to the light domain natively (instead of
+    switch) so they keep light semantics + the scene-member more-info
+    framework without a ``switch_as_x`` wrapper. Scenes carry **no**
+    settable brightness — fade/brt/dim are separate manual commands, not
+    a scene level — so this is on/off only. State mirrors the switch
+    counterpart's ``group_any_on``, kept live by the pyisyox member→group
+    event re-emit (hacs-udi-iox#86).
+    """
+
+    _attr_color_mode = ColorMode.ONOFF
+    _attr_supported_color_modes = {ColorMode.ONOFF}
+    _node: Group
+    _attr_icon: str = "mdi:google-circles-communities"
+
+    @property
+    def is_on(self) -> bool:
+        """True iff any member node is currently on."""
+        return self._node.group_any_on
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Activate the scene (broadcast its On command to all members)."""
+        try:
+            await self._node.send_command(CMD_ON)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to turn on scene {self._node.address}: {err}"
+            ) from err
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Deactivate the scene."""
+        try:
+            await self._node.send_command(CMD_OFF)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to turn off scene {self._node.address}: {err}"
+            ) from err

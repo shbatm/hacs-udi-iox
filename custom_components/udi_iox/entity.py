@@ -71,9 +71,9 @@ def _group_device_info(
     A single-controller scene links to that controller's device so the
     scene appears on that device's card; multi-controller (or
     controllerless) scenes return ``None`` and fall back to the hub
-    (``ISYEntity.__init__`` stamps the hub identifiers). Shared by the
-    switch and binary_sensor scene entities so the attachment rule can't
-    silently diverge between the two platforms.
+    (``ISYEntity.__init__`` stamps the hub identifiers). Shared by every
+    scene entity platform (switch, binary_sensor, button, light) so the
+    attachment rule can't silently diverge between them.
     """
     if group.controller_addresses and len(group.controller_addresses) == 1:
         controller_node = isy_data.root.nodes.get(group.controller_addresses[0])

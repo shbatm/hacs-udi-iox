@@ -50,6 +50,20 @@ class IsyData:
     # exposing a turn-on/off control. Mirrors the node sensor-marker
     # short-circuit in ``helpers._categorize_nodes`` (hacs-udi-iox#84).
     group_sensors: list[Group]
+    # Scenes with no state-maintained member (pyisyox
+    # ``Group.has_state_target`` is False — only fire-and-forget links,
+    # no native responder the controller tracks). They have no
+    # meaningful on/off state, so they're momentary ``button`` entities
+    # (press = activate) rather than a switch stuck "on" forever
+    # (hacs-udi-iox#86).
+    group_buttons: list[Group]
+    # State-maintained scenes with at least one dimmable member
+    # (pyisyox ``Group.has_dimmable_members``). Modeled as an on/off
+    # ``light`` so they land in HA's light domain natively — preserving
+    # light semantics + the scene-member more-info framework without a
+    # ``switch_as_x`` wrapper. Scenes carry no settable brightness, so
+    # it's on/off only (hacs-udi-iox#86).
+    group_lights: list[Group]
     root_nodes: dict[Platform, list[Node]]
     variables: dict[Platform, list[Variable]]
     programs: dict[Platform, list[tuple[str, Program, Program | None]]]
@@ -80,6 +94,8 @@ class IsyData:
         self.nodes = {p: [] for p in (*NODE_PLATFORMS, *NODE_PARALLEL_PLATFORMS)}
         self.groups = []
         self.group_sensors = []
+        self.group_buttons = []
+        self.group_lights = []
         self.root_nodes = {p: [] for p in ROOT_NODE_PLATFORMS}
         self.aux_properties = {p: [] for p in NODE_AUX_PROP_PLATFORMS}
         self.programs = {p: [] for p in PROGRAM_PLATFORMS}
@@ -121,6 +137,12 @@ class IsyData:
 
         for group in self.group_sensors:
             current_unique_ids.add((Platform.BINARY_SENSOR, self.uid_base(group)))
+
+        for group in self.group_buttons:
+            current_unique_ids.add((Platform.BUTTON, self.uid_base(group)))
+
+        for group in self.group_lights:
+            current_unique_ids.add((Platform.LIGHT, self.uid_base(group)))
 
         for platform in NODE_AUX_PROP_PLATFORMS:
             for node, control in self.aux_properties[platform]:
