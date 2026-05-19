@@ -19,14 +19,19 @@
           'family_id': '6',
           'group_all_on': False,
           'group_any_on': False,
+          'has_dimmable_members': False,
+          'has_state_target': True,
           'instance_id': '1',
           'member_addresses': tuple(
             'BB BB BB 1',
           ),
+          'member_intents': dict({
+          }),
           'name': 'Living Room Scene',
           'nodedef_id': 'InsteonDimmer',
           'parent_address': None,
           'pnode': None,
+          'targets_resolved': False,
         }),
       }),
       'name': '',
@@ -18852,6 +18857,7 @@
         'switch': 5,
       }),
       'event_triggers': 1,
+      'group_sensors': 0,
       'groups': 1,
       'net_resources': 1,
       'primary_nodes': dict({

@@ -1378,3 +1378,49 @@ def test_categorize_skips_groups_with_ignore_identifier_in_name() -> None:
     addresses = [g.address for g in isy_data.groups]
     assert "99002" in addresses
     assert "99001" not in addresses
+
+
+def test_categorize_routes_sensor_marked_groups_to_group_sensors() -> None:
+    """A scene whose name carries the ``sensor_string`` marker is forced
+    read-only: it lands on ``group_sensors`` (→ binary_sensor) instead
+    of ``groups`` (→ switch). Unmarked scenes are unaffected
+    (hacs-udi-iox#84)."""
+    from types import MappingProxyType
+
+    from pyisyox.testing import (
+        make_controller,
+        make_group_record,
+        make_load_result,
+    )
+
+    from custom_components.udi_iox.helpers import _categorize_nodes
+    from custom_components.udi_iox.models import IsyData
+
+    marked = make_group_record("99003", "Garbage Disposal {SENSOR}")
+    plain = make_group_record("99004", "Living Room Scene")
+    controller = make_controller(
+        make_load_result(groups={marked.address: marked, plain.address: plain})
+    )
+    isy_data = IsyData()
+    isy_data.root = controller
+    _categorize_nodes(
+        isy_data,
+        controller.nodes,
+        MappingProxyType({}),
+        controller=controller,
+        host="http://localhost",
+    )
+
+    switch_addrs = [g.address for g in isy_data.groups]
+    sensor_addrs = [g.address for g in isy_data.group_sensors]
+    assert "99004" in switch_addrs and "99004" not in sensor_addrs
+    assert "99003" in sensor_addrs and "99003" not in switch_addrs
+
+    # The forced-sensor scene must claim a binary_sensor unique id (so
+    # stale-entity cleanup matches the platform it's actually created
+    # on), not a switch one.
+    assert (
+        Platform.BINARY_SENSOR,
+        isy_data.uid_base(marked),
+    ) in isy_data.unique_ids
+    assert (Platform.SWITCH, isy_data.uid_base(marked)) not in isy_data.unique_ids
