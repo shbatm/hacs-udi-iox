@@ -1424,3 +1424,89 @@ def test_categorize_routes_sensor_marked_groups_to_group_sensors() -> None:
         isy_data.uid_base(marked),
     ) in isy_data.unique_ids
     assert (Platform.SWITCH, isy_data.uid_base(marked)) not in isy_data.unique_ids
+
+
+def test_categorize_routes_groups_by_capability_bits() -> None:
+    """Scene → HA platform from the pyisyox link-target bits
+    (hacs-udi-iox#86):
+
+    * ``has_state_target`` False (fire-only) → ``group_buttons`` (button)
+    * else ``has_dimmable_members`` → ``group_lights`` (light)
+    * else → ``groups`` (switch, the default)
+    * an explicit ``sensor_string`` marker still wins over all of the
+      above → ``group_sensors`` (binary_sensor)
+    """
+    from types import MappingProxyType
+
+    from pyisyox.testing import (
+        make_controller,
+        make_group_record,
+        make_load_result,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.helpers import _categorize_nodes
+    from custom_components.udi_iox.models import IsyData
+
+    # Fire-only: targets resolved, no on/off intent → has_state_target
+    # False → button.
+    fire_only = make_group_record("99101", "Doorbell Chime")
+    fire_only.targets_resolved = True
+    fire_only.member_intents = {}
+
+    # State-maintained (targets unresolved → assume stateful) with a
+    # dimmable member → light.
+    dimmer_member = make_node_record("99 30 01 1", "Lamp")  # default = DimmerLampSwitch
+    dimmable = make_group_record(
+        "99201", "Dining Scene", member_addresses=("99 30 01 1",)
+    )
+
+    # State-maintained, no dimmable member → switch (default, unchanged).
+    plain_switch = make_group_record("99301", "Outlet Scene")
+
+    # Fire-only AND sensor-marked: the explicit marker must win over the
+    # capability-derived button routing.
+    marked_fire = make_group_record("99401", "Test Scene {SENSOR}")
+    marked_fire.targets_resolved = True
+    marked_fire.member_intents = {}
+
+    controller = make_controller(
+        make_load_result(
+            nodes={dimmer_member.address: dimmer_member},
+            groups={
+                fire_only.address: fire_only,
+                dimmable.address: dimmable,
+                plain_switch.address: plain_switch,
+                marked_fire.address: marked_fire,
+            },
+        )
+    )
+    isy_data = IsyData()
+    isy_data.root = controller
+    _categorize_nodes(
+        isy_data,
+        controller.nodes,
+        MappingProxyType({}),
+        controller=controller,
+        host="http://localhost",
+    )
+
+    buttons = [g.address for g in isy_data.group_buttons]
+    lights = [g.address for g in isy_data.group_lights]
+    switches = [g.address for g in isy_data.groups]
+    sensors = [g.address for g in isy_data.group_sensors]
+
+    assert buttons == ["99101"]
+    assert lights == ["99201"]
+    assert switches == ["99301"]
+    assert sensors == ["99401"]
+
+    # Each scene claims exactly the unique id for the platform it's
+    # actually created on (clean stale-entity migration off switch).
+    uids = isy_data.unique_ids
+    assert (Platform.BUTTON, isy_data.uid_base(fire_only)) in uids
+    assert (Platform.LIGHT, isy_data.uid_base(dimmable)) in uids
+    assert (Platform.SWITCH, isy_data.uid_base(plain_switch)) in uids
+    assert (Platform.BINARY_SENSOR, isy_data.uid_base(marked_fire)) in uids
+    for stale in (fire_only, dimmable, marked_fire):
+        assert (Platform.SWITCH, isy_data.uid_base(stale)) not in uids

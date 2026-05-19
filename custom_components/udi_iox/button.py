@@ -13,6 +13,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from pyisyox import (
     Controller,
+    Group,
     NetworkResource,
     Node,
     NodeCommandError,
@@ -20,10 +21,10 @@ from pyisyox import (
     NodeLifecycleEvent,
     Program,
 )
-from pyisyox.constants import TAG_ENABLED, Protocol
+from pyisyox.constants import CMD_ON, TAG_ENABLED, Protocol
 
 from .const import CONF_NETWORK, DOMAIN
-from .entity import _resolve_device_info
+from .entity import ISYGroupEntity, _group_device_info, _resolve_device_info
 from .models import IsyConfigEntry, IsyData
 from .program_device import (
     PROGRAM_RUN_BUTTON_SUFFIX,
@@ -84,6 +85,7 @@ async def async_setup_entry(
         | ISYNodeBeepButtonEntity
         | ISYNodeCommandButtonEntity
         | ISYNetworkResourceButtonEntity
+        | ISYGroupButtonEntity
     ] = []
 
     for node in isy_data.root_nodes[Platform.BUTTON]:
@@ -138,6 +140,18 @@ async def async_setup_entry(
                 name=resource.name,
                 unique_id=isy_data.uid_base(resource),
                 device_info=device_info[CONF_NETWORK],
+            )
+        )
+
+    # Fire-only scenes (hacs-udi-iox#86) — no state-maintained member,
+    # so a momentary button (press → activate) not a stuck-on switch.
+    # Device attachment shared with the other scene platforms.
+    for group in isy_data.group_buttons:
+        entities.append(
+            ISYGroupButtonEntity(
+                isy_data,
+                node=group,
+                device_info=_group_device_info(isy_data, group, device_info),
             )
         )
 
@@ -338,6 +352,31 @@ class ISYNetworkResourceButtonEntity(ISYNodeButtonEntity):
         except Exception as err:  # pylint: disable=broad-except
             raise HomeAssistantError(
                 f"Unable to run network resource {self._node.name}: {err}"
+            ) from err
+
+
+class ISYGroupButtonEntity(ISYGroupEntity, ButtonEntity):
+    """A fire-only IoX scene as a momentary button.
+
+    A scene whose links are all fire-and-forget (pyisyox
+    ``Group.has_state_target`` is ``False`` — only ``cmd``-type one-shot
+    links, no ``native`` responder the controller maintains state for)
+    has no meaningful on/off state. Modeling it as a switch leaves the
+    switch stuck "on" with nothing to track; a press-to-activate button
+    is the honest representation. The state-maintained counterpart is
+    :class:`~.switch.ISYGroupSwitchEntity` (hacs-udi-iox#86).
+    """
+
+    _node: Group
+    _attr_icon = "mdi:google-circles-communities"
+
+    async def async_press(self) -> None:
+        """Activate the scene (broadcast its On command to all members)."""
+        try:
+            await self._node.send_command(CMD_ON)
+        except NodeCommandError as err:
+            raise HomeAssistantError(
+                f"Unable to activate scene {self._node.address}: {err}"
             ) from err
 
 

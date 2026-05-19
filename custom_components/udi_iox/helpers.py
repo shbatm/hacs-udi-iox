@@ -398,9 +398,21 @@ def _categorize_nodes(
             continue
         # User-forced sensor classification: a marked scene becomes a
         # read-only binary_sensor instead of the default switch. Mirrors
-        # the node short-circuit below (hacs-udi-iox#84).
+        # the node short-circuit below. Explicit marker wins over the
+        # capability-derived routing below (hacs-udi-iox#84).
         if sensor_identifier in group.name:
             isy_data.group_sensors.append(group)
+            continue
+        # Capability-derived scene platform (hacs-udi-iox#86), using the
+        # pyisyox link-target bits:
+        #  * no state-maintained member  -> button (one-shot activate)
+        #  * else, any dimmable member   -> on/off light
+        #  * else                        -> switch (the default)
+        if not group.has_state_target:
+            isy_data.group_buttons.append(group)
+            continue
+        if group.has_dimmable_members:
+            isy_data.group_lights.append(group)
             continue
         isy_data.groups.append(group)
 
