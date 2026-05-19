@@ -84,6 +84,7 @@ def _isy_data_shape(isy_data: Any) -> dict[str, Any]:
         "programs": _platform_counts(getattr(isy_data, "programs", None)),
         "variables": _platform_counts(getattr(isy_data, "variables", None)),
         "groups": len(getattr(isy_data, "groups", []) or []),
+        "group_sensors": len(getattr(isy_data, "group_sensors", []) or []),
         "net_resources": len(getattr(isy_data, "net_resources", []) or []),
         "event_triggers": len(getattr(isy_data, "node_triggers", {}) or {}),
     }

@@ -28,6 +28,7 @@ from .entity import (
     ISYNodeEntity,
     ISYProgramEntity,
     NodeEventType,
+    _group_device_info,
     _resolve_device_info,
     aux_entity_category,
     node_status_int,
@@ -76,15 +77,13 @@ async def async_setup_entry(
         )
 
     for group in isy_data.groups:
-        device = None
-        if group.controller_addresses and len(group.controller_addresses) == 1:
-            # If Group has only one controller, link to that device
-            # instead of the hub.
-            primary_addr = group.controller_addresses[0]
-            controller_node = isy_data.root.nodes.get(primary_addr)
-            if controller_node is not None:
-                device = _resolve_device_info(device_info, controller_node)
-        entities.append(ISYGroupSwitchEntity(isy_data, node=group, device_info=device))
+        entities.append(
+            ISYGroupSwitchEntity(
+                isy_data,
+                node=group,
+                device_info=_group_device_info(isy_data, group, device_info),
+            )
+        )
 
     for name, status, actions in isy_data.programs[Platform.SWITCH]:
         entities.append(ISYSwitchProgramEntity(isy_data, name, status, actions))

@@ -63,6 +63,25 @@ def _resolve_device_info(
     return None
 
 
+def _group_device_info(
+    isy_data: IsyData, group: Group, devices: dict[str, DeviceInfo]
+) -> DeviceInfo | None:
+    """DeviceInfo a scene entity attaches to.
+
+    A single-controller scene links to that controller's device so the
+    scene appears on that device's card; multi-controller (or
+    controllerless) scenes return ``None`` and fall back to the hub
+    (``ISYEntity.__init__`` stamps the hub identifiers). Shared by the
+    switch and binary_sensor scene entities so the attachment rule can't
+    silently diverge between the two platforms.
+    """
+    if group.controller_addresses and len(group.controller_addresses) == 1:
+        controller_node = isy_data.root.nodes.get(group.controller_addresses[0])
+        if controller_node is not None:
+            return _resolve_device_info(devices, controller_node)
+    return None
+
+
 def aux_entity_category(control: str) -> EntityCategory | None:
     """HA placement policy for a coalesced aux control.
 

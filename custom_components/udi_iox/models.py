@@ -43,6 +43,13 @@ class IsyData:
     root: Controller
     nodes: dict[Platform, list[Node]]
     groups: list[Group]
+    # Scenes whose IoX name carries the ``sensor_string`` marker. Forced
+    # read-only: surfaced as ``binary_sensor`` (group state is on/off
+    # only) instead of the default ``switch`` so a user can mark a
+    # fire-and-observe scene (e.g. a garbage-disposal "scene") without
+    # exposing a turn-on/off control. Mirrors the node sensor-marker
+    # short-circuit in ``helpers._categorize_nodes`` (hacs-udi-iox#84).
+    group_sensors: list[Group]
     root_nodes: dict[Platform, list[Node]]
     variables: dict[Platform, list[Variable]]
     programs: dict[Platform, list[tuple[str, Program, Program | None]]]
@@ -72,6 +79,7 @@ class IsyData:
         """Initialize an empty IoX data class."""
         self.nodes = {p: [] for p in (*NODE_PLATFORMS, *NODE_PARALLEL_PLATFORMS)}
         self.groups = []
+        self.group_sensors = []
         self.root_nodes = {p: [] for p in ROOT_NODE_PLATFORMS}
         self.aux_properties = {p: [] for p in NODE_AUX_PROP_PLATFORMS}
         self.programs = {p: [] for p in PROGRAM_PLATFORMS}
@@ -110,6 +118,9 @@ class IsyData:
 
         for group in self.groups:
             current_unique_ids.add((Platform.SWITCH, self.uid_base(group)))
+
+        for group in self.group_sensors:
+            current_unique_ids.add((Platform.BINARY_SENSOR, self.uid_base(group)))
 
         for platform in NODE_AUX_PROP_PLATFORMS:
             for node, control in self.aux_properties[platform]:

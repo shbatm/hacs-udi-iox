@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
-from pyisyox import Event, Node, Program
+from pyisyox import Event, Group, Node, Program
 from pyisyox.constants import (
     CMD_OFF,
     CMD_ON,
@@ -42,9 +42,11 @@ from .const import (
     TYPE_INSTEON_MOTION,
 )
 from .entity import (
+    ISYGroupEntity,
     ISYNodeEntity,
     ISYProgramEntity,
     NodeEventType,
+    _group_device_info,
     _resolve_device_info,
     node_status_int,
 )
@@ -74,6 +76,7 @@ async def async_setup_entry(
         | ISYBinarySensorEntity
         | ISYBinarySensorHeartbeat
         | ISYBinarySensorProgramEntity
+        | ISYGroupBinarySensorEntity
     ] = []
     entities_by_address: dict[
         str,
@@ -238,6 +241,19 @@ async def async_setup_entry(
                 control=control,
                 unique_id=f"{isy_data.uid_base(node)}_{control}",
                 device_info=_resolve_device_info(devices, node),
+            )
+        )
+
+    # Sensor-marked scenes (hacs-udi-iox#84) — read-only group state.
+    # Device attachment (single-controller → that controller's device,
+    # else hub) is shared with the switch counterpart via
+    # _group_device_info so the rule can't diverge between platforms.
+    for group in isy_data.group_sensors:
+        entities.append(
+            ISYGroupBinarySensorEntity(
+                isy_data,
+                node=group,
+                device_info=_group_device_info(isy_data, group, devices),
             )
         )
     async_add_entities(entities)
@@ -595,3 +611,23 @@ class ISYProgramDeviceStatusBinarySensor(ISYProgramDeviceEntity, BinarySensorEnt
     def is_on(self) -> bool:
         """The program's last-evaluation result."""
         return bool(self._node.status)
+
+
+class ISYGroupBinarySensorEntity(ISYGroupEntity, BinarySensorEntity):
+    """A sensor-marked IoX scene as a read-only binary sensor.
+
+    The default scene platform is ``switch`` (``ISYGroupSwitchEntity``);
+    tagging the scene name with the configured ``sensor_string`` routes
+    it here instead — for fire-and-observe scenes the user wants to
+    watch but not control from HA (hacs-udi-iox#84). State mirrors the
+    switch's: ``group_any_on`` (any member non-zero), kept live by the
+    member→group event re-emit in pyisyox.
+    """
+
+    _node: Group
+    _attr_icon: str = "mdi:google-circles-communities"
+
+    @property
+    def is_on(self) -> bool:
+        """True iff any member node is currently on."""
+        return self._node.group_any_on

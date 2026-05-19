@@ -396,6 +396,12 @@ def _categorize_nodes(
     for group in controller.groups.values():
         if ignore_identifier in group.name:
             continue
+        # User-forced sensor classification: a marked scene becomes a
+        # read-only binary_sensor instead of the default switch. Mirrors
+        # the node short-circuit below (hacs-udi-iox#84).
+        if sensor_identifier in group.name:
+            isy_data.group_sensors.append(group)
+            continue
         isy_data.groups.append(group)
 
     for node in nodes.values():
