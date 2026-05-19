@@ -368,7 +368,7 @@ class ISYGroupButtonEntity(ISYGroupEntity, ButtonEntity):
     """
 
     _node: Group
-    _attr_icon = "mdi:google-circles-communities"
+    _attr_icon: str = "mdi:google-circles-communities"
 
     async def async_press(self) -> None:
         """Activate the scene (broadcast its On command to all members)."""

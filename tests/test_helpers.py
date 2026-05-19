@@ -1448,8 +1448,10 @@ def test_categorize_routes_groups_by_capability_bits() -> None:
     from custom_components.udi_iox.helpers import _categorize_nodes
     from custom_components.udi_iox.models import IsyData
 
-    # Fire-only: targets resolved, no on/off intent → has_state_target
-    # False → button.
+    # Fire-only: pyisyox Group.has_state_target is False when targets
+    # *are* resolved but no member resolved to an on/off intent — that's
+    # what these two field settings produce (coupling to pyisyox 6.0.0b9
+    # internals, pinned).
     fire_only = make_group_record("99101", "Doorbell Chime")
     fire_only.targets_resolved = True
     fire_only.member_intents = {}

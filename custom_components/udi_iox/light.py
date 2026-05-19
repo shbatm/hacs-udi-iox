@@ -191,7 +191,7 @@ class ISYGroupLightEntity(ISYGroupEntity, LightEntity):
     _attr_color_mode = ColorMode.ONOFF
     _attr_supported_color_modes = {ColorMode.ONOFF}
     _node: Group
-    _attr_icon = "mdi:google-circles-communities"
+    _attr_icon: str = "mdi:google-circles-communities"
 
     @property
     def is_on(self) -> bool:
