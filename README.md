@@ -31,6 +31,8 @@ The earlier-generation **Polisy** controller is end-of-life and no longer a targ
 ## Installation
 
 > **IF YOU ARE USING THE CORE ISY994 INTEGRATION:** While they can co-exist side-by-side, you may wish to remove that integration before adding this one. For the large portion of entities that overlap, they will try to get the same `entity_id` and you will end up with everything suffixed with `domain.*_2`. To keep your dashboards intact as much as possible, remove the `isy994` integration, restart HA once (needed for installing this repo anyways) and then add this integration to restore the entities. Any `entity_id` that you manually renamed on the old integration will need to be renamed again.
+>
+> **IF YOU HAVE THE `hacs-isy994` HACS CUSTOM COMPONENT INSTALLED (not the same as HA's built-in `isy994` integration above):** remove it first — it's now archived. Unlike the built-in `isy994` integration, `hacs-isy994` pins an old `pyisyox` release that's incompatible with this integration's, and HA installs Python dependencies into one shared environment shared by every integration. With both installed, whichever loads last on a restart silently re-pins `pyisyox` out from under the other, and this integration's config flow fails with `Invalid handler specified` (log shows `cannot import name 'Controller' from 'pyisyox'`). Delete the `hacs-isy994` config entry **and** its `custom_components/isy994` folder, restart HA, then install this integration.
 
 ### Prerequisites
 
