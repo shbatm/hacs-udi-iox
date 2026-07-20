@@ -345,6 +345,7 @@ async def test_validate_input_uses_portal_auth(hass) -> None:
     ("raised", "expected"),
     [
         ("ISYInvalidAuthError", "InvalidAuth"),
+        ("AuthError", "InvalidAuth"),
         ("ISYConnectionError", "CannotConnect"),
         ("ISYResponseParseError", "CannotConnect"),
     ],
