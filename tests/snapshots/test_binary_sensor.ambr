@@ -39,7 +39,7 @@
 # name: test_binary_sensor_entities[binary_sensor.eisy_local_front_door_open-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'eisy.local Front Door Open',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'eisy.local Front Door Open',
       'status_enabled': True,
       'status_last_finish': None,
       'status_last_run': None,
@@ -93,8 +93,8 @@
 # name: test_binary_sensor_entities[binary_sensor.sunset_lights_status-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights Status',
-      'icon': 'mdi:script-text-outline',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Status',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:script-text-outline',
     }),
     'context': <ANY>,
     'entity_id': 'binary_sensor.sunset_lights_status',

@@ -39,7 +39,7 @@
 # name: test_sensor_entities[sensor.fanlinc_lamp_responding-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Responding',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Responding',
     }),
     'context': <ANY>,
     'entity_id': 'sensor.fanlinc_lamp_responding',
@@ -89,7 +89,7 @@
 # name: test_sensor_entities[sensor.garage_outlet_responding-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Garage Outlet Responding',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet Responding',
     }),
     'context': <ANY>,
     'entity_id': 'sensor.garage_outlet_responding',
@@ -139,7 +139,7 @@
 # name: test_sensor_entities[sensor.hallway_light_responding-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Responding',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Responding',
     }),
     'context': <ANY>,
     'entity_id': 'sensor.hallway_light_responding',
@@ -156,7 +156,7 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
     }),
     'config_entry_id': <ANY>,
     'config_subentry_id': <ANY>,
@@ -191,9 +191,9 @@
 # name: test_sensor_entities[sensor.living_thermostat_humidity-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'humidity',
-      'friendly_name': 'Living Thermostat Humidity',
-      'state_class': <SensorStateClass.MEASUREMENT: 'measurement'>,
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'humidity',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living Thermostat Humidity',
+      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
     }),
     'context': <ANY>,
     'entity_id': 'sensor.living_thermostat_humidity',
@@ -243,7 +243,7 @@
 # name: test_sensor_entities[sensor.living_thermostat_responding-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Living Thermostat Responding',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living Thermostat Responding',
     }),
     'context': <ANY>,
     'entity_id': 'sensor.living_thermostat_responding',
@@ -293,8 +293,8 @@
 # name: test_sensor_entities[sensor.sunset_lights_last_finish-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'timestamp',
-      'friendly_name': 'Sunset Lights Last finish',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'timestamp',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Last finish',
     }),
     'context': <ANY>,
     'entity_id': 'sensor.sunset_lights_last_finish',
@@ -344,8 +344,8 @@
 # name: test_sensor_entities[sensor.sunset_lights_last_run-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'timestamp',
-      'friendly_name': 'Sunset Lights Last run',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'timestamp',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Last run',
     }),
     'context': <ANY>,
     'entity_id': 'sensor.sunset_lights_last_run',
@@ -395,8 +395,8 @@
 # name: test_sensor_entities[sensor.sunset_lights_next_scheduled_run-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'timestamp',
-      'friendly_name': 'Sunset Lights Next scheduled run',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'timestamp',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Next scheduled run',
     }),
     'context': <ANY>,
     'entity_id': 'sensor.sunset_lights_next_scheduled_run',
@@ -413,7 +413,7 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'options': list([
+      <SensorEntityCapabilityAttribute.OPTIONS: 'options'>: list([
         'idle',
         'running_else',
         'running_then',
@@ -452,10 +452,10 @@
 # name: test_sensor_entities[sensor.sunset_lights_running-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'enum',
-      'friendly_name': 'Sunset Lights Running',
-      'icon': 'mdi:run',
-      'options': list([
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'enum',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Running',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:run',
+      <SensorEntityCapabilityAttribute.OPTIONS: 'options'>: list([
         'idle',
         'running_else',
         'running_then',

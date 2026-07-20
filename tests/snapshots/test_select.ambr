@@ -6,7 +6,7 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'options': list([
+      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
         '9.0 min',
         '8.0 min',
         '7.0 min',
@@ -74,8 +74,8 @@
 # name: test_select_entities[select.fanlinc_lamp_ramp_rate-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Ramp Rate',
-      'options': list([
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Ramp Rate',
+      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
         '9.0 min',
         '8.0 min',
         '7.0 min',
@@ -125,7 +125,7 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'options': list([
+      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
         'On  0 / Off 0',
         'On  1 / Off 0',
         'On  2 / Off 0',
@@ -289,9 +289,9 @@
 # name: test_select_entities[select.hallway_light_button_b_backlight-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'assumed_state': True,
-      'friendly_name': 'Hallway Light Button B Backlight',
-      'options': list([
+      <EntityStateAttribute.ASSUMED_STATE: 'assumed_state'>: True,
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Button B Backlight',
+      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
         'On  0 / Off 0',
         'On  1 / Off 0',
         'On  2 / Off 0',
@@ -437,7 +437,7 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'options': list([
+      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
         '9.0 min',
         '8.0 min',
         '7.0 min',
@@ -505,8 +505,8 @@
 # name: test_select_entities[select.hallway_light_ramp_rate-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Ramp Rate',
-      'options': list([
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Ramp Rate',
+      <SelectEntityCapabilityAttribute.OPTIONS: 'options'>: list([
         '9.0 min',
         '8.0 min',
         '7.0 min',

@@ -39,7 +39,7 @@
 # name: test_button_entities[button.eisy_local_network_resources_reboot_router-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'eisy.local Network Resources Reboot Router',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'eisy.local Network Resources Reboot Router',
     }),
     'context': <ANY>,
     'entity_id': 'button.eisy_local_network_resources_reboot_router',
@@ -89,7 +89,7 @@
 # name: test_button_entities[button.eisy_local_query-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'eisy.local Query',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'eisy.local Query',
     }),
     'context': <ANY>,
     'entity_id': 'button.eisy_local_query',
@@ -139,8 +139,8 @@
 # name: test_button_entities[button.fanlinc_lamp_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'identify',
-      'friendly_name': 'FanLinc Lamp Beep',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'identify',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Beep',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_beep',
@@ -190,7 +190,7 @@
 # name: test_button_entities[button.fanlinc_lamp_brighten-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Brighten',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Brighten',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_brighten',
@@ -240,7 +240,7 @@
 # name: test_button_entities[button.fanlinc_lamp_dim-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Dim',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Dim',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_dim',
@@ -290,7 +290,7 @@
 # name: test_button_entities[button.fanlinc_lamp_fade_down-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Fade Down',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Fade Down',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_fade_down',
@@ -340,7 +340,7 @@
 # name: test_button_entities[button.fanlinc_lamp_fade_stop-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Fade Stop',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Fade Stop',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_fade_stop',
@@ -390,7 +390,7 @@
 # name: test_button_entities[button.fanlinc_lamp_fade_up-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Fade Up',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Fade Up',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_fade_up',
@@ -440,7 +440,7 @@
 # name: test_button_entities[button.fanlinc_lamp_fast_off-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Fast Off',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Fast Off',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_fast_off',
@@ -490,7 +490,7 @@
 # name: test_button_entities[button.fanlinc_lamp_fast_on-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Fast On',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Fast On',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_fast_on',
@@ -540,7 +540,7 @@
 # name: test_button_entities[button.fanlinc_lamp_query-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Query',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Query',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_query',
@@ -590,7 +590,7 @@
 # name: test_button_entities[button.fanlinc_lamp_write_changes-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'FanLinc Lamp Write Changes',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Write Changes',
     }),
     'context': <ANY>,
     'entity_id': 'button.fanlinc_lamp_write_changes',
@@ -640,7 +640,7 @@
 # name: test_button_entities[button.front_door_lock_query-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Front Door Lock Query',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Front Door Lock Query',
     }),
     'context': <ANY>,
     'entity_id': 'button.front_door_lock_query',
@@ -690,8 +690,8 @@
 # name: test_button_entities[button.garage_outlet_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'identify',
-      'friendly_name': 'Garage Outlet Beep',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'identify',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet Beep',
     }),
     'context': <ANY>,
     'entity_id': 'button.garage_outlet_beep',
@@ -741,7 +741,7 @@
 # name: test_button_entities[button.garage_outlet_fast_off-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Garage Outlet Fast Off',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet Fast Off',
     }),
     'context': <ANY>,
     'entity_id': 'button.garage_outlet_fast_off',
@@ -791,7 +791,7 @@
 # name: test_button_entities[button.garage_outlet_fast_on-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Garage Outlet Fast On',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet Fast On',
     }),
     'context': <ANY>,
     'entity_id': 'button.garage_outlet_fast_on',
@@ -841,7 +841,7 @@
 # name: test_button_entities[button.garage_outlet_query-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Garage Outlet Query',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet Query',
     }),
     'context': <ANY>,
     'entity_id': 'button.garage_outlet_query',
@@ -891,7 +891,7 @@
 # name: test_button_entities[button.garage_outlet_write_changes-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Garage Outlet Write Changes',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet Write Changes',
     }),
     'context': <ANY>,
     'entity_id': 'button.garage_outlet_write_changes',
@@ -941,8 +941,8 @@
 # name: test_button_entities[button.hallway_light_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'identify',
-      'friendly_name': 'Hallway Light Beep',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'identify',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Beep',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_beep',
@@ -992,7 +992,7 @@
 # name: test_button_entities[button.hallway_light_brighten-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Brighten',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Brighten',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_brighten',
@@ -1042,7 +1042,7 @@
 # name: test_button_entities[button.hallway_light_dim-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Dim',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Dim',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_dim',
@@ -1092,7 +1092,7 @@
 # name: test_button_entities[button.hallway_light_fade_down-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Fade Down',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Fade Down',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_fade_down',
@@ -1142,7 +1142,7 @@
 # name: test_button_entities[button.hallway_light_fade_stop-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Fade Stop',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Fade Stop',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_fade_stop',
@@ -1192,7 +1192,7 @@
 # name: test_button_entities[button.hallway_light_fade_up-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Fade Up',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Fade Up',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_fade_up',
@@ -1242,7 +1242,7 @@
 # name: test_button_entities[button.hallway_light_fast_off-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Fast Off',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Fast Off',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_fast_off',
@@ -1292,7 +1292,7 @@
 # name: test_button_entities[button.hallway_light_fast_on-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Fast On',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Fast On',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_fast_on',
@@ -1342,7 +1342,7 @@
 # name: test_button_entities[button.hallway_light_query-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Query',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Query',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_query',
@@ -1392,7 +1392,7 @@
 # name: test_button_entities[button.hallway_light_write_changes-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Hallway Light Write Changes',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Write Changes',
     }),
     'context': <ANY>,
     'entity_id': 'button.hallway_light_write_changes',
@@ -1442,8 +1442,8 @@
 # name: test_button_entities[button.living_thermostat_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'identify',
-      'friendly_name': 'Living Thermostat Beep',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'identify',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living Thermostat Beep',
     }),
     'context': <ANY>,
     'entity_id': 'button.living_thermostat_beep',
@@ -1493,7 +1493,7 @@
 # name: test_button_entities[button.living_thermostat_query-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Living Thermostat Query',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living Thermostat Query',
     }),
     'context': <ANY>,
     'entity_id': 'button.living_thermostat_query',
@@ -1543,7 +1543,7 @@
 # name: test_button_entities[button.living_thermostat_set_time-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Living Thermostat Set Time',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living Thermostat Set Time',
     }),
     'context': <ANY>,
     'entity_id': 'button.living_thermostat_set_time',
@@ -1593,7 +1593,7 @@
 # name: test_button_entities[button.living_thermostat_write_changes-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Living Thermostat Write Changes',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living Thermostat Write Changes',
     }),
     'context': <ANY>,
     'entity_id': 'button.living_thermostat_write_changes',
@@ -1643,8 +1643,8 @@
 # name: test_button_entities[button.sunset_lights_run-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights Run',
-      'icon': 'mdi:play',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Run',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:play',
     }),
     'context': <ANY>,
     'entity_id': 'button.sunset_lights_run',
@@ -1694,8 +1694,8 @@
 # name: test_button_entities[button.sunset_lights_run_else-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights Run else',
-      'icon': 'mdi:play-circle-outline',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Run else',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:play-circle-outline',
     }),
     'context': <ANY>,
     'entity_id': 'button.sunset_lights_run_else',
@@ -1745,8 +1745,8 @@
 # name: test_button_entities[button.sunset_lights_run_then-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights Run then',
-      'icon': 'mdi:play-circle',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Run then',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:play-circle',
     }),
     'context': <ANY>,
     'entity_id': 'button.sunset_lights_run_then',
@@ -1796,8 +1796,8 @@
 # name: test_button_entities[button.sunset_lights_stop-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights Stop',
-      'icon': 'mdi:stop',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Stop',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:stop',
     }),
     'context': <ANY>,
     'entity_id': 'button.sunset_lights_stop',
