@@ -6,7 +6,7 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'event_types': list([
+      <EventEntityCapabilityAttribute.EVENT_TYPES: 'event_types'>: list([
         'on',
         'off',
         'fast_off',
@@ -49,9 +49,9 @@
 # name: test_event_entities[event.hallway_light_button_b-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'button',
-      'event_type': None,
-      'event_types': list([
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'button',
+      <EventEntityStateAttribute.EVENT_TYPE: 'event_type'>: None,
+      <EventEntityCapabilityAttribute.EVENT_TYPES: 'event_types'>: list([
         'on',
         'off',
         'fast_off',
@@ -60,7 +60,7 @@
         'fade_down',
         'fade_stop',
       ]),
-      'friendly_name': 'Hallway Light Button B',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Button B',
     }),
     'context': <ANY>,
     'entity_id': 'event.hallway_light_button_b',

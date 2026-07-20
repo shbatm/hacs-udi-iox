@@ -6,11 +6,11 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'fan_modes': list([
+      <ClimateEntityCapabilityAttribute.FAN_MODES: 'fan_modes'>: list([
         'auto',
         'on',
       ]),
-      'hvac_modes': list([
+      <ClimateEntityCapabilityAttribute.HVAC_MODES: 'hvac_modes'>: list([
         <HVACMode.OFF: 'off'>,
         <HVACMode.HEAT: 'heat'>,
         <HVACMode.COOL: 'cool'>,
@@ -18,9 +18,9 @@
         <HVACMode.AUTO: 'auto'>,
         <HVACMode.FAN_ONLY: 'fan_only'>,
       ]),
-      'max_temp': 35,
-      'min_temp': 7,
-      'target_temp_step': 1.0,
+      <ClimateEntityCapabilityAttribute.MAX_TEMP: 'max_temp'>: 35,
+      <ClimateEntityCapabilityAttribute.MIN_TEMP: 'min_temp'>: 7,
+      <ClimateEntityCapabilityAttribute.TARGET_TEMP_STEP: 'target_temp_step'>: 1.0,
     }),
     'config_entry_id': <ANY>,
     'config_subentry_id': <ANY>,
@@ -55,14 +55,14 @@
 # name: test_climate_entities[climate.living_thermostat-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'current_temperature': 68.0,
-      'fan_mode': 'off',
-      'fan_modes': list([
+      <ClimateEntityStateAttribute.CURRENT_TEMPERATURE: 'current_temperature'>: 68.0,
+      <ClimateEntityStateAttribute.FAN_MODE: 'fan_mode'>: 'off',
+      <ClimateEntityCapabilityAttribute.FAN_MODES: 'fan_modes'>: list([
         'auto',
         'on',
       ]),
-      'friendly_name': 'Living Thermostat',
-      'hvac_modes': list([
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living Thermostat',
+      <ClimateEntityCapabilityAttribute.HVAC_MODES: 'hvac_modes'>: list([
         <HVACMode.OFF: 'off'>,
         <HVACMode.HEAT: 'heat'>,
         <HVACMode.COOL: 'cool'>,
@@ -70,13 +70,13 @@
         <HVACMode.AUTO: 'auto'>,
         <HVACMode.FAN_ONLY: 'fan_only'>,
       ]),
-      'max_temp': 35,
-      'min_temp': 7,
-      'supported_features': <ClimateEntityFeature: 395>,
-      'target_temp_high': 76.0,
-      'target_temp_low': 68.0,
-      'target_temp_step': 1.0,
-      'temperature': None,
+      <ClimateEntityCapabilityAttribute.MAX_TEMP: 'max_temp'>: 35,
+      <ClimateEntityCapabilityAttribute.MIN_TEMP: 'min_temp'>: 7,
+      <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <ClimateEntityFeature: 395>,
+      <ClimateEntityStateAttribute.TARGET_TEMP_HIGH: 'target_temp_high'>: 76.0,
+      <ClimateEntityStateAttribute.TARGET_TEMP_LOW: 'target_temp_low'>: 68.0,
+      <ClimateEntityCapabilityAttribute.TARGET_TEMP_STEP: 'target_temp_step'>: 1.0,
+      <ClimateEntityStateAttribute.TEMPERATURE: 'temperature'>: None,
     }),
     'context': <ANY>,
     'entity_id': 'climate.living_thermostat',

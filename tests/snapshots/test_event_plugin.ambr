@@ -6,7 +6,7 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'event_types': list([
+      <EventEntityCapabilityAttribute.EVENT_TYPES: 'event_types'>: list([
         'doorbell_press',
         'motion_on',
       ]),
@@ -44,12 +44,12 @@
 # name: test_event_plugin_entities[event.front_doorbell-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'event_type': None,
-      'event_types': list([
+      <EventEntityStateAttribute.EVENT_TYPE: 'event_type'>: None,
+      <EventEntityCapabilityAttribute.EVENT_TYPES: 'event_types'>: list([
         'doorbell_press',
         'motion_on',
       ]),
-      'friendly_name': 'Front Doorbell',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Front Doorbell',
     }),
     'context': <ANY>,
     'entity_id': 'event.front_doorbell',

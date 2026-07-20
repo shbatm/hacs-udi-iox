@@ -43,8 +43,8 @@
       'actions_last_finish': None,
       'actions_last_run': None,
       'actions_next_scheduled_run': None,
-      'friendly_name': 'eisy.local Movie Mode',
-      'icon': 'mdi:script-text-outline',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'eisy.local Movie Mode',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:script-text-outline',
       'run_at_startup': None,
       'running': None,
       'status_enabled': True,
@@ -100,8 +100,8 @@
 # name: test_switch_entities[switch.fanlinc_lamp_enabled-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'switch',
-      'friendly_name': 'FanLinc Lamp Enabled',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'switch',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'FanLinc Lamp Enabled',
     }),
     'context': <ANY>,
     'entity_id': 'switch.fanlinc_lamp_enabled',
@@ -151,8 +151,8 @@
 # name: test_switch_entities[switch.front_door_lock_enabled-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'switch',
-      'friendly_name': 'Front Door Lock Enabled',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'switch',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Front Door Lock Enabled',
     }),
     'context': <ANY>,
     'entity_id': 'switch.front_door_lock_enabled',
@@ -202,7 +202,7 @@
 # name: test_switch_entities[switch.garage_outlet-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Garage Outlet',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet',
     }),
     'context': <ANY>,
     'entity_id': 'switch.garage_outlet',
@@ -252,8 +252,8 @@
 # name: test_switch_entities[switch.garage_outlet_enabled-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'switch',
-      'friendly_name': 'Garage Outlet Enabled',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'switch',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet Enabled',
     }),
     'context': <ANY>,
     'entity_id': 'switch.garage_outlet_enabled',
@@ -270,7 +270,7 @@
     ]),
     'area_id': None,
     'capabilities': dict({
-      'group_entities': list([
+      <EntityCapabilityAttribute.GROUP_ENTITIES: 'group_entities'>: list([
         'switch.garage_outlet',
       ]),
     }),
@@ -307,12 +307,12 @@
 # name: test_switch_entities[switch.garage_outlet_living_room_scene-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Garage Outlet Living Room Scene',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Garage Outlet Living Room Scene',
       'group_all_on': False,
-      'group_entities': list([
+      <EntityCapabilityAttribute.GROUP_ENTITIES: 'group_entities'>: list([
         'switch.garage_outlet',
       ]),
-      'icon': 'mdi:google-circles-communities',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:google-circles-communities',
     }),
     'context': <ANY>,
     'entity_id': 'switch.garage_outlet_living_room_scene',
@@ -362,8 +362,8 @@
 # name: test_switch_entities[switch.hallway_light_enabled-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'switch',
-      'friendly_name': 'Hallway Light Enabled',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'switch',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Hallway Light Enabled',
     }),
     'context': <ANY>,
     'entity_id': 'switch.hallway_light_enabled',
@@ -413,8 +413,8 @@
 # name: test_switch_entities[switch.living_thermostat_enabled-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'switch',
-      'friendly_name': 'Living Thermostat Enabled',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'switch',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living Thermostat Enabled',
     }),
     'context': <ANY>,
     'entity_id': 'switch.living_thermostat_enabled',
@@ -464,8 +464,8 @@
 # name: test_switch_entities[switch.sunset_lights_enabled-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights Enabled',
-      'icon': 'mdi:script-text-outline',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Enabled',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:script-text-outline',
     }),
     'context': <ANY>,
     'entity_id': 'switch.sunset_lights_enabled',
@@ -515,8 +515,8 @@
 # name: test_switch_entities[switch.sunset_lights_run_at_startup-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Sunset Lights Run at startup',
-      'icon': 'mdi:restart',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Sunset Lights Run at startup',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:restart',
     }),
     'context': <ANY>,
     'entity_id': 'switch.sunset_lights_run_at_startup',

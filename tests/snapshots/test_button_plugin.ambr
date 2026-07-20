@@ -39,7 +39,7 @@
 # name: test_plugin_command_buttons[button.eisy_local_query-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'eisy.local Query',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'eisy.local Query',
     }),
     'context': <ANY>,
     'entity_id': 'button.eisy_local_query',
@@ -89,8 +89,8 @@
 # name: test_plugin_command_buttons[button.plugin_hub_beep-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'identify',
-      'friendly_name': 'Plugin Hub Beep',
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'identify',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Plugin Hub Beep',
     }),
     'context': <ANY>,
     'entity_id': 'button.plugin_hub_beep',
@@ -140,7 +140,7 @@
 # name: test_plugin_command_buttons[button.plugin_hub_discover-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Plugin Hub Discover',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Plugin Hub Discover',
     }),
     'context': <ANY>,
     'entity_id': 'button.plugin_hub_discover',
@@ -190,7 +190,7 @@
 # name: test_plugin_command_buttons[button.plugin_hub_query-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'friendly_name': 'Plugin Hub Query',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Plugin Hub Query',
     }),
     'context': <ANY>,
     'entity_id': 'button.plugin_hub_query',
