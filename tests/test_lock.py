@@ -36,7 +36,7 @@ async def test_lock_entities(
 
 async def test_lock_attrs_unknown_status_yields_none() -> None:
     """Status absent → is_locked is None."""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     from pyisyox.client import NodePropertyValue
     from pyisyox.testing import (
@@ -61,7 +61,9 @@ async def test_lock_attrs_unknown_status_yields_none() -> None:
     node = make_node(record, controller)
     isy_data = isy_data_for(controller)
     entity = ISYLockEntity(isy_data, node=node, device_info=None)
-    with patch.object(entity, "async_write_ha_state", new=AsyncMock()):
+    # async_write_ha_state is synchronous in real HA -- a plain Mock,
+    # not AsyncMock (which would return an unawaited coroutine here).
+    with patch.object(entity, "async_write_ha_state"):
         entity.async_on_update(None, "")  # type: ignore[arg-type]
     assert entity.is_locked is None
 
