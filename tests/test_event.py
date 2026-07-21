@@ -215,6 +215,28 @@ def test_event_button_status_omitted_when_node_reports_no_st() -> None:
     assert entity.extra_state_attributes == {}
 
 
+def test_event_button_status_omitted_on_isy_value_unknown() -> None:
+    """A reported ``ISY_VALUE_UNKNOWN`` (``-inf``) sentinel omits the
+    attribute via ``node_status_int``'s short-circuit -- must not reach
+    ``int(float(...))``, which raises ``OverflowError`` on ``-inf``
+    rather than the ``ValueError``/``TypeError`` a naive reimplementation
+    would only guard against."""
+    from unittest.mock import MagicMock
+
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.constants import ISY_VALUE_UNKNOWN
+    from pyisyox.testing import make_controller, make_load_result
+
+    controller = make_controller(make_load_result())
+    entity = _build_event_entity(controller)
+    entity._node = MagicMock(
+        status=NodePropertyValue(
+            id="ST", value=ISY_VALUE_UNKNOWN, formatted="?", uom="0", name="Status"
+        )
+    )
+    assert entity.extra_state_attributes == {}
+
+
 def test_event_button_status_reports_raw_level_not_a_bool() -> None:
     """A KeypadLinc button wired to a fade up/down load reports its
     current dim level, not a coerced on/off bool. ``Node.status``

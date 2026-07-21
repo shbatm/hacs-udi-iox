@@ -28,7 +28,7 @@ from pyisyox import Event, Node, NodeLifecycleAction, NodeLifecycleEvent
 from pyisyox.constants import CMD_OFF, CMD_ON, PROP_STATUS
 from pyisyox.schema.nodedef import Command
 
-from .entity import ISYNodeEntity, _resolve_device_info
+from .entity import ISYNodeEntity, _resolve_device_info, node_status_int
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -138,16 +138,13 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
         fade up/down load reports its current dim level here (already
         UOM-normalized by pyisyox, same as every other dimmable
         entity), not just on/off. Omitted entirely for nodes that
-        don't report ``ST`` (plain pushbuttons, motion / doorbell
-        plugins) rather than showing a misleading ``None``.
+        don't report ``ST``, including the controller's own "unknown"
+        marker (plain pushbuttons, motion / doorbell plugins) rather
+        than showing a misleading ``None`` -- or worse, a fabricated
+        int coerced from that marker.
         """
-        status = self._node.status
-        if status is None or status.value is None or status.value == "":
-            return {}
-        try:
-            return {"button_status": int(float(status.value))}
-        except (TypeError, ValueError):
-            return {}
+        status = node_status_int(self._node)
+        return {} if status is None else {"button_status": status}
 
     @callback
     def _on_control(self, event: Event) -> None:
