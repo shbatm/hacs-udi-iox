@@ -49,6 +49,7 @@
 # name: test_event_entities[event.hallway_light_button_b-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
+      'button_status': 0,
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'button',
       <EventEntityStateAttribute.EVENT_TYPE: 'event_type'>: None,
       <EventEntityCapabilityAttribute.EVENT_TYPES: 'event_types'>: list([
