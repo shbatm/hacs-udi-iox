@@ -26,6 +26,7 @@ from homeassistant.helpers.service_info.ssdp import (
     SsdpServiceInfo,
 )
 from pyisyox import (
+    AuthError,
     Controller,
     ISYConnectionError,
     ISYInvalidAuthError,
@@ -143,6 +144,11 @@ async def validate_input(
         finally:
             await controller.stop()
     except ISYInvalidAuthError as error:
+        raise InvalidAuth from error
+    except AuthError as error:
+        # PortalAuth raises this bare (not ISYInvalidAuthError) on a
+        # login rejection (e.g. HTTP 401) -- without this it fell
+        # through to the generic "Unexpected error" (#91).
         raise InvalidAuth from error
     except ISYConnectionError as error:
         raise CannotConnect from error
