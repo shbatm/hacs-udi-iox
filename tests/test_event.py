@@ -201,26 +201,36 @@ async def test_event_on_lifecycle_only_acts_on_node_enabled_for_this_address() -
     assert entity._attr_available is False
 
 
-# --- button_status attribute (#85, option (b)) ---
+# --- button_status attribute (#85, option (b), amended per #101) ---
 
 
-def test_event_button_status_omitted_when_node_reports_no_st() -> None:
-    """A node with no ST property (plain pushbutton, motion / doorbell
-    plugin) gets no button_status attribute at all -- not a misleading
-    ``None``."""
+def test_event_button_status_omitted_for_primary_node() -> None:
+    """A standalone (non-sub-button) node never gets a button_status
+    attribute, even when it reports a valid ST -- its own
+    switch/light/sensor entity already surfaces that value (#101)."""
     from pyisyox.testing import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
-    entity = _build_event_entity(controller, properties={})
+    entity = _build_event_entity(controller, status_value="128")
+    assert entity._node.primary_address is None
+    assert entity.extra_state_attributes == {}
+
+
+def test_event_button_status_omitted_when_node_reports_no_st() -> None:
+    """A sub-button with no ST property (plain pushbutton, motion /
+    doorbell plugin) gets no button_status attribute at all -- not a
+    misleading ``None``."""
+    from pyisyox.testing import make_controller, make_load_result
+
+    controller = make_controller(make_load_result())
+    entity = _build_event_entity(controller, pnode="AA AA AA 0", properties={})
     assert entity.extra_state_attributes == {}
 
 
 def test_event_button_status_omitted_on_isy_value_unknown() -> None:
-    """A reported ``ISY_VALUE_UNKNOWN`` (``-inf``) sentinel omits the
-    attribute via ``node_status_int``'s short-circuit -- must not reach
-    ``int(float(...))``, which raises ``OverflowError`` on ``-inf``
-    rather than the ``ValueError``/``TypeError`` a naive reimplementation
-    would only guard against."""
+    """A reported ``ISY_VALUE_UNKNOWN`` (``-inf``) sentinel is
+    short-circuited by ``node_status_int`` before ``int(float(...))``,
+    which raises ``OverflowError`` on ``-inf``."""
     from unittest.mock import MagicMock
 
     from pyisyox.client import NodePropertyValue
@@ -228,17 +238,18 @@ def test_event_button_status_omitted_on_isy_value_unknown() -> None:
     from pyisyox.testing import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
-    entity = _build_event_entity(controller)
+    entity = _build_event_entity(controller, pnode="AA AA AA 0")
     entity._node = MagicMock(
+        primary_address="AA AA AA 0",
         status=NodePropertyValue(
             id="ST", value=ISY_VALUE_UNKNOWN, formatted="?", uom="0", name="Status"
-        )
+        ),
     )
     assert entity.extra_state_attributes == {}
 
 
 def test_event_button_status_reports_raw_level_not_a_bool() -> None:
-    """A KeypadLinc button wired to a fade up/down load reports its
+    """A KeypadLinc sub-button wired to a fade up/down load reports its
     current dim level, not a coerced on/off bool. ``Node.status``
     normalizes the wire byte (0-255) to this nodedef's dimmable-editor
     percentage -- 128/255 -> 50 -- same normalization every other
@@ -246,43 +257,47 @@ def test_event_button_status_reports_raw_level_not_a_bool() -> None:
     from pyisyox.testing import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
-    entity = _build_event_entity(controller, status_value="128")
+    entity = _build_event_entity(controller, pnode="AA AA AA 0", status_value="128")
     assert entity.extra_state_attributes == {"button_status": 50}
 
 
-async def test_event_on_control_status_refreshes_regardless_of_stream_live() -> None:
-    """An ST control refreshes button_status via async_write_ha_state
-    unconditionally -- unlike a button press, a stale reading catching
-    up during the post-connect replay is exactly the point, not a
-    spurious fire. It must not touch _trigger_event."""
+async def test_event_on_control_ignores_st_status_report() -> None:
+    """An ST control never reaches _trigger_event or
+    async_write_ha_state, live or during replay -- an unconditional
+    ha-state write on ST previously caused spurious fires (#101, see
+    event.py::_on_control)."""
     from unittest.mock import patch
 
     from pyisyox import Event
     from pyisyox.testing import make_controller, make_load_result
 
     controller = make_controller(make_load_result())
-    entity = _build_event_entity(controller)
-    entity._isy_data.controller_events.stream_live = False
+    entity = _build_event_entity(controller, pnode="AA AA AA 0")
 
-    fired: list = []
-    written = []
-    with (
-        patch.object(
-            type(entity),
-            "_trigger_event",
-            lambda self, ev, attrs=None: fired.append(ev),
-        ),
-        patch.object(
-            type(entity), "async_write_ha_state", lambda self: written.append(1)
-        ),
-    ):
-        evt = Event(
-            seqnum=0,
-            timestamp="",
-            control="ST",
-            action="0",
-            node_address="AA AA AA 1",
-        )
-        entity._on_control(evt)
-    assert fired == []
-    assert written == [1]
+    def _fires_nothing(*, stream_live: bool) -> None:
+        entity._isy_data.controller_events.stream_live = stream_live
+        fired: list = []
+        written: list = []
+        with (
+            patch.object(
+                type(entity),
+                "_trigger_event",
+                lambda self, ev, attrs=None: fired.append(ev),
+            ),
+            patch.object(
+                type(entity), "async_write_ha_state", lambda self: written.append(1)
+            ),
+        ):
+            evt = Event(
+                seqnum=0,
+                timestamp="",
+                control="ST",
+                action="0",
+                node_address="AA AA AA 1",
+            )
+            entity._on_control(evt)
+        assert fired == []
+        assert written == []
+
+    _fires_nothing(stream_live=False)
+    _fires_nothing(stream_live=True)

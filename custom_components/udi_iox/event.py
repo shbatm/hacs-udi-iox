@@ -6,12 +6,10 @@ Sub-button entities (KeypadLinc accessory buttons) are
 disabled-by-default — a single keypad would otherwise register 6-8
 unused entities.
 
-An ``event`` entity has no persistent state of its own (#85, option
-(b)): a KeypadLinc button's steady ``ST`` reading rides along as the
-``button_status`` extra-state-attribute instead of a second
-``binary_sensor``/``sensor`` entity per button. Kept as the reported
-level rather than coerced to a bool -- a button wired to a fade
-up/down load reports its current dim level, not just on/off.
+A KeypadLinc/RemoteLinc sub-button's last-commanded level rides along
+as the ``button_status`` extra-state-attribute (#85, amended per
+#101) -- see ``ISYButtonEvent.extra_state_attributes`` for scoping and
+staleness rules.
 """
 
 from __future__ import annotations
@@ -25,7 +23,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 from pyisyox import Event, Node, NodeLifecycleAction, NodeLifecycleEvent
-from pyisyox.constants import CMD_OFF, CMD_ON, PROP_STATUS
+from pyisyox.constants import CMD_OFF, CMD_ON
 from pyisyox.schema.nodedef import Command
 
 from .entity import ISYNodeEntity, _resolve_device_info, node_status_int
@@ -126,23 +124,31 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Steady ``ST`` reading (#85, option (b)).
+        """Last-commanded level for KeypadLinc/RemoteLinc sub-buttons
+        (#85, option (b), amended per #101).
 
-        A button press is momentary by nature, but a KeypadLinc
-        secondary button also has a steady state that a press-only
-        ``event`` entity can't otherwise surface — e.g. a "chaser"
-        follower automation needs to tell which button in a scene is
-        currently lit, not just that one fired. Kept as
-        ``Node.status``'s reported level, **not** coerced to a bool
-        like ``ISYBinarySensorEntity.is_on`` — a button wired to a
-        fade up/down load reports its current dim level here (already
+        Scoped to sub-button nodes only (``primary_address is not
+        None``) -- a standalone node's own switch/light/sensor entity
+        already surfaces its ``ST``, so this attribute only fills a
+        real gap for KeypadLinc/RemoteLinc sub-buttons, which have no
+        other entity of their own. Kept as ``Node.status``'s reported
+        level, **not** coerced to a bool like
+        ``ISYBinarySensorEntity.is_on`` — a button wired to a fade
+        up/down load reports its current dim level here (already
         UOM-normalized by pyisyox, same as every other dimmable
         entity), not just on/off. Omitted entirely for nodes that
         don't report ``ST``, including the controller's own "unknown"
-        marker (plain pushbuttons, motion / doorbell plugins) rather
-        than showing a misleading ``None`` -- or worse, a fabricated
-        int coerced from that marker.
+        marker, rather than showing a misleading ``None`` -- or worse,
+        a fabricated int coerced from that marker.
+
+        Only refreshed on a real press (see ``_on_control``) -- no
+        independent ``ST``-driven update exists, so this can go stale
+        relative to the physical device (e.g. the linked load changing
+        state via another automation). Trust the button's actual LED
+        state only via scene membership, not this attribute.
         """
+        if self._node.primary_address is None:
+            return {}
         status = node_status_int(self._node)
         return {} if status is None else {"button_status": status}
 
@@ -152,16 +158,13 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
 
         The wildcard subscription delivers *every* control on this node
         (status reports, etc.); only the ones declared in the nodedef's
-        ``cmds.sends`` map to an event_type — the rest are ignored for
-        firing purposes.
-
-        ``ST`` updates are handled separately from the trigger-event
-        firing below: they refresh the ``button_status`` attribute (see
-        ``extra_state_attributes``) via a plain ``async_write_ha_state``
-        and return early. That refresh runs unconditionally, including
-        during the post-connect replay -- unlike a button press, a
-        stale LED reading catching up right after a reconnect is
-        exactly the case this attribute exists for, not a spurious fire.
+        ``cmds.sends`` map to an event_type — the rest, including bare
+        ``ST`` status reports, are ignored entirely. (#101: a prior
+        version wrote ha state on every ``ST`` report to refresh
+        ``button_status`` independently of a press, but that write
+        fires ``state_changed`` regardless of ``stream_live``, so any
+        out-of-band ``ST`` change produced a bare state-trigger fire
+        with a stale ``event_type`` attribute.)
 
         The controller replays every node's *current* status on every
         WebSocket (re)connect (HA restart / config-entry reload / eisy
@@ -171,9 +174,6 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
         button press, and emitting it fires spurious automations on
         every connect.
         """
-        if event.control == PROP_STATUS:
-            self.async_write_ha_state()
-            return
         if not self._isy_data.controller_events.stream_live:
             return
         event_type = self._event_type_by_control.get(event.control)
