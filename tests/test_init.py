@@ -182,10 +182,10 @@ async def test_link_parent_devices(hass: HomeAssistant) -> None:
     assert controller is not None
     assert controller.via_device_id == hub.id
     devices = isy_data.devices
-    assert devices["controller"]["via_device_id"] == hub.id
-    assert devices["child"]["via_device_id"] == controller.id
-    assert devices["orphan"]["via_device_id"] == hub.id
-    assert devices["program_1"]["via_device_id"] == hub.id
+    assert devices["controller"].via_device_id == hub.id
+    assert devices["child"].via_device_id == controller.id
+    assert devices["orphan"].via_device_id == hub.id
+    assert devices["program_1"].via_device_id == hub.id
 
 
 @pytest.mark.parametrize("platforms", [[Platform.LIGHT, Platform.SWITCH]])

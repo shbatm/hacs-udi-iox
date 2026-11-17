@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
-import voluptuous as vol
+import probatio
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import (
     CONF_HOST,
@@ -60,50 +60,50 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def _data_schema(schema_input: dict[str, Any]) -> vol.Schema:
+def _data_schema(schema_input: dict[str, Any]) -> probatio.Schema:
     """Generate user-step schema with defaults preserved across attempts."""
-    return vol.Schema(
+    return probatio.Schema(
         {
-            vol.Required(CONF_HOST, default=schema_input.get(CONF_HOST, "")): str,
-            vol.Required(CONF_USERNAME): str,
-            vol.Required(CONF_PASSWORD): str,
-            vol.Optional(
+            probatio.Required(CONF_HOST, default=schema_input.get(CONF_HOST, "")): str,
+            probatio.Required(CONF_USERNAME): str,
+            probatio.Required(probatio.Secret(CONF_PASSWORD)): str,
+            probatio.Optional(
                 CONF_VERIFY_SSL,
                 default=schema_input.get(CONF_VERIFY_SSL, False),
             ): bool,
         },
-        extra=vol.ALLOW_EXTRA,
+        extra=probatio.ALLOW_EXTRA,
     )
 
 
-def _options_schema(options: Mapping[str, Any]) -> vol.Schema:
+def _options_schema(options: Mapping[str, Any]) -> probatio.Schema:
     """Shared by :meth:`ConfigFlow.async_step_options` and
     :meth:`OptionsFlowHandler.async_step_init` so the two never drift."""
-    return vol.Schema(
+    return probatio.Schema(
         {
-            vol.Optional(
+            probatio.Optional(
                 CONF_IGNORE_STRING,
                 default=options.get(CONF_IGNORE_STRING, DEFAULT_IGNORE_STRING),
             ): str,
-            vol.Optional(
+            probatio.Optional(
                 CONF_SENSOR_STRING,
                 default=options.get(CONF_SENSOR_STRING, DEFAULT_SENSOR_STRING),
             ): str,
-            vol.Required(
+            probatio.Required(
                 CONF_RESTORE_LIGHT_STATE,
                 default=options.get(
                     CONF_RESTORE_LIGHT_STATE, DEFAULT_RESTORE_LIGHT_STATE
                 ),
             ): bool,
-            vol.Required(
+            probatio.Required(
                 CONF_ENABLE_VARIABLES,
                 default=options.get(CONF_ENABLE_VARIABLES, DEFAULT_ENABLE_VARIABLES),
             ): bool,
-            vol.Required(
+            probatio.Required(
                 CONF_ENABLE_PROGRAMS,
                 default=options.get(CONF_ENABLE_PROGRAMS, DEFAULT_ENABLE_PROGRAMS),
             ): bool,
-            vol.Required(
+            probatio.Required(
                 CONF_ENABLE_NETWORKING,
                 default=options.get(CONF_ENABLE_NETWORKING, DEFAULT_ENABLE_NETWORKING),
             ): bool,
@@ -370,10 +370,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
             except InvalidAuth:
                 errors[CONF_PASSWORD] = "invalid_auth"
             else:
-                cfg_entries = self.hass.config_entries
-                cfg_entries.async_update_entry(existing_entry, data=new_data)
-                await cfg_entries.async_reload(existing_entry.entry_id)
-                return self.async_abort(reason="reauth_successful")
+                return self.async_update_reload_and_abort(existing_entry, data=new_data)
 
         self.context["title_placeholders"] = {
             CONF_NAME: existing_entry.title,
@@ -385,12 +382,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call
                 "sample_ip": "https://eisy.local:443",
             },
             step_id="reauth_confirm",
-            data_schema=vol.Schema(
+            data_schema=probatio.Schema(
                 {
-                    vol.Required(
+                    probatio.Required(
                         CONF_USERNAME, default=existing_data[CONF_USERNAME]
                     ): str,
-                    vol.Required(CONF_PASSWORD): str,
+                    probatio.Required(probatio.Secret(CONF_PASSWORD)): str,
                 }
             ),
             errors=errors,

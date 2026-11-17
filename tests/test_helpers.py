@@ -800,7 +800,7 @@ def test_sensor_string_marker_stripped_from_device_name(isy_data, controller):
     assert isy_data.nodes[Platform.SWITCH] == []
     device_info = isy_data.devices.get(node.address)
     assert device_info is not None
-    assert device_info["name"] == "Garbage Disposal"  # marker stripped
+    assert device_info.name == "Garbage Disposal"  # marker stripped
 
 
 def test_default_sensor_string_does_not_match_bare_word_sensor(isy_data, controller):
@@ -815,7 +815,7 @@ def test_default_sensor_string_does_not_match_bare_word_sensor(isy_data, control
     assert isy_data.nodes[Platform.SENSOR] == []
     device_info = isy_data.devices.get(node.address)
     assert device_info is not None
-    assert device_info["name"] == "Flume Water Sensor"  # unchanged
+    assert device_info.name == "Flume Water Sensor"  # unchanged
 
 
 # --- node-server device hierarchy ------------------------------------
@@ -873,10 +873,10 @@ def test_node_server_children_get_own_device_info(isy_data, options, controller)
     uuid = controller.config.uuid
     # All three nodes own their own DeviceInfo.
     assert set(isy_data.devices) == {"n100_controller", "n100_blind1", "n100_blind2"}
-    assert isy_data.devices["n100_controller"]["identifiers"] == {
+    assert isy_data.devices["n100_controller"].identifiers == {
         (DOMAIN, f"{uuid}_n100_controller")
     }
-    assert isy_data.devices["n100_blind1"]["identifiers"] == {
+    assert isy_data.devices["n100_blind1"].identifiers == {
         (DOMAIN, f"{uuid}_n100_blind1")
     }
     # Children hang off the controller node, not the eisy root — gives HA
@@ -885,7 +885,10 @@ def test_node_server_children_get_own_device_info(isy_data, options, controller)
         "n100_blind1": "n100_controller",
         "n100_blind2": "n100_controller",
     }
-    assert all("via_device" not in info for info in isy_data.devices.values())
+    # Parent registry ids are linked later, at setup.
+    assert not any(
+        isinstance(info.via_device_id, str) for info in isy_data.devices.values()
+    )
 
 
 def test_node_server_controller_no_comms_error_sensor(isy_data, options, controller):

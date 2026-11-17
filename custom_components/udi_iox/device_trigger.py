@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, cast
 
-import voluptuous as vol
+import probatio
 from homeassistant.components.device_automation import (
     DEVICE_TRIGGER_BASE_SCHEMA,
     InvalidDeviceAutomationConfig,
@@ -50,9 +50,9 @@ CONF_SUBTYPE = "subtype"
 
 TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
     {
-        vol.Required(CONF_TYPE): str,
-        vol.Required(CONF_ENTITY_ID): str,
-        vol.Optional(CONF_SUBTYPE): str,
+        probatio.Required(CONF_TYPE): str,
+        probatio.Required(CONF_ENTITY_ID): str,
+        probatio.Optional(CONF_SUBTYPE): str,
     }
 )
 

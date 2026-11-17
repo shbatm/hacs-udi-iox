@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
+import probatio
 from homeassistant.const import (
     CONF_ADDRESS,
     CONF_COMMAND,
@@ -68,38 +68,44 @@ def _valid_iox_command(value: Any) -> str:
     cmd = str(value).upper()
     if cmd in COMMAND_FRIENDLY_NAME:
         return cmd
-    raise vol.Invalid(f"Unknown IoX command: {value!r}")
+    raise probatio.Invalid(f"Unknown IoX command: {value!r}")
 
 
 SCHEMA_GROUP = "name-address"
 
 SERVICE_SEND_NODE_COMMAND_SCHEMA = {
-    vol.Required(CONF_COMMAND): vol.In(VALID_NODE_COMMANDS)
+    probatio.Required(CONF_COMMAND): probatio.In(VALID_NODE_COMMANDS)
 }
 
-SERVICE_RENAME_NODE_SCHEMA = {vol.Required(CONF_NAME): cv.string}
+SERVICE_RENAME_NODE_SCHEMA = {probatio.Required(CONF_NAME): cv.string}
 
 SERVICE_SET_ZWAVE_PARAMETER_SCHEMA = {
-    vol.Required(CONF_PARAMETER): vol.All(vol.Coerce(int), vol.Range(min=1)),
-    vol.Required(CONF_VALUE): vol.Coerce(int),
+    probatio.Required(CONF_PARAMETER): probatio.All(
+        probatio.Coerce(int), probatio.Range(min=1)
+    ),
+    probatio.Required(CONF_VALUE): probatio.Coerce(int),
     # ``select`` selectors hand the value back as a string ("1" / "2" /
     # "4"); coerce before the membership check so the schema accepts
     # both the UI's string form and an int from YAML / scripts.
-    vol.Required(CONF_SIZE): vol.All(vol.Coerce(int), vol.In((1, 2, 4))),
+    probatio.Required(CONF_SIZE): probatio.All(
+        probatio.Coerce(int), probatio.In((1, 2, 4))
+    ),
 }
 
 SERVICE_GET_ZWAVE_PARAMETER_SCHEMA = {
-    vol.Required(CONF_PARAMETER): vol.All(vol.Coerce(int), vol.Range(min=1)),
+    probatio.Required(CONF_PARAMETER): probatio.All(
+        probatio.Coerce(int), probatio.Range(min=1)
+    ),
 }
 
-SERVICE_SEND_PROGRAM_COMMAND_SCHEMA = vol.All(
-    cv.has_at_least_one_key(CONF_ADDRESS, CONF_NAME),
-    vol.Schema(
+SERVICE_SEND_PROGRAM_COMMAND_SCHEMA = probatio.All(
+    probatio.AtLeastOne(CONF_ADDRESS, CONF_NAME),
+    probatio.Schema(
         {
-            vol.Exclusive(CONF_NAME, SCHEMA_GROUP): cv.string,
-            vol.Exclusive(CONF_ADDRESS, SCHEMA_GROUP): cv.string,
-            vol.Required(CONF_COMMAND): vol.In(VALID_PROGRAM_COMMANDS),
-            vol.Optional(CONF_ISY): cv.string,
+            probatio.Exclusive(CONF_NAME, SCHEMA_GROUP): cv.string,
+            probatio.Exclusive(CONF_ADDRESS, SCHEMA_GROUP): cv.string,
+            probatio.Required(CONF_COMMAND): probatio.In(VALID_PROGRAM_COMMANDS),
+            probatio.Optional(CONF_ISY): cv.string,
         }
     ),
 )

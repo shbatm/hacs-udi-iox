@@ -1,8 +1,10 @@
 {
   "domain": "udi_iox",
   "name": "Universal Devices IoX (eisy)",
+  "categories": ["hubs_protocols.smart_home_hubs"],
   "codeowners": ["@shbatm"],
   "config_flow": true,
+  "connectivity": ["insteon", "matter", "zigbee", "zwave"],
   "dhcp": [
     {
       "registered_devices": true
