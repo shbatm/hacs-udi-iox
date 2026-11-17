@@ -168,7 +168,6 @@ async def async_setup_entry(
                 entity = ISYBinarySensorHeartbeat(
                     isy_data, node, parent_entity, device_info=device_info
                 )
-                parent_entity.add_heartbeat_device(entity)
                 entities.append(entity)
             continue
         if (
@@ -480,10 +479,7 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
         self,
         isy_data: IsyData,
         node: Node,
-        parent_device: ISYInsteonBinarySensorEntity
-        | ISYBinarySensorEntity
-        | ISYBinarySensorHeartbeat
-        | ISYBinarySensorProgramEntity,
+        parent_device: ISYInsteonBinarySensorEntity,
         device_info: DeviceInfo | None = None,
     ) -> None:
         """Defaults OFF (Normal); flips ON (Low Battery) after 25 h
@@ -505,8 +501,14 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
             )
         )
 
+        # Any parent activity also counts as a heartbeat; unlink on removal
+        # so the parent doesn't keep calling a removed entity.
+        self._parent_device.add_heartbeat_device(self)
+        self.async_on_remove(lambda: self._parent_device.add_heartbeat_device(None))
+
         # Start the timer on bootup, so we can change from UNKNOWN to OFF
         self._restart_timer()
+        self.async_on_remove(self._cancel_timer)
 
         # Only restore the state if it was previously ON (Low Battery)
         if (
@@ -530,11 +532,15 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
         self._restart_timer()
         self.async_write_ha_state()
 
-    def _restart_timer(self) -> None:
-        """Restart the 25 hour timer."""
+    def _cancel_timer(self) -> None:
+        """Cancel the 25 hour timer."""
         if self._heartbeat_timer is not None:
             self._heartbeat_timer()
             self._heartbeat_timer = None
+
+    def _restart_timer(self) -> None:
+        """Restart the 25 hour timer."""
+        self._cancel_timer()
 
         @callback
         def timer_elapsed(now: datetime) -> None:

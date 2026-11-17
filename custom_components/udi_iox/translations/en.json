@@ -49,7 +49,6 @@
     },
     "abort": {
       "already_configured": "Device is already configured",
-      "reauth_successful": "Re-authentication was successful",
       "unsupported_firmware": "This integration requires IoX firmware 6.x or newer. The discovered controller is running an older firmware."
     }
   },

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
@@ -795,3 +795,43 @@ async def test_heartbeat_entity_handles_heartbeat_and_timer(hass) -> None:
         if hb._heartbeat_timer is not None:
             hb._heartbeat_timer()
             hb._heartbeat_timer = None
+
+
+async def test_heartbeat_removal_cancels_timer_and_unlinks_parent(hass) -> None:
+    """Removing the heartbeat entity (including an aborted add) cancels its
+    25 h timer and unlinks it from the parent sensor."""
+    from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+    from pyisyox.testing import (
+        make_controller,
+        make_load_result,
+        make_node,
+        make_node_record,
+    )
+
+    from custom_components.udi_iox.binary_sensor import (
+        ISYBinarySensorHeartbeat,
+        ISYInsteonBinarySensorEntity,
+    )
+
+    controller = make_controller(make_load_result())
+    main = make_node(make_node_record("A 1", "Sensor"), controller)
+    sub = make_node(make_node_record("A 4", "HB", parent_address="A 1"), controller)
+    isy_data = isy_data_for(controller)
+    parent = ISYInsteonBinarySensorEntity(
+        isy_data,
+        node=main,
+        device_class=BinarySensorDeviceClass.MOTION,
+        device_info=None,
+    )
+    hb = ISYBinarySensorHeartbeat(isy_data, node=sub, parent_device=parent)
+    hb.hass = hass
+    hb.async_get_last_state = AsyncMock(return_value=None)
+
+    await hb.async_added_to_hass()
+    assert parent._heartbeat_device is hb
+    assert hb._heartbeat_timer is not None
+
+    hb.add_to_platform_abort()
+
+    assert hb._heartbeat_timer is None
+    assert parent._heartbeat_device is None

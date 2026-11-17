@@ -400,12 +400,12 @@ async def test_async_get_zwave_parameter_returns_parsed_dict(
 async def test_valid_iox_command_validator() -> None:
     """``_valid_iox_command`` upper-cases and validates against the
     pyisyox COMMAND_FRIENDLY_NAME table."""
-    import voluptuous as vol
+    import probatio
 
     from custom_components.udi_iox.services import _valid_iox_command
 
     assert _valid_iox_command("don") == "DON"
-    with pytest.raises(vol.Invalid, match="Unknown IoX command"):
+    with pytest.raises(probatio.Invalid, match="Unknown IoX command"):
         _valid_iox_command("not_a_real_cmd")
 
 

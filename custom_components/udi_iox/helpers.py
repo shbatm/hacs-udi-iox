@@ -10,7 +10,7 @@ from __future__ import annotations
 from types import MappingProxyType
 from typing import Any, cast
 
-from homeassistant.const import ATTR_MANUFACTURER, ATTR_MODEL, Platform
+from homeassistant.const import Platform
 from homeassistant.helpers.entity import DeviceInfo
 from pyisyox import (
     AuxPlatform,
@@ -359,23 +359,20 @@ def _generate_device_info(
     manufacturer = (
         node.protocol.replace("_", " ").title() if node.protocol else "Unknown"
     )
-    device_info = DeviceInfo(
-        identifiers={(DOMAIN, f"{uuid}_{node.address}")},
-        manufacturer=manufacturer,
-        name=_pnode_group_naming(controller.nodes, node, sensor_string)[0],
-        configuration_url=host,
-        suggested_area=_suggested_area_for_node(controller, node),
-    )
-
     model: str = str(node.address).rpartition(" ")[0] or node.address
     if node.nodedef_id:
         model += f": {node.nodedef_id}"
     if node.type:
         model += f" ({node.type})"
-    device_info[ATTR_MODEL] = model
-    device_info[ATTR_MANUFACTURER] = manufacturer
 
-    return device_info
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"{uuid}_{node.address}")},
+        manufacturer=manufacturer,
+        model=model,
+        name=_pnode_group_naming(controller.nodes, node, sensor_string)[0],
+        configuration_url=host,
+        suggested_area=_suggested_area_for_node(controller, node),
+    )
 
 
 def _categorize_nodes(

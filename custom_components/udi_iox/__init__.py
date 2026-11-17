@@ -6,7 +6,7 @@ import asyncio
 from urllib.parse import urlparse
 
 import homeassistant.helpers.device_registry as dr
-import voluptuous as vol
+import probatio
 from homeassistant.const import (
     CONF_HOST,
     CONF_PASSWORD,
@@ -55,9 +55,9 @@ from .program_device import program_device_info
 from .services import async_setup_services
 from .util import _async_cleanup_registry_entries
 
-CONFIG_SCHEMA = vol.Schema(
+CONFIG_SCHEMA = probatio.Schema(
     cv.deprecated(DOMAIN),
-    extra=vol.ALLOW_EXTRA,
+    extra=probatio.ALLOW_EXTRA,
 )
 
 
@@ -67,7 +67,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> None:
     """Set up an IoX config entry."""
     isy_data = IsyData()
     entry.runtime_data = isy_data
@@ -169,8 +169,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop)
     )
 
-    return True
-
 
 def _controller_label(controller: Controller, host: str) -> str:
     """Controller name → URL hostname → host. Used by the hub +
@@ -193,13 +191,13 @@ def _async_link_parent_devices(
     for key, info in isy_data.devices.items():
         parent_info = isy_data.devices.get(isy_data.device_parents.get(key, ""))
         if parent_info is None:
-            info["via_device_id"] = hub_id
+            info.via_device_id = hub_id
             continue
-        parent_info["via_device_id"] = hub_id
-        parent = registry.async_get_or_create(
-            config_entry_id=entry.entry_id, **parent_info
+        parent_info.via_device_id = hub_id
+        parent = registry.async_get_or_create_from_info(
+            config_entry_id=entry.entry_id, device_info=parent_info
         )
-        info["via_device_id"] = parent.id
+        info.via_device_id = parent.id
 
 
 @callback
@@ -236,16 +234,14 @@ def _create_service_device_info(
     )
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> None:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-    controller: Controller = entry.runtime_data.root
-
-    _LOGGER.debug("IoX stopping event stream and automatic updates")
-    await controller.stop()
-
-    return unload_ok
+    try:
+        await hass.config_entries.async_unload_platforms_or_raise(entry, PLATFORMS)
+    finally:
+        controller: Controller = entry.runtime_data.root
+        _LOGGER.debug("IoX stopping event stream and automatic updates")
+        await controller.stop()
 
 
 async def async_remove_config_entry_device(
