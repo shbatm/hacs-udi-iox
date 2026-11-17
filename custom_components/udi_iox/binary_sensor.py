@@ -362,14 +362,14 @@ class ISYInsteonBinarySensorEntity(ISYBinarySensorEntity):
         # Subscribe to *every* control on the positive node — the
         # handler dispatches on event.control internally (DON, DOF,
         # FDUP, FDDOWN, FDSTOP, …).
-        self._unsubscribers.append(
+        self.async_on_remove(
             events.subscribe_node(
                 self._node.address, None, self._async_positive_node_control_handler
             )
         )
 
         if self._negative_node is not None:
-            self._unsubscribers.append(
+            self.async_on_remove(
                 events.subscribe_node(
                     self._negative_node.address,
                     None,
@@ -499,7 +499,7 @@ class ISYBinarySensorHeartbeat(ISYNodeEntity, BinarySensorEntity, RestoreEntity)
         """Subscribe to the node + sub-events."""
         await super().async_added_to_hass()
 
-        self._unsubscribers.append(
+        self.async_on_remove(
             self._isy_data.controller_events.subscribe_node(
                 self._node.address, None, self._heartbeat_node_control_handler
             )

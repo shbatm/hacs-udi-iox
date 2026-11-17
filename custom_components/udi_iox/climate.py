@@ -58,6 +58,14 @@ from .models import IsyConfigEntry, IsyData
 PARALLEL_UPDATES = 0
 
 
+def _safe_int(value: Any) -> int | None:
+    """Coerce an IoX property value to int; ``None`` for empty/non-numeric."""
+    try:
+        return int(float(value))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: IsyConfigEntry,
@@ -120,16 +128,14 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         """Return the current humidity."""
         if not (humidity := self._node.properties.get(PROP_HUMIDITY)):
             return None
-        if humidity.value is None:
-            return None
-        return int(humidity.value)
+        return _safe_int(humidity.value)
 
     @property
     def hvac_mode(self) -> HVACMode:
         """Return hvac operation ie. heat, cool mode."""
         if not (hvac_mode := self._node.properties.get(CMD_CLIMATE_MODE)):
             return HVACMode.OFF
-        if hvac_mode.value is None:
+        if (mode := _safe_int(hvac_mode.value)) is None:
             return HVACMode.OFF
 
         # Which state values used depends on the mode property's UOM:
@@ -141,19 +147,15 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
                 if self._node.protocol == Protocol.INSTEON
                 else UOM_HVAC_MODE_GENERIC
             )
-        return cast(
-            HVACMode, UOM_TO_STATES[uom].get(int(hvac_mode.value), HVACMode.OFF)
-        )
+        return cast(HVACMode, UOM_TO_STATES[uom].get(mode, HVACMode.OFF))
 
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current running hvac operation if supported."""
         hvac_action = self._node.properties.get(PROP_HEAT_COOL_STATE)
-        if not hvac_action or hvac_action.value is None:
+        if not hvac_action or (action := _safe_int(hvac_action.value)) is None:
             return None
-        return cast(
-            HVACAction, UOM_TO_STATES[UOM_HVAC_ACTIONS].get(int(hvac_action.value))
-        )
+        return cast(HVACAction, UOM_TO_STATES[UOM_HVAC_ACTIONS].get(action))
 
     @property
     def current_temperature(self) -> float | None:
@@ -193,9 +195,9 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
     def fan_mode(self) -> str:
         """Return the current fan mode ie. auto, on."""
         fan_mode = self._node.properties.get(CMD_CLIMATE_FAN_SETTING)
-        if not fan_mode or fan_mode.value is None:
+        if not fan_mode or (mode := _safe_int(fan_mode.value)) is None:
             return FAN_OFF
-        return UOM_TO_STATES[UOM_FAN_MODES].get(int(fan_mode.value), FAN_OFF)
+        return UOM_TO_STATES[UOM_FAN_MODES].get(mode, FAN_OFF)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""

@@ -253,7 +253,7 @@ class ISYBacklightSelectEntity(ISYNodeEntity, SelectEntity, RestoreEntity):
         # event with the wire code "_7M" (DeviceWriteAction.MEMORY).
         # Subscribe to that control on this node and filter inside the
         # callback — rare enough that the cost is irrelevant.
-        self._unsubscribers.append(
+        self.async_on_remove(
             self._isy_data.controller_events.subscribe_node(
                 self._node.address,
                 DeviceWriteAction.MEMORY,

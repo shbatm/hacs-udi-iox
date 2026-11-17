@@ -153,10 +153,10 @@ class ISYProgramDeviceEntity(ISYEntity):
         """
         events = self._isy_data.controller_events
         program: Program = self._node
-        self._unsubscribers.append(
+        self.async_on_remove(
             events.subscribe_program(program.address, self._on_program_status)
         )
-        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
+        self.async_on_remove(events.subscribe_ws_status(self._on_ws_status))
 
     @callback
     def _on_program_status(self, _event: ProgramStatusEvent) -> None:

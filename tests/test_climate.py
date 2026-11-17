@@ -343,3 +343,31 @@ async def test_climate_set_fan_mode_success_path(hass) -> None:
         await entity.async_set_fan_mode(FAN_AUTO)
     # FAN_AUTO maps through HA_FAN_TO_ISY to the wire string "auto".
     set_fan.assert_awaited_once_with("auto")
+
+
+async def test_climate_empty_string_properties_fallback(hass) -> None:
+    """Empty-string values (issue #104: Insteon thermostat reporting
+    ``CLIFS=""``) fall back like missing values instead of raising."""
+    from homeassistant.components.climate import FAN_OFF, HVACMode
+    from pyisyox.client import NodePropertyValue
+    from pyisyox.testing import make_controller, make_load_result
+
+    from custom_components.udi_iox.climate import ISYThermostatEntity
+
+    controller = make_controller(make_load_result())
+    node = _make_thermostat(
+        controller,
+        CLIFS=NodePropertyValue(id="CLIFS", value="", formatted=" ", uom="0"),
+        CLIMD=NodePropertyValue(id="CLIMD", value="", formatted=" ", uom="98"),
+        CLIHCS=NodePropertyValue(id="CLIHCS", value="", formatted=" ", uom="66"),
+        CLIHUM=NodePropertyValue(id="CLIHUM", value="", formatted=" ", uom="22"),
+        CLISPC=NodePropertyValue(id="CLISPC", value="", formatted=" ", uom="0"),
+    )
+    entity = ISYThermostatEntity(isy_data_for(controller), node, device_info=None)
+    entity.hass = hass
+
+    assert entity.fan_mode == FAN_OFF
+    assert entity.hvac_mode == HVACMode.OFF
+    assert entity.hvac_action is None
+    assert entity.current_humidity is None
+    assert entity.target_temperature_high is None
