@@ -212,7 +212,6 @@ class ISYNodeButtonEntity(ButtonEntity):
         # NetworkResource and Controller don't carry an enabled flag;
         # default to True so the button is always usable.
         self._node_enabled = getattr(node, TAG_ENABLED, True)
-        self._unsubscribers: list[Callable[[], None]] = []
 
     @property
     def available(self) -> bool:
@@ -224,22 +223,16 @@ class ISYNodeButtonEntity(ButtonEntity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to lifecycle + WS-status events for availability tracking."""
         events = self._isy_data.controller_events
-        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
+        self.async_on_remove(events.subscribe_ws_status(self._on_ws_status))
         if not isinstance(self._node, Node):
             # NetworkResource and system-query buttons aren't nodes.
             return
-        self._unsubscribers.append(events.subscribe_lifecycle(self._on_lifecycle))
+        self.async_on_remove(events.subscribe_lifecycle(self._on_lifecycle))
 
     @callback
     def _on_ws_status(self, connected: bool) -> None:
         """Refresh state on WS flip so ``available`` re-renders."""
         self.async_write_ha_state()
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Unsubscribe from controller events."""
-        for unsub in self._unsubscribers:
-            unsub()
-        self._unsubscribers.clear()
 
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:

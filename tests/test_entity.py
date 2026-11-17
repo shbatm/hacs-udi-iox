@@ -422,3 +422,40 @@ async def test_isy_entity_get_zwave_parameter_translates_node_command_error() ->
         pytest.raises(HomeAssistantError, match="nope"),
     ):
         await entity.async_get_zwave_parameter(1)
+
+
+async def test_aborted_add_unsubscribes_listeners(hass) -> None:
+    """If adding the entity fails after ``async_added_to_hass``, HA aborts
+    via ``add_to_platform_abort`` (no ``async_will_remove_from_hass``).
+    Subscriptions must still be torn down so later events don't hit an
+    entity whose ``hass`` is None (issue #104)."""
+    from pyisyox.testing import make_controller, make_load_result
+
+    from custom_components.udi_iox.climate import ISYThermostatEntity
+    from tests.conftest import isy_data_for
+    from tests.test_climate import _make_thermostat
+
+    controller = make_controller(make_load_result())
+    isy_data = isy_data_for(controller)
+    unsubs: list[MagicMock] = []
+
+    def _subscribe(*_args: object, **_kwargs: object) -> MagicMock:
+        unsubs.append(unsub := MagicMock())
+        return unsub
+
+    events = MagicMock(ws_connected=True)
+    events.subscribe_node = events.subscribe_lifecycle = _subscribe
+    events.subscribe_ws_status = _subscribe
+    isy_data.controller_events = events
+
+    entity = ISYThermostatEntity(
+        isy_data, _make_thermostat(controller), device_info=None
+    )
+    entity.hass = hass
+    await entity.async_added_to_hass()
+    assert unsubs
+
+    entity.add_to_platform_abort()
+
+    for unsub in unsubs:
+        unsub.assert_called_once()

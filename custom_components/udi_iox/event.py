@@ -106,11 +106,11 @@ class ISYButtonEvent(ISYNodeEntity, EventEntity):
         """Wildcard-subscribe to every control on this node — the event
         platform needs every verb, not just one."""
         events = self._isy_data.controller_events
-        self._unsubscribers.append(
+        self.async_on_remove(
             events.subscribe_node(self._node.address, None, self._on_control)
         )
-        self._unsubscribers.append(events.subscribe_lifecycle(self._on_lifecycle))
-        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
+        self.async_on_remove(events.subscribe_lifecycle(self._on_lifecycle))
+        self.async_on_remove(events.subscribe_ws_status(self._on_ws_status))
 
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:

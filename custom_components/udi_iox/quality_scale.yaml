@@ -45,7 +45,7 @@ rules:
     status: done
     comment: |
       Entities subscribe to controller events in async_added_to_hass and
-      tear down via async_will_remove_from_hass (ISYEntity._unsubscribers).
+      register teardown via async_on_remove, so aborted adds also unsubscribe.
   entity-unique-id: done
   has-entity-name:
     status: done

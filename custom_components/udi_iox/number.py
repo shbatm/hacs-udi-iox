@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import replace
 from typing import Any
 
@@ -295,7 +294,6 @@ class ISYVariableNumberEntity(NumberEntity):
         self._isy_data = isy_data
         self._node = node
         self.entity_description = description
-        self._unsubscribers: list[Callable[[], None]] = []
 
         # Two entities are created for each variable: one for current value,
         # one for initial. Initial value entities are disabled by default.
@@ -305,17 +303,11 @@ class ISYVariableNumberEntity(NumberEntity):
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to this variable's change frames."""
-        self._unsubscribers.append(
+        self.async_on_remove(
             self._isy_data.controller_events.subscribe_variable(
                 self._node.type_id, self._node.id, self._on_variable_change
             )
         )
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Drop subscriptions, if any."""
-        for unsub in self._unsubscribers:
-            unsub()
-        self._unsubscribers.clear()
 
     @callback
     def _on_variable_change(self, value: int | None, init: int | None) -> None:
@@ -419,7 +411,7 @@ class ISYBacklightNumberEntity(ISYNodeEntity, RestoreNumber):
         ):
             self._attr_native_value = last_number_data.native_value
 
-        self._unsubscribers.append(
+        self.async_on_remove(
             self._isy_data.controller_events.subscribe_node(
                 self._node.address,
                 DeviceWriteAction.MEMORY,

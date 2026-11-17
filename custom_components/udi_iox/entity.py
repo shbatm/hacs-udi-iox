@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import EntityCategory
@@ -271,7 +270,6 @@ class ISYEntity(Entity):
     _attr_should_poll = False
     _node: NodeType
     _isy_data: IsyData
-    _unsubscribers: list[Callable[[], None]]
 
     def __init__(
         self,
@@ -297,7 +295,6 @@ class ISYEntity(Entity):
             unique_id if unique_id is not None else f"{uuid}_{address}"
         )
         self._attrs: dict[str, Any] = {}
-        self._unsubscribers: list[Callable[[], None]] = []
 
     def _node_address(self) -> str:
         """Address used for unique-id + event dispatch.
@@ -313,16 +310,10 @@ class ISYEntity(Entity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to events for this node via the central registry."""
         events = self._isy_data.controller_events
-        self._unsubscribers.append(
+        self.async_on_remove(
             events.subscribe_node(self._node_address(), None, self._on_node_event)
         )
-        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Unsubscribe from node events."""
-        for unsub in self._unsubscribers:
-            unsub()
-        self._unsubscribers.clear()
+        self.async_on_remove(events.subscribe_ws_status(self._on_ws_status))
 
     @property
     def available(self) -> bool:
@@ -576,13 +567,13 @@ class ISYNodeEntity(ISYEntity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to control + lifecycle + WS status."""
         events = self._isy_data.controller_events
-        self._unsubscribers.append(
+        self.async_on_remove(
             events.subscribe_node(
                 self._node.address, self._control, self._on_node_event
             )
         )
-        self._unsubscribers.append(events.subscribe_lifecycle(self._on_lifecycle))
-        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
+        self.async_on_remove(events.subscribe_lifecycle(self._on_lifecycle))
+        self.async_on_remove(events.subscribe_ws_status(self._on_ws_status))
 
     @callback
     def _on_lifecycle(self, event: NodeLifecycleEvent) -> None:
@@ -741,10 +732,10 @@ class ISYProgramEntity(ISYEntity):
         """
         program: Program = self._node  # type: ignore[assignment]
         events = self._isy_data.controller_events
-        self._unsubscribers.append(
+        self.async_on_remove(
             events.subscribe_program(program.address, self._on_program_status)
         )
-        self._unsubscribers.append(events.subscribe_ws_status(self._on_ws_status))
+        self.async_on_remove(events.subscribe_ws_status(self._on_ws_status))
 
     @callback
     def _on_program_status(self, event: object) -> None:
