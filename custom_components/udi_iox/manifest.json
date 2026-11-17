@@ -20,12 +20,12 @@
   "issue_tracker": "https://github.com/shbatm/hacs-udi-iox/issues",
   "loggers": ["pyisyox"],
   "quality_scale": "bronze",
-  "requirements": ["pyisyox==6.0.0"],
+  "requirements": ["pyisyox==6.0.2"],
   "ssdp": [
     {
       "deviceType": "urn:udi-com:device:X_IoX_Device:1",
       "manufacturer": "Universal Devices"
     }
   ],
-  "version": "2026.7.1"
+  "version": "2026.11.0"
 }
