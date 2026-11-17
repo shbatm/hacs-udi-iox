@@ -879,18 +879,13 @@ def test_node_server_children_get_own_device_info(isy_data, options, controller)
     assert isy_data.devices["n100_blind1"]["identifiers"] == {
         (DOMAIN, f"{uuid}_n100_blind1")
     }
-    # Children's via_device anchors on the controller node, not the
-    # eisy root — gives HA the hub → child hierarchy.
-    assert isy_data.devices["n100_blind1"]["via_device"] == (
-        DOMAIN,
-        f"{uuid}_n100_controller",
-    )
-    assert isy_data.devices["n100_blind2"]["via_device"] == (
-        DOMAIN,
-        f"{uuid}_n100_controller",
-    )
-    # Controller still anchors on the eisy root.
-    assert isy_data.devices["n100_controller"]["via_device"] == (DOMAIN, uuid)
+    # Children hang off the controller node, not the eisy root — gives HA
+    # the hub → child hierarchy. The controller itself hangs off the root.
+    assert isy_data.device_parents == {
+        "n100_blind1": "n100_controller",
+        "n100_blind2": "n100_controller",
+    }
+    assert all("via_device" not in info for info in isy_data.devices.values())
 
 
 def test_node_server_controller_no_comms_error_sensor(isy_data, options, controller):

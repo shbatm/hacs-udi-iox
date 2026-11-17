@@ -146,7 +146,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: IsyConfigEntry) -> bool:
             controller, host, name="Network Resources", unique_id=CONF_NETWORK
         )
 
-    _async_get_or_create_isy_device_in_registry(hass, entry, controller, host)
+    hub = _async_get_or_create_isy_device_in_registry(hass, entry, controller, host)
+    _async_link_parent_devices(hass, entry, isy_data, hub.id)
 
     # Platform setup runs each entity's async_added_to_hass synchronously
     # via async_forward_entry_setups, and entities subscribe through
@@ -178,11 +179,35 @@ def _controller_label(controller: Controller, host: str) -> str:
 
 
 @callback
+def _async_link_parent_devices(
+    hass: HomeAssistant, entry: IsyConfigEntry, isy_data: IsyData, hub_id: str
+) -> None:
+    """Set ``via_device_id`` on every device's :class:`DeviceInfo`.
+
+    ``via_device_id`` takes a registry id, so a parent device is
+    registered here before the child's entities create the child.
+    A parent missing from ``isy_data.devices`` (e.g. an ignored
+    controller node) falls back to the hub.
+    """
+    registry = dr.async_get(hass)
+    for key, info in isy_data.devices.items():
+        parent_info = isy_data.devices.get(isy_data.device_parents.get(key, ""))
+        if parent_info is None:
+            info["via_device_id"] = hub_id
+            continue
+        parent_info["via_device_id"] = hub_id
+        parent = registry.async_get_or_create(
+            config_entry_id=entry.entry_id, **parent_info
+        )
+        info["via_device_id"] = parent.id
+
+
+@callback
 def _async_get_or_create_isy_device_in_registry(
     hass: HomeAssistant, entry: IsyConfigEntry, controller: Controller, host: str
-) -> None:
+) -> dr.DeviceEntry:
     device_registry = dr.async_get(hass)
-    device_registry.async_get_or_create(
+    return device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, controller.config.uuid)},
         manufacturer=MANUFACTURER,
@@ -207,7 +232,6 @@ def _create_service_device_info(
         name=f"{_controller_label(controller, host)} {name}",
         sw_version=controller.config.version,
         configuration_url=host,
-        via_device=(DOMAIN, controller.config.uuid),
         entry_type=DeviceEntryType.SERVICE,
     )
 

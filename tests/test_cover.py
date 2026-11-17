@@ -24,7 +24,7 @@ from pyisyox.testing import (
     make_cover_load_result,
     make_plugin_cover_node_record,
 )
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     SnapshotAssertion,
     snapshot_platform,

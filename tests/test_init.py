@@ -10,6 +10,7 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_USERNAME,
     EVENT_HOMEASSISTANT_STOP,
+    Platform,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
@@ -18,7 +19,7 @@ from pyisyox import (
     ISYInvalidAuthError,
 )
 from pyisyox.exceptions import ISYResponseParseError
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.udi_iox import async_setup_entry
 from custom_components.udi_iox.const import DOMAIN
@@ -148,3 +149,59 @@ async def test_enable_programs_false_gates_legacy_and_device_programs(
     data = entry.runtime_data
     assert data.program_devices == []
     assert all(progs == [] for progs in data.programs.values())
+
+
+async def test_link_parent_devices(hass: HomeAssistant) -> None:
+    """Plugin children link to their controller's registry device, everything
+    else to the hub; a parent missing from ``devices`` falls back to the hub."""
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers.device_registry import DeviceInfo
+
+    from custom_components.udi_iox import _async_link_parent_devices
+    from custom_components.udi_iox.models import IsyData
+
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    registry = dr.async_get(hass)
+    hub = registry.async_get_or_create(
+        config_entry_id=entry.entry_id, identifiers={(DOMAIN, "uuid")}
+    )
+
+    isy_data = IsyData()
+    isy_data.devices = {
+        key: DeviceInfo(identifiers={(DOMAIN, f"uuid_{key}")}, name=key)
+        for key in ("controller", "child", "orphan", "program_1")
+    }
+    isy_data.device_parents = {"child": "controller", "orphan": "ignored"}
+
+    _async_link_parent_devices(hass, entry, isy_data, hub.id)
+
+    controller = registry.async_get_device_by_identifier(
+        (DOMAIN, "uuid_controller"), entry.entry_id
+    )
+    assert controller is not None
+    assert controller.via_device_id == hub.id
+    devices = isy_data.devices
+    assert devices["controller"]["via_device_id"] == hub.id
+    assert devices["child"]["via_device_id"] == controller.id
+    assert devices["orphan"]["via_device_id"] == hub.id
+    assert devices["program_1"]["via_device_id"] == hub.id
+
+
+@pytest.mark.parametrize("platforms", [[Platform.LIGHT, Platform.SWITCH]])
+async def test_setup_links_devices_to_hub(
+    hass: HomeAssistant, init_integration: MockConfigEntry
+) -> None:
+    """After setup every non-hub device links to the eisy hub."""
+    from homeassistant.helpers import device_registry as dr
+
+    registry = dr.async_get(hass)
+    devices = dr.async_entries_for_config_entry(registry, init_integration.entry_id)
+    uuid = init_integration.runtime_data.root.config.uuid
+    hub = registry.async_get_device_by_identifier(
+        (DOMAIN, uuid), init_integration.entry_id
+    )
+    assert hub is not None
+    children = [d for d in devices if d.id != hub.id]
+    assert children
+    assert all(d.via_device_id == hub.id for d in children)

@@ -42,7 +42,7 @@ def populated_registry(hass: HomeAssistant) -> er.EntityRegistry:
 
 def _fake_entry(hass: HomeAssistant, entry_id: str):
     """Register a real ConfigEntry so the registry accepts our entries."""
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from pytest_homeassistant.common import MockConfigEntry
 
     entry = MockConfigEntry(domain=DOMAIN, entry_id=entry_id)
     entry.add_to_hass(hass)

@@ -25,7 +25,7 @@ from pyisyox.testing import (
     make_controller,
     make_load_result,
 )
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
+from pytest_homeassistant.common import async_fire_time_changed
 
 from custom_components.udi_iox.const import DOMAIN
 from custom_components.udi_iox.controller_events import IsyControllerEvents

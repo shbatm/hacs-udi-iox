@@ -15,7 +15,7 @@ from pyisyox.testing import (
     make_load_result,
     make_node_record,
 )
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     SnapshotAssertion,
     snapshot_platform,
@@ -633,7 +633,7 @@ async def test_heartbeat_timer_cancels_previous_and_fires_after_25h(
     from datetime import timedelta
 
     from homeassistant.util import dt as dt_util
-    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+    from pytest_homeassistant.common import async_fire_time_changed
 
     main = make_node_record("AA AA AA 1", "Sensor", type_="16.1.1.0")
     sub = make_node_record(

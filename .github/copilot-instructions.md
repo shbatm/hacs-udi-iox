@@ -20,7 +20,7 @@ This file gives concise, actionable guidance for AI coding agents working in the
 - When adding new Home Assistant services, define them in `services.yaml` and register in `async_setup_services` (see `services.py`).
 
 **Testing & developer workflows (how to run/debug)**
-- Tests use `pytest` + `pytest_homeassistant_custom_component`. Root tests folder: [tests/](../tests/). Global fixtures are in [tests/conftest.py](../tests/conftest.py).
+- Tests use `pytest` + `pytest_homeassistant` (Home Assistant core's test package). Root tests folder: [tests/](../tests/). Global fixtures are in [tests/conftest.py](../tests/conftest.py).
 - Run tests from repository root: `pytest -q` (or simply `pytest`). Mock network/ISY behavior by patching `pyisyox.ISY.initialize` or other `pyisyox` objects. Example pattern: patch `pyisyox.ISY` methods in tests to avoid network calls.
 - Devcontainer: both this repo and `pyisyox` include DevContainer instructions in their READMEs. For co-development mount `pyisyox` locally and `pip install -e /workspaces/PyISY` (or `pyisyox`) inside the container.
 - Formatting & linters: `black`, `isort`, `ruff`, and `pylint` are configured (see `pyproject.toml`). Use `pre-commit run --all-files` to check hooks.

@@ -5,7 +5,7 @@ This devcontainer is configured to let maintainers run the integration's tests a
 Quick steps after opening the repository in the Dev Container:
 
 1. The container build will run the setup script automatically (via `postCreateCommand`).
-   - The script uses the venv at `/opt/venv` (prebuilt during image build) and installs a pre-release of `homeassistant` from PyPI (including testing extras).
+   - The script uses the venv at `/opt/venv` (prebuilt during image build) and installs `pytest-homeassistant` from PyPI, which brings the matching `homeassistant` release and test toolchain.
    - Wheels are cached in `.wheels/` and the pip cache in `.cache/pip/` so subsequent rebuilds are fast.
    - If `pyisyox` is available at `../pyisyox`, it will be installed in editable mode automatically, and its `requirements-dev.txt` (ruff, mypy, pylint, pre-commit, codespell) is installed into `/opt/venv` so the toolchain matches the host.
    - The integration's runtime requirements (read from `custom_components/udi_iox/manifest.json` via `jq`) are then installed.
@@ -45,10 +45,10 @@ If `pyisyox` is not available, the setup script falls back to installing the ver
 Notes and troubleshooting
 --------------------------
 - If the container build fails due to missing system dependencies while building wheels (cryptography, etc.), rebuild the container after adding the required package to `.devcontainer/Dockerfile` (for example `libssl-dev` and `cargo` are already included).
-- To pin a specific Home Assistant version, edit `.devcontainer/scripts/setup_ha_test_env.sh` and replace the `pip install --pre "homeassistant[tests]"` line with a pinned version, for example:
+- To pin a specific Home Assistant version, edit `HA_SPEC` in `.devcontainer/scripts/setup_ha_test_env.sh`. `pytest-homeassistant` releases match Home Assistant releases one-to-one, for example:
 
 ```bash
-python -m pip install --pre 'homeassistant[tests]==2026.5.0'
+HA_SPEC="pytest-homeassistant==2026.11.2"
 ```
 
 VS Code Tasks

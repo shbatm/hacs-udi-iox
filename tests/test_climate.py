@@ -6,7 +6,7 @@ import pytest
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     SnapshotAssertion,
     snapshot_platform,
@@ -204,15 +204,15 @@ async def test_climate_reads_basic_state(hass) -> None:
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     entity.hass = hass
 
-    assert entity.temperature_unit == UnitOfTemperature.FAHRENHEIT
+    assert entity.native_temperature_unit == UnitOfTemperature.FAHRENHEIT
     assert entity.hvac_mode == HVACMode.HEAT
     assert entity.hvac_action == HVACAction.HEATING
     assert entity.current_humidity == 45
     assert entity.fan_mode == FAN_AUTO
-    assert entity.target_temperature_high == 78.0  # 780 with precision 1
-    assert entity.target_temperature_low == 68.0
-    assert entity.target_temperature == 68.0  # heat mode → low setpoint
-    assert entity.current_temperature == 72.0
+    assert entity.native_target_temperature_high == 78.0  # 780 with precision 1
+    assert entity.native_target_temperature_low == 68.0
+    assert entity.native_target_temperature == 68.0  # heat mode → low setpoint
+    assert entity.native_current_temperature == 72.0
 
 
 async def test_climate_unknown_states_fallback(hass) -> None:
@@ -250,9 +250,9 @@ async def test_climate_unknown_states_fallback(hass) -> None:
     assert entity.hvac_mode == HVACMode.OFF
     assert entity.hvac_action is None
     assert entity.current_humidity is None
-    assert entity.target_temperature_high is None
-    assert entity.target_temperature_low is None
-    assert entity.target_temperature is None
+    assert entity.native_target_temperature_high is None
+    assert entity.native_target_temperature_low is None
+    assert entity.native_target_temperature is None
     assert entity.fan_mode == FAN_OFF
 
 
@@ -275,7 +275,7 @@ async def test_climate_temperature_unit_celsius(hass) -> None:
     isy_data = isy_data_for(controller)
     entity = ISYThermostatEntity(isy_data, node, device_info=None)
     entity.hass = hass
-    assert entity.temperature_unit == UnitOfTemperature.CELSIUS
+    assert entity.native_temperature_unit == UnitOfTemperature.CELSIUS
 
 
 @pytest.mark.parametrize(
@@ -370,4 +370,4 @@ async def test_climate_empty_string_properties_fallback(hass) -> None:
     assert entity.hvac_mode == HVACMode.OFF
     assert entity.hvac_action is None
     assert entity.current_humidity is None
-    assert entity.target_temperature_high is None
+    assert entity.native_target_temperature_high is None

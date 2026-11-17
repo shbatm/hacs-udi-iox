@@ -62,14 +62,13 @@ def _resolve_isy_data(hass: HomeAssistant, device_id: str) -> IsyData | None:
     device = dr.async_get(hass).async_get(device_id)
     if device is None:
         return None
-    for entry_id in device.config_entries:
-        entry = hass.config_entries.async_get_entry(entry_id)
-        if (
-            entry is not None
-            and entry.domain == DOMAIN
-            and entry.state is ConfigEntryState.LOADED
-        ):
-            return cast("IsyData", entry.runtime_data)
+    entry = hass.config_entries.async_get_entry(device.config_entry_id)
+    if (
+        entry is not None
+        and entry.domain == DOMAIN
+        and entry.state is ConfigEntryState.LOADED
+    ):
+        return cast("IsyData", entry.runtime_data)
     return None
 
 

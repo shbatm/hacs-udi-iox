@@ -113,7 +113,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         self._uom = status.uom if status is not None else ""
 
     @property
-    def temperature_unit(self) -> str:
+    def native_temperature_unit(self) -> str:
         """Return the unit of measurement."""
         if not (uom := self._node.properties.get(PROP_UOM)):
             return self.hass.config.units.temperature_unit
@@ -158,7 +158,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         return cast(HVACAction, UOM_TO_STATES[UOM_HVAC_ACTIONS].get(action))
 
     @property
-    def current_temperature(self) -> float | None:
+    def native_current_temperature(self) -> float | None:
         """Return the current temperature."""
         status = self._node.status
         precision = status.precision if status is not None else 0
@@ -167,16 +167,16 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         )
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
         if self.hvac_mode == HVACMode.COOL:
-            return self.target_temperature_high
+            return self.native_target_temperature_high
         if self.hvac_mode == HVACMode.HEAT:
-            return self.target_temperature_low
+            return self.native_target_temperature_low
         return None
 
     @property
-    def target_temperature_high(self) -> float | None:
+    def native_target_temperature_high(self) -> float | None:
         """Return the highbound target temperature we try to reach."""
         target = self._node.properties.get(PROP_SETPOINT_COOL)
         if not target:
@@ -184,7 +184,7 @@ class ISYThermostatEntity(ISYNodeEntity, ClimateEntity):
         return convert_isy_value_to_hass(target.value, target.uom, target.precision, 1)
 
     @property
-    def target_temperature_low(self) -> float | None:
+    def native_target_temperature_low(self) -> float | None:
         """Return the lowbound target temperature we try to reach."""
         target = self._node.properties.get(PROP_SETPOINT_HEAT)
         if not target:
