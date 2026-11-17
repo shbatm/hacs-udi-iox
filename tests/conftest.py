@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from custom_components.udi_iox.models import IsyData
 
 # Compatibility shims for older Home Assistant versions installed alongside
-# ``pytest_homeassistant_custom_component``. ``service_info.{dhcp,ssdp}`` were
+# ``pytest_homeassistant``. ``service_info.{dhcp,ssdp}`` were
 # carved out of ``homeassistant.components.{dhcp,ssdp}`` in mid-2025; HA
 # releases that predate the split don't expose those submodules. Stub them
 # only when missing so installs that already ship the real modules keep
@@ -55,10 +55,10 @@ from pyisyox.testing import (  # noqa: E402
     make_program_record,
     make_variable_record,
 )
-from pytest_homeassistant_custom_component.common import (  # noqa: E402
+from pytest_homeassistant.common import (  # noqa: E402
     MockConfigEntry,
 )
-from pytest_homeassistant_custom_component.syrupy import (  # noqa: E402
+from pytest_homeassistant.syrupy import (  # noqa: E402
     HomeAssistantSnapshotExtension,
 )
 from syrupy.assertion import SnapshotAssertion  # noqa: E402
@@ -70,7 +70,7 @@ from custom_components.udi_iox.const import (  # noqa: E402
     DOMAIN,
 )
 
-pytest_plugins = "pytest_homeassistant_custom_component"
+pytest_plugins = "pytest_homeassistant"
 
 
 @pytest.fixture(autouse=True)
@@ -353,7 +353,7 @@ def entity_registry_enabled_by_default():
     """Force-enable entities that the integration registers as disabled-by-default.
 
     Mirrors HA Core's ``tests.components.conftest`` fixture; the older
-    ``pytest_homeassistant_custom_component`` shipped here doesn't expose
+    ``pytest_homeassistant`` shipped here doesn't expose
     it, but ``snapshot_platform`` requires every entity to be enabled.
     """
     with patch(

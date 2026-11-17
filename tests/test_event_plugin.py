@@ -23,7 +23,7 @@ from pyisyox.testing import (
     make_plugin_trigger_node_record,
     make_trigger_plugin_load_result,
 )
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     SnapshotAssertion,
     snapshot_platform,

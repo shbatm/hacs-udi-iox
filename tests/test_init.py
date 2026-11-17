@@ -18,7 +18,7 @@ from pyisyox import (
     ISYInvalidAuthError,
 )
 from pyisyox.exceptions import ISYResponseParseError
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.udi_iox import async_setup_entry
 from custom_components.udi_iox.const import DOMAIN

@@ -20,7 +20,7 @@ from pyisyox.testing import (
     make_hub_plugin_load_result,
     make_plugin_hub_node_record,
 )
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     SnapshotAssertion,
     snapshot_platform,

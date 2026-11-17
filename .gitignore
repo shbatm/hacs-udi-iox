@@ -109,3 +109,6 @@ venv.bak/
 .cache/
 .ruff_cache/
 .claude/
+
+# Written by the pytest-homeassistant hass fixture during test runs
+tests/testing_config/

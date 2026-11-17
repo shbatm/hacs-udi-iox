@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 import pytest
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     SnapshotAssertion,
 )
@@ -201,7 +201,8 @@ async def test_async_get_device_diagnostics_returns_matched_nodes(
     # registry round-trip — only the identifiers.
     node_address = next(iter(controller.nodes))
     fake = dr.DeviceEntry(  # type: ignore[call-arg]
-        identifiers={(DOMAIN, f"{uuid}_{node_address}")}
+        config_entry_id=init_integration.entry_id,
+        identifiers={(DOMAIN, f"{uuid}_{node_address}")},
     )
     payload = await async_get_device_diagnostics(hass, init_integration, fake)
     assert payload["matched_addresses"] == [node_address]
@@ -219,7 +220,9 @@ async def test_async_get_device_diagnostics_handles_unknown_device(
 
     from custom_components.udi_iox.diagnostics import async_get_device_diagnostics
 
-    fake_device = dr.DeviceEntry(identifiers=set())  # type: ignore[call-arg]
+    fake_device = dr.DeviceEntry(  # type: ignore[call-arg]
+        config_entry_id=init_integration.entry_id, identifiers=set()
+    )
     payload = await async_get_device_diagnostics(hass, init_integration, fake_device)
     assert payload["nodes"] == []
     assert payload["matched_addresses"] == []

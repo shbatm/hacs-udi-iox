@@ -68,16 +68,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip "setuptools>=70.0" wheel
-          # Mirror .devcontainer/scripts/setup_ha_test_env.sh: HA test
-          # extras (pulls pytest-homeassistant-custom-component-compatible
-          # HA + helpers), the integration's runtime deps, and the test
-          # toolchain. ``--pre`` tracks the same HA pre-release the
-          # devcontainer / snapshots were generated against.
-          python -m pip install --pre --prefer-binary "homeassistant[tests]>=2026.4"
+          # Mirror .devcontainer/scripts/setup_ha_test_env.sh. Core's
+          # pytest-homeassistant pins the matching homeassistant + pytest
+          # toolchain; the floor tracks hacs.json "homeassistant".
+          python -m pip install --prefer-binary "pytest-homeassistant>=2026.11.0" \
+            pytest-timeout
           python -m pip install -r requirements.txt
-          python -m pip install -U pytest pytest-asyncio pytest-timeout \
-            pytest-homeassistant-custom-component
       - name: Run pytest
         # --timeout caps a hung async fixture / stray network call so the
         # job fails fast instead of spinning to the runner limit.
-        run: python -m pytest tests/ -q --no-cov --timeout=60
+        run: python -m pytest tests/ -q --timeout=60

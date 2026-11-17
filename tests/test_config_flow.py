@@ -21,7 +21,7 @@ from homeassistant.const import (
     CONF_VERIFY_SSL,
 )
 from homeassistant.helpers.service_info import ssdp
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.udi_iox.config_flow import UDN_UUID_PREFIX
 from custom_components.udi_iox.const import DOMAIN

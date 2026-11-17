@@ -22,24 +22,24 @@ VENV_PYTHON="${VENV}/bin/python"
 echo "Updating pip, setuptools, and wheel..."
 ${VENV_PYTHON} -m pip install -U pip "setuptools>=70.0" wheel
 
-# Minimum HA version. Floor is 2026.4: the scene-member group display
-# uses HA's Entity.group framework (homeassistant.helpers.group), which
-# landed in core 6ac0c163aa5 (#160860, "Improve group entities"), first
-# released in 2026.4.0. Keep in sync with hacs.json "homeassistant" +
+# Minimum HA version. Floor is 2026.11: the climate entity uses the
+# native_* temperature properties and devices link to their parent via
+# via_device_id. Core's pytest-homeassistant pins the matching
+# homeassistant release. Keep in sync with hacs.json "homeassistant" +
 # the CI test job.
-HA_SPEC="homeassistant[tests]>=2026.4"
+HA_SPEC="pytest-homeassistant>=2026.11.0"
 
 echo "Building/pulling wheelhouse for Home Assistant (may take a while first run)..."
 set +e
-${VENV_PYTHON} -m pip wheel --wheel-dir "${WHEEL_DIR}" --pre "${HA_SPEC}" || true
+${VENV_PYTHON} -m pip wheel --wheel-dir "${WHEEL_DIR}" "${HA_SPEC}" || true
 set -e
 
 if [ -n "$(ls -A "${WHEEL_DIR}" 2>/dev/null)" ]; then
     echo "Installing Home Assistant from wheelhouse..."
-    ${VENV_PYTHON} -m pip install --no-index --find-links "${WHEEL_DIR}" --pre "${HA_SPEC}"
+    ${VENV_PYTHON} -m pip install --no-index --find-links "${WHEEL_DIR}" "${HA_SPEC}"
 else
     echo "Installing Home Assistant from PyPI (this may compile wheels)..."
-    ${VENV_PYTHON} -m pip install --pre --prefer-binary "${HA_SPEC}"
+    ${VENV_PYTHON} -m pip install --prefer-binary "${HA_SPEC}"
 fi
 
 # Install pyisyox from local workspace if available
@@ -70,8 +70,10 @@ if command -v jq >/dev/null 2>&1; then
     done
 fi
 
-echo "Ensuring pytest and Home Assistant test dependencies..."
-${VENV_PYTHON} -m pip install -U pytest pytest-asyncio pytest-homeassistant-custom-component
+# pyisyox's dev requirements may have pulled newer pytest/pytest-asyncio
+# than pytest-homeassistant pins; reinstall its exact pins last.
+echo "Re-pinning Home Assistant test dependencies..."
+${VENV_PYTHON} -m pip install "${HA_SPEC}" pytest-timeout
 
 echo "Setup complete."
 echo "To activate the venv in terminal, run: source ${VENV}/bin/activate"
