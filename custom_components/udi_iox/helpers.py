@@ -26,6 +26,7 @@ from pyisyox.constants import (
     CMD_BEEP,
     PROP_BUSY,
     PROP_COMMS_ERROR,
+    PROP_STATUS,
     TAG_ENABLED,
     Protocol,
 )
@@ -289,6 +290,9 @@ def _dedupe_device_aux(isy_data: IsyData) -> None:
     identical entities. Dedup per ``(HA-device, control)``: own-device
     node wins, else the first sub-node — so a sub-node-only control (i3
     ``*Flags`` ``GVx``) still surfaces once, attributed to that sub-node.
+    An ``ST`` sensor is per node, so it is never collapsed (whatever is
+    left after ``_drop_redundant_status_sensors`` is each node's only
+    status reading).
     """
     for platform, items in isy_data.aux_properties.items():
         kept: dict[tuple[str, str], tuple[Node, str]] = {}
@@ -296,6 +300,7 @@ def _dedupe_device_aux(isy_data: IsyData) -> None:
             device = (
                 node.address
                 if _has_own_device(node)
+                or (platform == Platform.SENSOR and control == PROP_STATUS)
                 else (node.primary_address or node.address)
             )
             key = (device, control)
@@ -305,6 +310,33 @@ def _dedupe_device_aux(isy_data: IsyData) -> None:
             ):
                 kept[key] = (node, control)
         isy_data.aux_properties[platform] = list(kept.values())
+
+
+def _drop_redundant_status_sensors(isy_data: IsyData) -> None:
+    """Drop ``ST`` aux sensors for nodes whose status is already shown.
+
+    ``classify`` keeps ``ST`` as an aux control whenever no controllable
+    platform owns it. That is right for nodes where ``ST`` is the only
+    reading (an IMETER_SOLO-style root, a plugin node with no controllable
+    surface), so this is a per-node check, not a blanket ``ST`` skip.
+    The sensor is dropped when the node already has a primary entity (a
+    leak/motion ``binary_sensor``, …) or is a native trigger node on the
+    EVENT platform, whose ``ST`` only echoes the last command sent and is
+    carried as ``button_status`` (#85, #101). Plugin event nodes keep it:
+    their ``ST`` is a real reading. Sensor platform only — binary_sensor
+    aux ``ST`` entities have always registered and are left alone (#110).
+    """
+    shown: set[str] = {
+        node.address
+        for platform, nodes in isy_data.nodes.items()
+        for node in nodes
+        if platform != Platform.EVENT or node.protocol != Protocol.NODE_SERVER
+    }
+    isy_data.aux_properties[Platform.SENSOR] = [
+        (node, control)
+        for node, control in isy_data.aux_properties[Platform.SENSOR]
+        if control != PROP_STATUS or node.address not in shown
+    ]
 
 
 def _suggested_area_for_node(controller: Controller, node: Node) -> str | None:
@@ -590,6 +622,7 @@ def _categorize_nodes(
         ):
             _register_event_node(isy_data, node, _node_trigger_commands(node))
 
+    _drop_redundant_status_sensors(isy_data)
     # Collapse per-device aux duplicates (see ``_dedupe_device_aux``).
     _dedupe_device_aux(isy_data)
 

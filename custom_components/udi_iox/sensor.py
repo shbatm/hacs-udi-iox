@@ -55,7 +55,9 @@ from .program_device import (
     ISYProgramDeviceEntity,
 )
 
-# Disable general purpose and redundant sensors by default
+# Disable general purpose and redundant aux sensors by default. ``ST``
+# isn't listed: an aux ``ST`` sensor is only created when no other
+# entity shows the node's status (``_drop_redundant_status_sensors``).
 AUX_DISABLED_BY_DEFAULT_MATCH = ["DO"]
 AUX_DISABLED_BY_DEFAULT_EXACT = {
     PROP_COMMS_ERROR,
@@ -63,7 +65,6 @@ AUX_DISABLED_BY_DEFAULT_EXACT = {
     PROP_HEAT_COOL_STATE,
     PROP_ON_LEVEL,
     PROP_RAMP_RATE,
-    PROP_STATUS,
 }
 
 PROP_CURRENT_POWER = "CPW"
@@ -203,9 +204,15 @@ async def async_setup_entry(
     entities: list[ISYSensorEntity] = []
     devices: dict[str, DeviceInfo] = isy_data.devices
 
-    entity_list: list[tuple[Node, str]] = [
-        *[(node, PROP_STATUS) for node in isy_data.nodes[Platform.SENSOR]],
-        *isy_data.aux_properties[Platform.SENSOR],
+    # (node, control, is_aux): primary sensor nodes keep the bare
+    # ``{uuid}_{address}`` unique id; aux entries (``ST`` included) use
+    # ``{uuid}_{address}_{control}``, matching ``IsyData.unique_ids``.
+    entity_list: list[tuple[Node, str, bool]] = [
+        *[(node, PROP_STATUS, False) for node in isy_data.nodes[Platform.SENSOR]],
+        *[
+            (node, control, True)
+            for node, control in isy_data.aux_properties[Platform.SENSOR]
+        ],
     ]
 
     def get_native_uom(
@@ -243,7 +250,7 @@ async def async_setup_entry(
             return (hass.config.units.temperature_unit, None, False)
         return (UOM_FRIENDLY_NAME.get(uom), None, False)
 
-    for node, control in entity_list:
+    for node, control, is_aux in entity_list:
         _LOGGER.debug("Loading %s %s", node.name, COMMAND_FRIENDLY_NAME.get(control))
         enabled_default = control not in AUX_DISABLED_BY_DEFAULT_EXACT and not any(
             control.startswith(match) for match in AUX_DISABLED_BY_DEFAULT_MATCH
@@ -303,9 +310,7 @@ async def async_setup_entry(
             node=node,
             control=control,
             description=description,
-            unique_id=f"{isy_data.uid_base(node)}_{control}"
-            if control != PROP_STATUS
-            else None,
+            unique_id=f"{isy_data.uid_base(node)}_{control}" if is_aux else None,
             device_info=_resolve_device_info(devices, node),
             options_dict=options_dict,
         )

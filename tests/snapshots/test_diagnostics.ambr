@@ -18853,7 +18853,7 @@
         'button': 21,
         'number': 2,
         'select': 3,
-        'sensor': 6,
+        'sensor': 5,
         'switch': 5,
       }),
       'event_triggers': 1,
