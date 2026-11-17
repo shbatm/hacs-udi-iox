@@ -84,8 +84,7 @@ def program_device_info(
 ) -> DeviceInfo:
     """Build the per-program :class:`DeviceInfo`.
 
-    Anchored under the controller hub via ``via_device`` so HA renders
-    it under the eisy in the device tree.
+    Linked under the eisy hub by ``__init__._async_link_parent_devices``.
     """
     uuid = controller.config.uuid
     return DeviceInfo(
@@ -93,7 +92,6 @@ def program_device_info(
         manufacturer=MANUFACTURER,
         model="IoX Program",
         name=program.name,
-        via_device=(DOMAIN, uuid),
         configuration_url=host,
         suggested_area=_suggested_area_for_program(controller, program),
     )

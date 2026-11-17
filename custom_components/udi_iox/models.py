@@ -69,6 +69,9 @@ class IsyData:
     programs: dict[Platform, list[tuple[str, Program, Program | None]]]
     net_resources: list[NetworkResource]
     devices: dict[str, DeviceInfo]
+    # ``devices`` key -> ``devices`` key of its parent device (plugin
+    # child -> controller node). Devices not listed hang off the eisy hub.
+    device_parents: dict[str, str]
     aux_properties: dict[Platform, list[tuple[Node, str]]]
     # Per-EVENT-node trigger vocabulary: node address -> the wire command
     # ids the node emits (native Insteon press/fast/fade verbs, or a PG3
@@ -102,6 +105,7 @@ class IsyData:
         self.variables = {p: [] for p in VARIABLE_PLATFORMS}
         self.net_resources = []
         self.devices = {}
+        self.device_parents = {}
         self.node_triggers = {}
         self.program_devices = []
         self.sensor_string = ""

@@ -327,6 +327,18 @@ def _suggested_area_for_node(controller: Controller, node: Node) -> str | None:
     return None
 
 
+def _device_parent_address(node: Node) -> str | None:
+    """Address of the node whose device is this node's parent, if any.
+
+    Node-server plugin children hang off their controller node so HA
+    renders the hub→sensor hierarchy (eisy → FlumeWater controller →
+    Flume Sensor 7061…). ``None`` means the eisy hub is the parent.
+    """
+    if node.protocol == Protocol.NODE_SERVER:
+        return node.primary_address
+    return None
+
+
 def _generate_device_info(
     controller: Controller, node: Node, host: str, sensor_string: str = ""
 ) -> DeviceInfo:
@@ -336,10 +348,9 @@ def _generate_device_info(
     (:func:`_pnode_group_naming`) — ``"… Leak"`` for a leak sensor whose
     primary node is ``"… Leak.Dry"`` — not the primary's raw label.
 
-    For node-server plugin children (``primary_address`` set + protocol
-    is ``NODE_SERVER``), anchor ``via_device`` on the controller node
-    instead of the eisy root so HA renders the hub→sensor hierarchy
-    (eisy → FlumeWater controller → Flume Sensor 7061…).
+    The parent link (``via_device_id``) is set later, once registry ids
+    exist; see :func:`_device_parent_address` and
+    ``__init__._async_link_parent_devices``.
     """
     uuid = controller.config.uuid
 
@@ -348,15 +359,10 @@ def _generate_device_info(
     manufacturer = (
         node.protocol.replace("_", " ").title() if node.protocol else "Unknown"
     )
-    if node.protocol == Protocol.NODE_SERVER and node.primary_address is not None:
-        via_device = (DOMAIN, f"{uuid}_{node.primary_address}")
-    else:
-        via_device = (DOMAIN, uuid)
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"{uuid}_{node.address}")},
         manufacturer=manufacturer,
         name=_pnode_group_naming(controller.nodes, node, sensor_string)[0],
-        via_device=via_device,
         configuration_url=host,
         suggested_area=_suggested_area_for_node(controller, node),
     )
@@ -427,6 +433,8 @@ def _categorize_nodes(
             isy_data.devices[node.address] = _generate_device_info(
                 controller, node, host, sensor_identifier
             )
+            if (parent := _device_parent_address(node)) is not None:
+                isy_data.device_parents[node.address] = parent
 
         # Classifier output drives the controllable platform (plugins),
         # the readings (plugins), and the accept-command aux entities
